@@ -1,8 +1,11 @@
 package decaf;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.InputStream;
+import java6035.tools.CLI.CLI;
+
 import antlr.Token;
-import java6035.tools.CLI.*;
+import antlr.TokenStreamRecognitionException;
 
 class Main {
     public static void main(String[] args) {
@@ -30,6 +33,19 @@ class Main {
 		        			{
 		        			case DecafScannerTokenTypes.ID:
 		        				type = " IDENTIFIER";
+		        				break;
+		        			case DecafScannerTokenTypes.INT_LITERAL:
+		        				type = " INTLITERAL";
+		        				break;
+		        			case DecafScannerTokenTypes.CHAR_LITERAL:
+		        				type = " CHARLITERAL";
+		        				break;
+		        			case DecafScannerTokenTypes.STRING_LITERAL:
+		        				type = " STRINGLITERAL";
+		        				break;
+		        			case DecafScannerTokenTypes.TK_true:
+		        			case DecafScannerTokenTypes.TK_false:
+		        				type = " BOOLEANLITERAL";
 		        				break;
 		        			}
 		        			System.out.println (token.getLine() + type + " " + text);
