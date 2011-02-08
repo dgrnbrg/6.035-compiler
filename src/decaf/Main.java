@@ -83,7 +83,7 @@ class Main {
 		if (node != null && node.getText() != null
 				&& !node.getText().equals("null")) {
 			System.out.printf("%s [label=\"%s\"];\n", String.valueOf(node
-					.hashCode()), node.getText());
+					.hashCode()), node.getText() + (node.getType() == DecafParserTokenTypes.METHOD_CALL ? "()" : ""));
 			String sp = parent != null ? String.valueOf(parent.hashCode())
 					: "root";
 			System.out.printf("%s -> %s;\n", sp, String
