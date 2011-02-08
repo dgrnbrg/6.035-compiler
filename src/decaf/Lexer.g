@@ -22,6 +22,7 @@ tokens
   "continue";
   "else";
   "false";
+  "Program";
   "for";
   "if";
   "int";
@@ -69,15 +70,22 @@ STRING_LITERAL options { paraphrase = "a string literal"; } :
 ID options { paraphrase = "an identifier"; testLiterals = true; } : 
   ALPHA (ALPHA_NUM)*;
 
-ARITH_OP : ( {LA(2) != '='}? ('+' | '-') | '*' | '/' | '%');
+PLUS_OP : '+';
+MINUS_OP : '-';
+MUL_DIV_OP : ('*' | '/' | '%');
 
 REL_OP : ('<' | '>' | "<=" | ">=");
 
-EQ_OP : ( {LA(2) == '='}? "==" | "!=");
+EQ_OP : ("==" | "!=");
 
-COND_OP : ("&&" | "||");
+NOT_OP : '!';
 
-ASSIGN_OP : ( {LA(2) != '='}? '=' | {LA(2) == '='}? ("+=" | "-="));
+COND_AND : "&&";
+COND_OR : "||";
+
+MODIFY_ASSIGN_OP : ("+=" | "-=");
+
+PLAIN_ASSIGN_OP : '=';
 
 protected CHAR : (' '..'!' | '#'..'&' | '('..'[' | ']'..'~' | ESC_COMMON);
 
