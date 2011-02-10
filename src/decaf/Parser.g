@@ -16,7 +16,7 @@ options
 }
 
 tokens {
-  PROGRAM; //everything under this node\
+  PROGRAM; //everything under this node
   
   METHOD_DECL; //one decl per method
   VAR_DECL; //each arg has type and ID under this

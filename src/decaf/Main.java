@@ -8,7 +8,7 @@ import antlr.RecognitionException;
 import antlr.Token;
 import antlr.collections.AST;
 
-class Main {
+public class Main {
 	public static void main(String[] args) {
 		try {
 			CLI.parse(args, new String[0]);

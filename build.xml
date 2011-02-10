@@ -11,6 +11,12 @@
   <property name="lib"     location="lib"     />
   <!-- Binaries for tools, etc. -->
   <property name="bin"     location="bin"     />
+  <!-- One jar support -->
+  <property name="one-jar.dist.dir" value="lib"/>
+  <import file="one-jar-ant-task.xml" />
+  <taskdef name="groovyc"
+         classname="org.codehaus.groovy.ant.Groovyc"
+         classpath="/usr/share/groovy/lib/groovy-1.6.4.jar"/>
   
   <!-- We rely on ANTLR 2.7.7  -->
   
@@ -36,6 +42,9 @@
     <fileset dir="${lib}">
       <include name="**/*.jar" />
       <include name="**/*.zip" />
+    </fileset>
+    <fileset dir="/usr/share/groovy/lib">
+      <include name="**/*.jar" />
     </fileset>
     <pathelement path="${java.class.path}" />
   </path>
@@ -76,19 +85,26 @@
   </target>
 
   <target name="compile" depends="parser">
-    <javac srcdir="${java}:${src}" destdir="${classes}" debug="on">
+    <groovyc srcdir="${java}:${src}" destdir="${classes}">
       <classpath refid="libraries"/>
-    </javac>
+      <javac debug="on" />
+    </groovyc>
   </target>
 
   <target name="jar" depends="compile">
-    <jar jarfile="${dist}/Compiler.jar" basedir="${classes}">
+    <one-jar destfile="${dist}/Compiler.jar">
      <manifest>
-       <attribute name="Main-Class" value="decaf.Main" />
+       <attribute name="One-Jar-Main-Class" value="decaf.GroovyMain" />
        <!-- ANTLR runtime is needed for parsing! -->
        <attribute name="Class-Path" value="antlr.jar" />
      </manifest>
-    </jar>
+     <main>
+       <fileset dir="${classes}" includes="**/**.class" />
+     </main>
+     <lib>
+       <fileset dir="${lib}" includes="**/*.jar" />
+     </lib>
+    </one-jar>
     <!-- Third party libraries can only be found by java -jar if they reside in the same dir -->
     <copy todir="${dist}">
 	<fileset dir="${lib}" includes="**/**.jar"/>
