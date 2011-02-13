@@ -105,6 +105,7 @@
        <fileset dir="${lib}" includes="**/*.jar" />
      </lib>
     </one-jar>
+    <jar destfile="${dist}/compiler-classes.jar" basedir="classes" />
     <!-- Third party libraries can only be found by java -jar if they reside in the same dir -->
     <copy todir="${dist}">
 	<fileset dir="${lib}" includes="**/**.jar"/>

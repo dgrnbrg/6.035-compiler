@@ -45,9 +45,10 @@ field_vars: field_var (COMMA! field_var)*;
 field_var: (ID 
            | (! name:ID LSQUARE i:INT_LITERAL RSQUARE) {#field_var = #([ARRAY_DECL,#name.getText()],i);});
 
-//TODO: add return type to parse tree
-method_decl!: (type | TK_void) name:ID LPAREN (args:method_arg_decls)? RPAREN block:block
-              {#method_decl = #([METHOD_DECL,name.getText()],args,block);};
+method_decl! {AST returnType;}:
+    (t:type | v:TK_void) {returnType = #t != null ? #t : #v;}
+    name:ID LPAREN (args:method_arg_decls)? RPAREN block:block
+      {#method_decl = #([METHOD_DECL,name.getText()],returnType,args,block);};
 
 method_arg_decls: method_arg_decl (COMMA! method_arg_decl)*;
 method_arg_decl!: t:type id:ID {#method_arg_decl = #([VAR_DECL,t_AST.getText()],id);};
@@ -98,7 +99,6 @@ add_sub_expr_dash: plus_minus_op mul_div_expr add_sub_expr_dash | /* empty */;
 mul_div_expr!: a:unary_expr b:mul_div_expr_dash {#mul_div_expr = #b != null ? #([FLAT_EXPR,"mul div expr"],a,b) : #a;};
 mul_div_expr_dash: MUL_DIV_OP unary_expr mul_div_expr_dash | /* empty */;
 
-//TODO: confirm this is a sane change
 unary_expr: NOT_OP^ unary_expr | MINUS_OP^ unary_expr | precedence_expr;
 //logical_not_expr: NOT_OP^ logical_not_expr | unary_minus_expr;
 //unary_minus_expr: MINUS_OP^ unary_minus_expr | precedence_expr;
