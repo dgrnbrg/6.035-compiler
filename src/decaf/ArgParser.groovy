@@ -1,13 +1,13 @@
 package decaf
 import groovytools.builder.*
 
-public class JavaArgParser {
+public class ArgParser {
   public static final int ARGS_UNLIMITED = -1;
   MetaBuilder mb = new MetaBuilder()
   def argStruct
   def results = [other: []]
 
-  public JavaArgParser() {
+  public ArgParser() {
     mb.define {
       program {
         collections {
@@ -27,7 +27,7 @@ public class JavaArgParser {
         options {
           o(count: 1)
           target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly'])
-          opt(count: ARGS_UNLIMITED, restrict: ['-?unroll'])
+          opt(count: -1, restrict: ['-?unroll'])
           debug(count: 0)
         }
       }
@@ -35,8 +35,8 @@ public class JavaArgParser {
     argStruct = tmp['options'][0]
   }
 
-  def getTmp() {
-    return tmp
+  def getAt(String x) {
+    return results[x]
   }
 
   def parse(args) {
@@ -88,8 +88,9 @@ public class JavaArgParser {
   }
 
   public static void main(args) {
-    def p = new JavaArgParser()
+    def p = new ArgParser()
     p.parse(['-o','tmp.decaf','-opt','unroll','-unroll','blah','-target','inter','foo','-debug'])
     println p.results
+    println p['o']
   }
 }
