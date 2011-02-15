@@ -1,4 +1,4 @@
-<project name="Compiler" default="jar" basedir=".">
+<project name="Compiler" default="run" basedir=".">
   <!-- Manually generated java files -->
   <property name="src"     location="src"     />
   <!-- Auto-generated java files -->
@@ -17,6 +17,8 @@
   <taskdef name="groovyc"
          classname="org.codehaus.groovy.ant.Groovyc"
          classpath="/usr/share/groovy/lib/groovy-1.6.4.jar"/>
+  <!-- the main class -->
+  <property name="mainclass" value="decaf.GroovyMain" />
   
   <!-- We rely on ANTLR 2.7.7  -->
   
@@ -91,10 +93,10 @@
     </groovyc>
   </target>
 
-  <target name="jar" depends="compile">
+  <target name="dist" depends="compile">
     <one-jar destfile="${dist}/Compiler.jar">
      <manifest>
-       <attribute name="One-Jar-Main-Class" value="decaf.GroovyMain" />
+       <attribute name="One-Jar-Main-Class" value="${mainclass}" />
        <!-- ANTLR runtime is needed for parsing! -->
        <attribute name="Class-Path" value="antlr.jar" />
      </manifest>
@@ -110,6 +112,20 @@
     <copy todir="${dist}">
 	<fileset dir="${lib}" includes="**/**.jar"/>
     </copy>
+  </target>
+
+  <property file="execute.properties"/>
+
+  <target name="run" depends="compile">
+    <java classname="${mainclass}" fork="true">
+      <classpath>
+        <pathelement path="${classes}"/>
+        <fileset dir="${lib}" includes="**/*.jar" />
+      </classpath>
+      <arg value="${Compiler.decafFile}"/>
+      <arg value="-target" />
+      <arg value="${Compiler.target}"/>
+    </java>
   </target>
   
  <!-- to clean, delete everything in the java, classes, and dist
