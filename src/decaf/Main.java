@@ -46,8 +46,18 @@ public class Main {
 								type = " BOOLEANLITERAL";
 								break;
 							}
-							System.out.println(token.getLine() + type + " "
-									+ text);
+							System.out.print(token.getLine() + type + " ");
+							switch (token.getType()) {
+							case DecafScannerTokenTypes.CHAR_LITERAL:
+								System.out.println("'"+text+"'");
+								break;
+							case DecafScannerTokenTypes.STRING_LITERAL:
+								System.out.println("\""+text+"\"");
+								break;
+							default:
+								System.out.println(text);
+								break;
+							}
 						}
 						done = true;
 					} catch (Exception e) {

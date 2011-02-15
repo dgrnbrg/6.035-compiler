@@ -62,10 +62,10 @@ INT_LITERAL options { paraphrase = "an int literal"; } :
   DECIMAL_LITERAL | HEX_LITERAL;
 
 CHAR_LITERAL options { paraphrase = "a char literal"; } :
-  '\'' CHAR '\'';
+  '\''! CHAR '\''!;
  
 STRING_LITERAL options { paraphrase = "a string literal"; } :
-  '"' (CHAR)* '"';
+  '"'! (CHAR)* '"'!;
 
 ID options { paraphrase = "an identifier"; testLiterals = true; } : 
   ALPHA (ALPHA_NUM)*;
