@@ -39,7 +39,7 @@ public class ArgParser {
     return results[x]
   }
 
-  def parse(args) {
+  def parse(List args) {
     def chomp = {
       if (args == []) {
         throw new RuntimeException("unexpected end of argument list")
@@ -56,14 +56,14 @@ public class ArgParser {
       }
       def schema = argStruct[argString.substring(1)][0]
       if (schema == null) {
-        throw new RuntimeException("unknown argument $argString")
+        throw new RuntimeException("unknown argument \"$argString\"")
       }
       //get an attribute with @attr
       def argCount = schema['@count']
       if (argCount == ARGS_UNLIMITED) {
         results[schema.name()] = []
         if (schema['@restrict'] == null) {
-          throw new RuntimeException("no restricted set of keywords set for argument $argString")
+          throw new RuntimeException("no restricted set of keywords set for argument \"$argString\"")
         }
         while (schema['@restrict'].any{args[0] ==~ it}) {
           results[schema.name()] << chomp()
@@ -73,7 +73,7 @@ public class ArgParser {
       //finite number of args
       def checkRestrict = { arg ->
         if (schema['@restrict'] && !schema['@restrict'].any{arg ==~ it})
-          throw new RuntimeException("cannot pass $arg to $argString")
+          throw new RuntimeException("cannot pass \"$arg\" to \"$argString\"")
         return arg
       }
       if (argCount == 1) {
@@ -89,7 +89,8 @@ public class ArgParser {
 
   public static void main(args) {
     def p = new ArgParser()
-    p.parse(['-o','tmp.decaf','-opt','unroll','-unroll','blah','-target','inter','foo','-debug'])
+//    p.parse(['-o','tmp.decaf','-opt','unroll','-unroll','blah','-target','inter','foo','-debug'])
+    p.parse(['legal-04','-target','parser'])
     println p.results
     println p['o']
   }
