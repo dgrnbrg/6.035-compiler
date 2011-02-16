@@ -45,7 +45,7 @@ public class ArgParser {
         throw new RuntimeException("unexpected end of argument list")
       }
       def tmp = args[0]
-      args = args.size != 1 ? args[1 .. args.size-1] : []
+      args = args.size() != 1 ? args[1 .. args.size()-1] : []
       return tmp
     }
     while (args != []) {
