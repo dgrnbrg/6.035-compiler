@@ -1,6 +1,5 @@
 package decaf
 import antlr.*
-import antlr.collections.AST
 import groovy.util.*
 import org.apache.commons.cli.*
 import static decaf.DecafScannerTokenTypes.*
@@ -49,25 +48,23 @@ public class GroovyMain {
         def lexer = new DecafScanner(new File(file).newDataInputStream())
         def parser = new DecafParser(lexer)
         parser.program()
-        //println 'digraph g {'
-        //graphviz(null, parser.getAST())
-        //println '}'
+        def ast = new AST(parser.getAST())
+
+        println 'digraph g {'
+        ast.inOrderWalk { cur, parent ->
+          println "${cur.hashCode()} [label=\"${cur.getText()}\"]"
+          if (parent) {
+            println "${parent.hashCode()} -> ${cur.hashCode()}"
+          }
+        }
+        println '}'
+
       } catch (RecognitionException e) {
         e.printStackTrace()
         System.exit(1)
       }
     }
 //    println "${tokenLookup}"
-  }
-  static def graphviz(parent, node) {
-    if (node && node.getText() != null && node.getText() != 'null') {
-      println "${node.hashCode()} [label=\"${node.getText()}\"]"
-      println "${parent ? parent.hashCode() : 'root'} -> ${node.hashCode()}"
-      graphviz(parent, node.getNextSibling())
-      if (node.getNumberOfChildren() != 0) {
-        graphviz(node, node.getFirstChild())
-      }
-    }
   }
 }
 
