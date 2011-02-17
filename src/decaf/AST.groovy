@@ -36,7 +36,7 @@ class AST {
 
   //Override the constructor to return values from the cache
   static {
-    AST.metaClass.constructor << { AntlrAST ast ->
+    AST.metaClass.constructor = { AntlrAST ast ->
       AST result = cache[ast]
       //create it if it doesn't exist
       if (result == null) {

@@ -16,7 +16,7 @@ public class GroovyMain {
     try {
       argparser.parse(args as List)
     } catch (e) {
-      println "$e"
+      System.err.println("$e")
       System.exit(1)
     }
     if (argparser['other'].size != 1) {
