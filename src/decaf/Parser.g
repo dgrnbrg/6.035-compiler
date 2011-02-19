@@ -104,7 +104,7 @@ unary_expr: NOT_OP^ unary_expr | MINUS_OP^ unary_expr | precedence_expr;
 //unary_minus_expr: MINUS_OP^ unary_minus_expr | precedence_expr;
 precedence_expr: LPAREN! expr RPAREN! | literal | location | method_call;
 
-literal: INT_LITERAL | CHAR_LITERAL | BOOL_LITERAL;
+literal: INT_LITERAL | CHAR_LITERAL | TK_false | TK_true;
 
 callout_arg: expr | STRING_LITERAL;
 
