@@ -16,9 +16,13 @@
   <import file="one-jar-ant-task.xml" />
   <taskdef name="groovyc"
          classname="org.codehaus.groovy.ant.Groovyc"
-         classpath="/usr/share/groovy/lib/groovy-1.6.4.jar"/>
+         classpath="${groovy-lib.dir}/groovy-1.6.4.jar"/>
   <!-- the main class -->
   <property name="mainclass" value="decaf.GroovyMain" />
+
+  <property file="execute.properties"/>
+  <property name="groovy-lib.dir" value="/usr/share/groovy/lib"/>
+
   
   <!-- We rely on ANTLR 2.7.7  -->
   
@@ -45,7 +49,7 @@
       <include name="**/*.jar" />
       <include name="**/*.zip" />
     </fileset>
-    <fileset dir="/usr/share/groovy/lib">
+    <fileset dir="${groovy-lib.dir}">
       <include name="**/*.jar" />
     </fileset>
     <pathelement path="${java.class.path}" />
@@ -113,8 +117,6 @@
 	<fileset dir="${lib}" includes="**/**.jar"/>
     </copy>
   </target>
-
-  <property file="execute.properties"/>
 
   <target name="run" depends="compile">
     <java classname="${mainclass}" fork="true">
