@@ -1,49 +1,47 @@
+package decaf
 import antlr.collections.AST as AntlrAST
 
 class AST {
   @Delegate AntlrAST antlrNode
-  def attributes = [:]
+  //root has null as parent
+  AST parent
   static def cache = [:]
-
-  def getProperty(String name) {
-    return attributes[name]
-  }
-
-  void setProperty(String name, value) {
-    attributes[name] = value
-  }
+  def walkerDelegate = new ImplicitWalkerDelegate()
 
   def eachChild(Closure c) {
     AntlrAST child = antlrNode.getFirstChild()
     while (child) {
-      c(new AST(child))
+      c(fromAntlrAST(child, this))
       child = child.getNextSibling()
     }
   }
 
-  //root has null as parent
   def inOrderWalk(Closure c) {
-    inOrderWalkPrivate(c, null)
-  }
-
-  private def inOrderWalkPrivate(Closure c, parent) {
-    c(this, parent)
-    parent = this
-    eachChild { AST child ->
-      child.inOrderWalkPrivate(c, parent)
+    walkerDelegate.walk = {->
+      eachChild { AST child ->
+        child.inOrderWalk(c)
+       }
     }
+    c.delegate = walkerDelegate
+    c(this)
   }
 
-  //Override the constructor to return values from the cache
-  static {
-    AST.metaClass.constructor = { AntlrAST ast ->
+  static def fromAntlrAST(AntlrAST ast, AST parent = null) {
       AST result = cache[ast]
       //create it if it doesn't exist
       if (result == null) {
-        result = new AST(antlrNode: ast)
+        result = new AST(antlrNode: ast, parent: parent)
+        result.walkerDelegate.declVar('parent', parent)
         cache[ast] = result
       }
       return result
+  }
+
+  //Override Antlr's AST so that you can do
+  //parser.getAST() as AST to get to this class
+  static {
+    AntlrAST.metaClass.asType = { Class type -> 
+      if (type == AST.class) return fromAntlrAST(delegate)
     }
   }
 }

@@ -48,17 +48,16 @@ public class GroovyMain {
         def lexer = new DecafScanner(new File(file).newDataInputStream())
         def parser = new DecafParser(lexer)
         parser.program()
-        def ast = new AST(parser.getAST())
-
+        def ast = parser.getAST() as AST
         println 'digraph g {'
-        ast.inOrderWalk { cur, parent ->
+        ast.inOrderWalk { cur ->
           println "${cur.hashCode()} [label=\"${cur.getText()}\"]"
-          if (parent) {
+          walk()
+          if (delegate.parent) {
             println "${parent.hashCode()} -> ${cur.hashCode()}"
           }
         }
         println '}'
-
       } catch (RecognitionException e) {
         e.printStackTrace()
         System.exit(1)
