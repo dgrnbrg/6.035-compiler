@@ -19,7 +19,7 @@ class AST {
   def inOrderWalk(Closure c) {
     walkerDelegate.walk = {->
       eachChild { AST child ->
-        child.inOrderWalk(c)
+        child.inOrderWalk(c.clone())
        }
     }
     c.delegate = walkerDelegate
