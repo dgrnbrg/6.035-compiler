@@ -1,12 +1,17 @@
 package decaf
 import antlr.collections.AST as AntlrAST
 
-class AST {
+class AST extends WalkableImpl {
+  static Map typeToName = {
+    def tmp = [:]
+    DecafParserTokenTypes.getFields().each{ tmp[it.getInt()] = it.name }
+    tmp
+  }()
+
   @Delegate AntlrAST antlrNode
   //root has null as parent
   AST parent
   static def cache = [:]
-  def walkerDelegate = new ImplicitWalkerDelegate()
 
   def eachChild(Closure c) {
     AntlrAST child = antlrNode.getFirstChild()
@@ -16,14 +21,10 @@ class AST {
     }
   }
 
-  def inOrderWalk(Closure c) {
-    walkerDelegate.walk = {->
-      eachChild { AST child ->
-        child.inOrderWalk(c.clone())
-       }
+  void howToWalk(Closure c) {
+    eachChild { AST child ->
+      child.inOrderWalk(c)
     }
-    c.delegate = walkerDelegate
-    c(this)
   }
 
   static def fromAntlrAST(AntlrAST ast, AST parent = null) {
@@ -35,6 +36,10 @@ class AST {
         cache[ast] = result
       }
       return result
+  }
+
+  String toString() {
+    "AST(${typeToName[getType()]}, \"${getText()})"
   }
 
   //Override Antlr's AST so that you can do

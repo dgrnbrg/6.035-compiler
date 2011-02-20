@@ -1,11 +1,9 @@
 package decaf
 
-interface Expr {
-  void inOrderWalk(Closure c);
+interface Expr extends Walkable {
 }
 
-interface Statement {
-  void inOrderWalk(Closure c);
+interface Statement extends Walkable {
 }
 
 enum BinOpType {
@@ -15,20 +13,15 @@ enum BinOpType {
   AND, OR, NOT
 }
 
-class BinOp implements Expr {
+class BinOp extends WalkableImpl implements Expr {
   BinOpType op
   Expr left
   Expr right
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = { ->
-      left.inOrderWalk(c.clone())
-      if (op != BinOpType.NOT)
-        right.inOrderWalk(c.clone())
-    }
-    c.delegate = iwd
-    c(this)
+  void howToWalk(Closure c) {
+    left.inOrderWalk(c)
+    if (op != BinOpType.NOT)
+      right.inOrderWalk(c)
   }
 
   public String toString() {
@@ -38,49 +31,44 @@ class BinOp implements Expr {
   }
 }
 
-class IntLiteral implements Expr {
+class IntLiteral extends WalkableImpl implements Expr {
   int value
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->}
-    c.delegate = iwd
-    c(this)
-  }
+  void howToWalk(Closure c) { }
   
   public String toString(){
     "IntLiteral($value)"
   }
 }
 
-class BooleanLiteral implements Expr {
+class BooleanLiteral extends WalkableImpl implements Expr {
   boolean value
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->}
-    c.delegate = iwd
-    c(this)
-  }
+  void howToWalk(Closure c) { }
   
   public String toString(){
     "BooleanLiteral($value)"
   }
 }
 
-class CallOut implements Expr, Statement {
+class StringLiteral extends WalkableImpl {
+  String value
+
+  void howToWalk(Closure c) {}
+
+  String toString() {
+    "StringLiteral($value)"
+  }
+}
+
+class CallOut extends WalkableImpl implements Expr, Statement {
   def name
   List params
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->
-      params.each {
-        it.inOrderWalk(c.clone())
-      }
+  void howToWalk(Closure c) {
+    params.each {
+      it.inOrderWalk(c)
     }
-    c.delegate = iwd
-    c(this)
   }
 
   public String toString() {
@@ -88,19 +76,14 @@ class CallOut implements Expr, Statement {
   }
 }
 
-class MethodCall implements Expr, Statement {
+class MethodCall extends WalkableImpl implements Expr, Statement {
   def descriptor
   List<Expr> params
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->
-      params.each {
-        it.inOrderWalk(c.clone())
-      }
+  void howToWalk(Closure c) {
+    params.each {
+      it.inOrderWalk(c)
     }
-    c.delegate = iwd
-    c(this)
   }
   
   public String toString(){
@@ -108,19 +91,14 @@ class MethodCall implements Expr, Statement {
   }
 }
 
-class Block implements Statement {
+class Block extends WalkableImpl implements Statement {
   def symbolTable
   List<Statement> statements
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->
-      statements.each { stmt ->
-        stmt.inOrderWalk(c.clone())
-      }
+  void howToWalk(Closure c) {
+    statements.each { stmt ->
+      stmt.inOrderWalk(c)
     }
-    c.delegate = iwd
-    c(this)
   }
   
   public String toString(){
@@ -128,19 +106,14 @@ class Block implements Statement {
   }
 }
 
-class Location implements Expr {
+class Location extends WalkableImpl implements Expr {
   def descriptor
   //if indexExpr is null then this is a scalar variable
   //if it's non-null, it is an array with an index offset
   Expr indexExpr
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->
-      indexExpr?.inOrderWalk(c.clone())
-    }
-    c.delegate = iwd
-    c(this)
+  void howToWalk(Closure c) {
+    indexExpr?.inOrderWalk(c)
   }
   
   public String toString(){
@@ -148,18 +121,13 @@ class Location implements Expr {
   }
 }
 
-class Assignment implements Statement {
+class Assignment extends WalkableImpl implements Statement {
   Location loc
   Expr expr
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->
-      loc.inOrderWalk(c.clone())
-      expr.inOrderWalk(c.clone())
-    }
-    c.delegate = iwd
-    c(this)
+  void howToWalk(Closure c) {
+    loc.inOrderWalk(c)
+    expr.inOrderWalk(c)
   }
   
   public String toString(){
@@ -167,65 +135,45 @@ class Assignment implements Statement {
   }
 }
 
-class Return implements Statement {
+class Return extends WalkableImpl implements Statement {
   Expr expr
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->
-      expr.inOrderWalk(c.clone())
-    }
-    c.delegate = iwd
-    c(this)
+  void howToWalk(Closure c) {
+    expr.inOrderWalk(c)
   }
-  
+
   public String toString(){
     "Return()"
   }
 }
 
-class Break implements Statement {
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
+class Break extends WalkableImpl implements Statement {
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->}
-    c.delegate = iwd
-    c(this)
-  }
+  void howToWalk(Closure c) {}
   
   public String toString(){
     "Break()"
   }
 }
 
-class Continue implements Statement {
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
+class Continue extends WalkableImpl implements Statement {
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->}
-    c.delegate = iwd
-    c(this)
-  }
-  
+  void howToWalk(Closure c) {}
+
   public String toString(){
     "Continue()"
   }
 }
 
-class IfThenElse implements Statement {
+class IfThenElse extends WalkableImpl implements Statement {
   Expr condition
   Block thenBlock
   Block elseBlock
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->
-      condition.inOrderWalk(c.clone())
-      thenBlock.inOrderWalk(c.clone())
-      elseBlock?.inOrderWalk(c.clone())
-    }
-    c.delegate = iwd
-    c(this)
+  void howToWalk(Closure c) {
+    condition.inOrderWalk(c)
+    thenBlock.inOrderWalk(c)
+    elseBlock?.inOrderWalk(c)
   }
 
   public String toString() {
@@ -233,24 +181,19 @@ class IfThenElse implements Statement {
   }
 }
 
-class ForLoop implements Statement {
+class ForLoop extends WalkableImpl implements Statement {
   Location index
   Expr low
   Expr high
   Block block
-  ImplicitWalkerDelegate iwd = new ImplicitWalkerDelegate()
 
-  void inOrderWalk(Closure c) {
-    iwd.walk = {->
-      //prevent idiocy
-      assert index.indexExpr == null
-      index.inOrderWalk(c.clone())
-      low.inOrderWalk(c.clone())
-      high.inOrderWalk(c.clone())
-      block.inOrderWalk(c.clone())
-    }
-    c.delegate = iwd
-    c(this)
+  void howToWalk(Closure c) {
+    //prevent idiocy
+    assert index.indexExpr == null
+    index.inOrderWalk(c)
+    low.inOrderWalk(c)
+    high.inOrderWalk(c)
+    block.inOrderWalk(c)
   }
 
   public String toString() {

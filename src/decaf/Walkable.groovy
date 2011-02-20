@@ -1,5 +1,26 @@
 package decaf
 
+interface Walkable {
+  void inOrderWalk(Closure c);
+}
+
+abstract class WalkableImpl implements Walkable {
+  ImplicitWalkerDelegate walkerDelegate = new ImplicitWalkerDelegate()
+
+  abstract void howToWalk(Closure c);
+
+  void inOrderWalk(Closure c) {
+    walkerDelegate.walk = this.&howToWalk.curry(c)
+    Closure c2 = c.clone()
+    c2.delegate = walkerDelegate
+    c2(this)
+  }
+
+  def propertyMissing(String propName) {
+    return walkerDelegate."$propName"
+  }
+}
+
 class ImplicitWalkerDelegate {
   Closure walk
   def properties = [:]

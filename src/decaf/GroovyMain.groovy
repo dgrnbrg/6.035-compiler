@@ -5,12 +5,6 @@ import org.apache.commons.cli.*
 import static decaf.DecafScannerTokenTypes.*
 
 public class GroovyMain {
-  static Map typeToName = {
-    def tmp = [:]
-    DecafParserTokenTypes.getFields().each{ tmp[it.getInt()] = it.name }
-    tmp
-  }()
-
   static Closure makeGraph(PrintStream out, root = null) {
     def parentStack = []
     if (root) parentStack << root
