@@ -11,7 +11,24 @@ public class GroovyMain {
     tmp
   }()
 
+  static Closure makeGraph(PrintStream out, root = null) {
+    def parentStack = []
+    if (root) parentStack << root
+    return { cur ->
+      out.println("${cur.hashCode()} [label=\"$cur\"]")
+      parentStack << cur
+      walk()
+      parentStack.pop()
+      if (parentStack)
+        out.println("${parentStack[-1].hashCode()} -> ${cur.hashCode()}")
+    }
+  }
+
   public static void main(String[] args) {
+    new GroovyMain(args)
+  }
+
+  GroovyMain(args) {
     def argparser = new ArgParser()
     try {
       argparser.parse(args as List)
@@ -46,48 +63,63 @@ public class GroovyMain {
     case 'parse':
     case 'antlrast':
     case 'hiir':
+      def out
       try {
         def lexer = new DecafScanner(new File(file).newDataInputStream())
         def parser = new DecafParser(lexer)
         parser.program()
         def ast = parser.getAST() as AST
 
-        if (argparser['target'] == 'antlrast') {
-          println 'digraph g {'
-          ast.inOrderWalk { cur ->
-            println "${cur.hashCode()} [label=\"${typeToName[cur.getType()]}= ${cur.getText()}\"]"
-            walk()
-            if (delegate.parent) {
-              println "${parent.hashCode()} -> ${cur.hashCode()}"
-            }
-          }
-          println '}'
+        def graphFile, extension = 'pdf'
+        if (argparser['o']) {
+          graphFile = argparser['o']
+          if (graphFile.contains('.'))
+            extension = graphFile.substring(graphFile.lastIndexOf('.') + 1, graphFile.length())
+        } else {
+          graphFile = file
+          if (graphFile.contains('.'))
+            graphFile = graphFile.substring(0, graphFile.lastIndexOf('.'))
+          graphFile = graphFile + '.' + argparser['target'] + '.' + extension
+          println "Writing output to $graphFile"
         }
+        assert graphFile
 
-        if (argparser['target'] == 'hiir') {
-          def hb = new HiIrBuilder();
-          ast.inOrderWalk(hb.c)
-          println 'digraph g {'
-          hb.methods.each {k, v ->
-            def parentStack = [k]
-            println "${k.hashCode()} [label=\"$k\"]"
-            v.inOrderWalk { cur ->
-              println "${cur.hashCode()} [label=\"$cur\"]"
-              parentStack << cur
-              walk()
-              parentStack.pop()
-              println "${parentStack[-1].hashCode()} -> ${cur.hashCode()}"
-            }
+        def dotCommand = "dot -T$extension -o $graphFile"
+        try {
+          Process dot = dotCommand.execute()
+          out = new PrintStream(dot.outputStream)
+          dot.consumeProcessErrorStream(System.err)
+
+          if (argparser['target'] == 'antlrast') {
+            out.println('digraph g {')
+            ast.inOrderWalk(makeGraph(out))
+            out.println('}')
           }
-          println '}'
+
+          if (argparser['target'] == 'hiir') {
+            def hb = new HiIrBuilder();
+            ast.inOrderWalk(hb.c)
+            out.println('digraph g {')
+            hb.methods.each {k, v ->
+              out.println("${k.hashCode()} [label=\"$k\"]")
+              v.inOrderWalk(makeGraph(out, k))
+            }
+            out.println '}'
+          }
+        } catch (IOException e) {
+          println "Dot command: $dotCommand"
+          println "Did you install graphviz?"
+          e.printStackTrace()
+          System.exit(1)
         }
       } catch (RecognitionException e) {
         e.printStackTrace()
         System.exit(1)
+      } finally {
+        out?.close()
       }
       break
     }
-//    println "${tokenLookup}"
   }
 }
 
