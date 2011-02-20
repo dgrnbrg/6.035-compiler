@@ -72,8 +72,9 @@ statement: a:assignment SEMICOLON! {#statement = #([STATEMENT,"assignment"],a);}
 
 assignment: l:location op:assign_op expr:expr;
 
-method_call!: (name:ID LPAREN (args:method_args)? RPAREN) {#method_call = #([METHOD_CALL,#name.getText()],args);}
-              | (TK_callout LPAREN STRING_LITERAL (COMMA callout_arg (COMMA callout_arg)*)? RPAREN);
+method_call: method_call_local | method_call_out;
+method_call_local!: (name:ID LPAREN (args:method_args)? RPAREN) {#method_call_local = #([METHOD_CALL,#name.getText()],args);};
+method_call_out: (TK_callout^ LPAREN! STRING_LITERAL (COMMA! callout_arg (COMMA! callout_arg)*)? RPAREN!);
 method_args: expr (COMMA! expr)*;
 
 location!: id:ID {#location = #([LOCATION,"loc: ID"],id);}

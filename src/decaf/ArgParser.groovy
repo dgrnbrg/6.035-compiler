@@ -26,7 +26,7 @@ public class ArgParser {
       program {
         options {
           o(count: 1)
-          target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly'])
+          target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly','hiir','antlrast'])
           opt(count: -1, restrict: ['-?unroll'])
           debug(count: 0)
         }

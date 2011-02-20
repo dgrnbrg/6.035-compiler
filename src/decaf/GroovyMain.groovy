@@ -5,7 +5,7 @@ import org.apache.commons.cli.*
 import static decaf.DecafScannerTokenTypes.*
 
 public class GroovyMain {
-  static Map tokenLookup = {
+  static Map typeToName = {
     def tmp = [:]
     DecafParserTokenTypes.getFields().each{ tmp[it.getInt()] = it.name }
     tmp
@@ -44,24 +44,48 @@ public class GroovyMain {
       }
       break;
     case 'parse':
+    case 'antlrast':
+    case 'hiir':
       try {
         def lexer = new DecafScanner(new File(file).newDataInputStream())
         def parser = new DecafParser(lexer)
         parser.program()
         def ast = parser.getAST() as AST
-        println 'digraph g {'
-        ast.inOrderWalk { cur ->
-          println "${cur.hashCode()} [label=\"${cur.getText()}\"]"
-          walk()
-          if (delegate.parent) {
-            println "${parent.hashCode()} -> ${cur.hashCode()}"
+
+        if (argparser['target'] == 'antlrast') {
+          println 'digraph g {'
+          ast.inOrderWalk { cur ->
+            println "${cur.hashCode()} [label=\"${typeToName[cur.getType()]}= ${cur.getText()}\"]"
+            walk()
+            if (delegate.parent) {
+              println "${parent.hashCode()} -> ${cur.hashCode()}"
+            }
           }
+          println '}'
         }
-        println '}'
+
+        if (argparser['target'] == 'hiir') {
+          def hb = new HiIrBuilder();
+          ast.inOrderWalk(hb.c)
+          println 'digraph g {'
+          hb.methods.each {k, v ->
+            def parentStack = [k]
+            println "${k.hashCode()} [label=\"$k\"]"
+            v.inOrderWalk { cur ->
+              println "${cur.hashCode()} [label=\"$cur\"]"
+              parentStack << cur
+              walk()
+              parentStack.pop()
+              println "${parentStack[-1].hashCode()} -> ${cur.hashCode()}"
+            }
+          }
+          println '}'
+        }
       } catch (RecognitionException e) {
         e.printStackTrace()
         System.exit(1)
       }
+      break
     }
 //    println "${tokenLookup}"
   }
