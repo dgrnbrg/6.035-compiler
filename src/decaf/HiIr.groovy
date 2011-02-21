@@ -1,5 +1,9 @@
 package decaf
 
+//satisfy groovyc ant task
+class HiIr {
+}
+
 interface Expr extends Walkable {
 }
 
