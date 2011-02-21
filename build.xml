@@ -19,7 +19,7 @@
   <import file="one-jar-ant-task.xml" />
   <taskdef name="groovyc"
          classname="org.codehaus.groovy.ant.Groovyc"
-         classpath="${groovy-lib.dir}/groovy-1.6.4.jar"/>
+         classpath="${groovy-lib.dir}/groovy-1.6.9.jar"/>
   <!-- the main class -->
   <property name="mainclass" value="decaf.GroovyMain" />
 
