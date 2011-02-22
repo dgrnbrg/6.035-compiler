@@ -101,6 +101,8 @@ public class GroovyMain {
           }
 
           if (argparser['target'] == 'hiir') {
+            def sb = new SymbolTableGenerator()
+            ast.inOrderWalk(sb.c)
             def hb = new HiIrBuilder();
             ast.inOrderWalk(hb.c)
             out.println('digraph g {')

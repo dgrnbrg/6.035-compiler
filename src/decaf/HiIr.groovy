@@ -81,7 +81,7 @@ class CallOut extends WalkableImpl implements Expr, Statement {
 }
 
 class MethodCall extends WalkableImpl implements Expr, Statement {
-  def descriptor
+  MethodDescriptor descriptor
   List<Expr> params
 
   void howToWalk(Closure c) {
@@ -111,7 +111,7 @@ class Block extends WalkableImpl implements Statement {
 }
 
 class Location extends WalkableImpl implements Expr {
-  def descriptor
+  VariableDescriptor descriptor
   //if indexExpr is null then this is a scalar variable
   //if it's non-null, it is an array with an index offset
   Expr indexExpr
@@ -190,6 +190,7 @@ class ForLoop extends WalkableImpl implements Statement {
   Expr low
   Expr high
   Block block
+  SymbolTable symbolTable
 
   void howToWalk(Closure c) {
     //prevent idiocy
