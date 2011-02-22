@@ -57,6 +57,7 @@ public class GroovyMain {
     case 'parse':
     case 'antlrast':
     case 'hiir':
+    case 'symtable':
       def out
       try {
         def lexer = new DecafScanner(new File(file).newDataInputStream())
@@ -90,7 +91,18 @@ public class GroovyMain {
             out.println('}')
           }
 
+          if (argparser['target'] == 'symtable') {
+            def sb = new SymbolTableGenerator()
+            ast.inOrderWalk(sb.c)
+            out.println('digraph g {')
+            ast.symTable.inOrderWalk(makeGraph(out))
+            ast.methodSymTable.inOrderWalk(makeGraph(out))
+            out.println('}')
+          }
+
           if (argparser['target'] == 'hiir') {
+            def sb = new SymbolTableGenerator()
+            ast.inOrderWalk(sb.c)
             def hb = new HiIrBuilder();
             ast.inOrderWalk(hb.c)
             out.println('digraph g {')

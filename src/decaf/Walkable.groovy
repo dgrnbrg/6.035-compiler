@@ -19,6 +19,10 @@ abstract class WalkableImpl implements Walkable {
   def propertyMissing(String propName) {
     return walkerDelegate."$propName"
   }
+
+  def propertyMissing(String propName, value) {
+    walkerDelegate."$propName" = value
+  }
 }
 
 class ImplicitWalkerDelegate {

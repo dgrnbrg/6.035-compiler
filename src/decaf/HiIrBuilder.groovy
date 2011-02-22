@@ -95,18 +95,15 @@ class HiIrBuilder {
 
     case LOCATION:
       assert children.size() == 1 || children.size() == 2
-      //TODO: get the location's descriptor
-      //probably like symtable[cur.getText()]
       parent.children << new Location(
-        descriptor: children[0],
+        descriptor: symTable[children[0]],
         indexExpr: children.size() == 2 ? children[1] : null
       )
       break
 
     case METHOD_CALL:
-      //TODO: fix descriptor
       parent.children << new MethodCall(
-        descriptor: cur.getText(),
+        descriptor: methodSymTable[cur.getText()],
         params: children as List<Expr>
       )
       break
@@ -121,9 +118,8 @@ class HiIrBuilder {
       break
 
     case BLOCK:
-      //todo: get symbolTable
       parent.children << new Block(
-        symbolTable: null,
+        symbolTable: symTable,
         statements: children as List<Statement>
       )
       break
@@ -171,10 +167,11 @@ class HiIrBuilder {
     case TK_for:
       assert children.size() == 4
       parent.children << new ForLoop(
-        index: new Location(descriptor: children[0]),
+        index: new Location(descriptor: symTable[children[0]]),
         low: children[1],
         high: children[2],
-        block: children[3]
+        block: children[3],
+        symbolTable: symTable
       )
       break
 

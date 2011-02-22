@@ -39,7 +39,7 @@ class AST extends WalkableImpl {
   }
 
   String toString() {
-    "AST(${typeToName[getType()]}, \"${getText()})"
+    "AST(${typeToName[getType()]}, \\\"${getText()}\\\")"
   }
 
   //Override Antlr's AST so that you can do
