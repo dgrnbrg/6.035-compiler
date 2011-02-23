@@ -2,6 +2,82 @@ package decaf.test
 import decaf.*
 
 class HiIrTest extends GroovyTestCase {
+  void testStatementWalkOrder() {
+    def callout = new CallOut(name:"TestCalloutFunction", params:[new IntLiteral(value:2)])
+    def ifCondition = new BooleanLiteral(value:true)
+    def ifThenBlock = new Block(statements:[new Return(expr:new IntLiteral(value:1))])
+    def ifElseBlock = new Block(statements:[callout, new Break()])
+    def ifStatement = new IfThenElse(condition:ifCondition, thenBlock:ifThenBlock, elseBlock:ifElseBlock)
+
+    def statementList = []
+
+    ifStatement.inOrderWalk{current ->
+      walk()
+      if(current instanceof BooleanLiteral){
+        assertEquals(true, current.value)
+      }
+      else if(current instanceof Statement && !(current instanceof Block)){
+        statementList << current
+      }
+    }
+    // Our test is meant to confirm the correct order of the tree walk
+    // Test: then block gets processed before else block
+    // Test: the statements present in a Block are processed from left to right (left being the start of the list)
+    assertTrue(statementList[0] instanceof Return)
+    assertTrue(statementList[1] instanceof CallOut)
+    assertTrue(statementList[2] instanceof Break)
+  }
+
+  void testIfThenElse() {
+    def ifCondition = new BooleanLiteral(value:true)
+    def ifThenBlock = new Block(statements:[new Return(expr:new IntLiteral(value:1))])
+    def ifElseBlock = new Block(statements:[new Break()])
+    def ifStatement = new IfThenElse(condition:ifCondition, thenBlock:ifThenBlock, elseBlock:ifElseBlock)
+
+    def statementList = []
+
+    ifStatement.inOrderWalk{current ->
+      walk()
+      if(current instanceof BooleanLiteral){
+        assertEquals(true, current.value)
+      }
+      else if(current instanceof Statement && !(current instanceof Block)){
+        statementList << current
+      }
+    }
+    // Our test is meant to confirm the correct order of the tree walk
+    // Test: then block gets processed before else block
+    assertTrue(statementList[0] instanceof Return)
+    assertTrue(statementList[1] instanceof Break)
+  }
+  void testBreak() {
+    def breakStatement = new Break()
+
+    breakStatement.inOrderWalk{ current ->
+      walk()
+      assertTrue(current instanceof Break)
+    }
+  }
+  void testContinue() {
+    def continueStatement = new Continue()
+
+    continueStatement.inOrderWalk{ current ->
+      walk()
+      assertTrue(current instanceof Continue)
+    }
+  }
+  void testReturn() {
+    def returnExpr = new IntLiteral(value:1)
+    def testReturn = new Return(expr:returnExpr)
+    def treeList = []
+
+    testReturn.inOrderWalk{ current->
+      walk()
+      treeList << current
+    }
+    assertTrue(treeList[0] instanceof IntLiteral)
+    assertTrue(treeList[1] instanceof Return)
+  }
   void testIntLiteral() {
     def i = new IntLiteral(value:9)
     def count = 0
