@@ -6,6 +6,7 @@ interface Walkable {
 
 abstract class WalkableImpl implements Walkable {
   ImplicitWalkerDelegate walkerDelegate = new ImplicitWalkerDelegate()
+  FileInfo fileInfo
 
   abstract void howToWalk(Closure c);
 

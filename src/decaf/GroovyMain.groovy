@@ -3,6 +3,7 @@ import antlr.*
 import groovy.util.*
 import org.apache.commons.cli.*
 import static decaf.DecafScannerTokenTypes.*
+import antlr.collections.AST as AntlrAST
 
 public class GroovyMain {
   static Closure makeGraph(PrintStream out, root = null) {
@@ -25,6 +26,7 @@ public class GroovyMain {
   def argparser
   def file
   def exitHooks = []
+  def errors = []
 
   GroovyMain(args) {
     argparser = new ArgParser()
@@ -39,8 +41,34 @@ public class GroovyMain {
       System.exit(1)
     }
     file = argparser['other'][0]
-    depends(this."${argparser['target']}")
-    exitHooks.each{ it() }
+
+    exitHooks << { ->
+      errors*.file = file
+      errors.each { println it }
+    }
+
+    int exitCode = 0
+    try {
+      depends(this."${argparser['target']}")
+    } catch (FatalException e) {
+      println e
+      exitCode = e.code
+    } catch (Exception e) {
+      def skipPrefixes = ['org.codehaus','sun.reflect','java.lang.reflect','groovy.lang.Meta']
+      def st = e.getStackTrace().findAll { traceElement ->
+        !skipPrefixes.any { prefix ->
+          traceElement.getClassName().startsWith(prefix)
+        }
+      }
+      println e
+      st.each {
+        def location = it.getFileName() != null ? "${it.getFileName()}:${it.getLineNumber()}" : 'Unknown'
+        println "  at ${it.getClassName()}.${it.getMethodName()}($location)"
+      }
+    } finally {
+      exitHooks.each{ it() }
+    }
+    System.exit(exitCode)
   }
 
   def completedTargets = []
@@ -82,8 +110,11 @@ public class GroovyMain {
     try {
       def lexer = new DecafScanner(new File(file).newDataInputStream())
       def parser = new DecafParser(lexer)
+      ASTFactory factory = new ASTFactory()
+      factory.setASTNodeClass(CommonASTWithLines.class)
+      parser.setASTFactory(factory)
       parser.program()
-      ast = parser.getAST() as AST
+      ast = AST.fromAntlrAST(parser.getAST())
     } catch (RecognitionException e) {
       e.printStackTrace()
       System.exit(1)
@@ -128,11 +159,14 @@ public class GroovyMain {
     dotOut.println('}')
   }
 
-  def symTableGenerator = new SymbolTableGenerator()
+  def symTableGenerator = new SymbolTableGenerator(errors: errors)
 
+  //todo: test that dot is closed even if symtable not generated
+  //ie test that the finally block in the entry point is executed when we system.exit
   def genSymTable = {->
     depends(parse)
     ast.inOrderWalk(symTableGenerator.c)
+    if (errors != []) throw new FatalException(code: 1)
   }
 
   def symtable = {->
@@ -161,6 +195,24 @@ public class GroovyMain {
     }
     dotOut.println '}'
   }
+
+  def inter = {->
+    depends(genHiIr)
+    def checker = new SemanticChecker(errors: errors)
+    hiirBuilder.methods.values().each { methodHiIr ->
+      assert methodHiIr != null
+      //ensure that all HiIr nodes have their fileInfo
+      methodHiIr.inOrderWalk{
+        assert it.fileInfo != null
+        walk()
+      }
+      checker.checks.each { check ->
+        assert check != null
+        methodHiIr.inOrderWalk(check)
+      }
+    }
+    if (errors != []) throw new FatalException(code: 1)
+  }
 }
 
 class LexerIterator {
@@ -180,5 +232,13 @@ class LexerIterator {
         onError(e, lexer)
       }
     }
+  }
+}
+
+class FatalException extends RuntimeException {
+  String msg = 'Encountered too many errors, giving up'
+  int code = 0
+  String toString() {
+    return msg
   }
 }

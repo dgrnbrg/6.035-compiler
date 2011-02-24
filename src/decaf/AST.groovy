@@ -33,6 +33,7 @@ class AST extends WalkableImpl {
       if (result == null) {
         result = new AST(antlrNode: ast, parent: parent)
         result.walkerDelegate.declVar('parent', parent)
+        result.fileInfo = new FileInfo(line: ast.line, col: ast.column)
         cache[ast] = result
       }
       return result

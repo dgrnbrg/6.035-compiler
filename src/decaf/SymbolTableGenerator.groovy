@@ -5,6 +5,8 @@ import decaf.SymbolTable
 
 public class SymbolTableGenerator {
 
+  def errors
+
   // This is the closure that is passed around
   Closure c = { AST cur -> 
 
@@ -33,8 +35,15 @@ public class SymbolTableGenerator {
     if (cur.getType() == ARRAY_DECL) declVar('arraySize')
     if (cur.getType() == VAR_DECL) declVar('vars',[])
     if (cur.getType() == METHOD_DECL) {
-      declVar('methodDesc', new MethodDescriptor(name:cur.getText()))
-      methodSymTable[cur.getText()] = methodDesc
+      declVar('methodDesc', new MethodDescriptor(name:cur.getText(), fileInfo: cur.fileInfo))
+      if (methodSymTable.map.containsKey(methodDesc.name)) {
+        errors << new CompilerError(
+          fileInfo: methodDesc.fileInfo,
+          message: "Encountered duplicate method declaration: $methodDesc.name"
+        )
+      } else {
+        methodSymTable[cur.getText()] = methodDesc
+      }
     }
 
     walk()
@@ -45,8 +54,15 @@ public class SymbolTableGenerator {
       def scalarType = cur.getText() == 'int' ? Type.INT : Type.BOOLEAN
       def arrayType = cur.getText() == 'int' ? Type.INT_ARRAY : Type.BOOLEAN_ARRAY
       vars.each { VariableDescriptor desc ->
-        desc.type = desc.arraySize != null ? arrayType : scalarType
-        symTable[desc.name] = desc
+        if (symTable.map.containsKey(desc.name)) {
+          errors << new CompilerError(
+            fileInfo: desc.fileInfo,
+            message: "Encountered duplicate variable declaration: $desc.name"
+          )
+        } else {
+          desc.type = desc.arraySize != null ? arrayType : scalarType
+          symTable[desc.name] = desc
+        }
       }
       if (parent.getType() == METHOD_DECL) {
         parent.methodDesc.params = vars
@@ -55,7 +71,7 @@ public class SymbolTableGenerator {
 
     case ID:
       if (parent.getType() == VAR_DECL) {
-        parent.vars << new VariableDescriptor(name: cur.getText())
+        parent.vars << new VariableDescriptor(name: cur.getText(), fileInfo: cur.fileInfo)
       } else if (parent.getType() == TK_for) {
         symTable[cur.getText()] =
           new VariableDescriptor(name: cur.getText(), type: Type.INT)

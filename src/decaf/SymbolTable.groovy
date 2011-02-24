@@ -41,6 +41,7 @@ public class VariableDescriptor {
   String name
   Type type
   def arraySize
+  FileInfo fileInfo
 
   String toString() {
     "$type $name" + (arraySize ? "[$arraySize]" : "")
@@ -52,6 +53,7 @@ public class MethodDescriptor {
   Type returnType
   Block block
   List<VariableDescriptor> params
+  FileInfo fileInfo
 
   String toString() {
     "$returnType $name($params)"

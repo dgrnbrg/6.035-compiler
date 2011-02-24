@@ -8,25 +8,25 @@ class HiIrBuilder {
     walk()
     switch (cur.getType()) {
     case TK_false:
-      parent.children << new BooleanLiteral(value: false)
+      parent.children << new BooleanLiteral(value: false, fileInfo: cur.fileInfo)
       break
 
     case TK_true:
-      parent.children << new BooleanLiteral(value: true)
+      parent.children << new BooleanLiteral(value: true, fileInfo: cur.fileInfo)
       break
 
     case INT_LITERAL:
-      parent.children << new IntLiteral(value: cur.getText() as int)
+      parent.children << new IntLiteral(value: cur.getText() as int, fileInfo: cur.fileInfo)
       break
 
     case CHAR_LITERAL:
       def charData = cur.getText()
       if (charData.length() == 1) {
-        parent.children << new IntLiteral(value: (int)charData[0])
+        parent.children << new IntLiteral(value: (int)charData[0], fileInfo: cur.fileInfo)
       } else {
         assert charData[0] == '\\'
         def escMap = ['"': '"', '\'': '\'', '\\': '\\', 't': '\t', 'n': '\n']
-        parent.children << new IntLiteral(value: escMap[charData[1]] as int)
+        parent.children << new IntLiteral(value: escMap[charData[1]] as int, fileInfo: cur.fileInfo)
       }
       break
 
@@ -69,7 +69,7 @@ class HiIrBuilder {
     case NOT_OP:
       assert children.size() == 1      
       parent.children <<
-        new BinOp(op:BinOpType.NOT, left:children[0])
+        new BinOp(op:BinOpType.NOT, left:children[0], fileInfo: cur.fileInfo)
       break
       
     case MINUS_OP:
@@ -78,7 +78,7 @@ class HiIrBuilder {
       } else {
         assert children.size() == 1
 	parent.children <<
-	  new BinOp(op:BinOpType.SUB, left:new IntLiteral(value:0), right:children[0])
+	  new BinOp(op:BinOpType.SUB, left:new IntLiteral(value:0), right:children[0], fileInfo: cur.fileInfo)
       }
       break
 
@@ -88,7 +88,7 @@ class HiIrBuilder {
         def left = children.remove(0)
         def op = children.remove(0)
         def right = children.remove(0)
-        children.add(0, new BinOp(op: op, left: left, right: right))
+        children.add(0, new BinOp(op: op, left: left, right: right, fileInfo: cur.fileInfo))
       }
       parent.children << children[0]
       break
@@ -97,14 +97,16 @@ class HiIrBuilder {
       assert children.size() == 1 || children.size() == 2
       parent.children << new Location(
         descriptor: symTable[children[0]],
-        indexExpr: children.size() == 2 ? children[1] : null
+        indexExpr: children.size() == 2 ? children[1] : null,
+        fileInfo: cur.fileInfo
       )
       break
 
     case METHOD_CALL:
       parent.children << new MethodCall(
         descriptor: methodSymTable[cur.getText()],
-        params: children as List<Expr>
+        params: children as List<Expr>,
+        fileInfo: cur.fileInfo
       )
       break
 
@@ -120,7 +122,8 @@ class HiIrBuilder {
     case BLOCK:
       parent.children << new Block(
         symbolTable: symTable,
-        statements: children as List<Statement>
+        statements: children as List<Statement>,
+        fileInfo: cur.fileInfo
       )
       break
 
@@ -138,10 +141,10 @@ class HiIrBuilder {
         Location lvalue = children[0]
         Expr rvalue = children[2]
         if (children[1] == '+=')
-          rvalue = new BinOp(op:BinOpType.ADD, right: lvalue, left: rvalue)
+          rvalue = new BinOp(op:BinOpType.ADD, right: lvalue, left: rvalue, fileInfo: cur.fileInfo)
         else if (children[1] == '-=')
-          rvalue = new BinOp(op:BinOpType.SUB, right: lvalue, left: rvalue)
-        parent.children << new Assignment(loc: lvalue, expr: rvalue)
+          rvalue = new BinOp(op:BinOpType.SUB, right: lvalue, left: rvalue, fileInfo: cur.fileInfo)
+        parent.children << new Assignment(loc: lvalue, expr: rvalue, fileInfo: cur.fileInfo)
         break
 
       case 'return':
@@ -149,7 +152,7 @@ class HiIrBuilder {
         def expr = null
         if (children.size() == 1)
           expr = children[0]
-        parent.children << new Return(expr: expr)
+        parent.children << new Return(expr: expr, fileInfo: cur.fileInfo)
         break
       }
       break
@@ -167,24 +170,25 @@ class HiIrBuilder {
     case TK_for:
       assert children.size() == 4
       parent.children << new ForLoop(
-        index: new Location(descriptor: symTable[children[0]]),
+        index: new Location(descriptor: symTable[children[0]], fileInfo: cur.fileInfo),
         low: children[1],
         high: children[2],
         block: children[3],
-        symbolTable: symTable
+        symbolTable: symTable,
+        fileInfo: cur.fileInfo
       )
       break
 
     case TK_break:
-      parent.children << new Break()
+      parent.children << new Break(fileInfo: cur.fileInfo)
       break
 
     case TK_continue:
-      parent.children << new Continue()
+      parent.children << new Continue(fileInfo: cur.fileInfo)
       break
 
     case STRING_LITERAL:
-      parent.children << new StringLiteral(value: cur.getText())
+      parent.children << new StringLiteral(value: cur.getText(), fileInfo: cur.fileInfo)
       break
 
     case TK_callout:
@@ -194,7 +198,8 @@ class HiIrBuilder {
       }
       parent.children << new CallOut(
         name: children[0],
-        params: children.subList(1, children.size())
+        params: children.subList(1, children.size()),
+        fileInfo: cur.fileInfo
       )
       break
 
