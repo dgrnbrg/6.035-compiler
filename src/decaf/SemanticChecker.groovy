@@ -110,9 +110,26 @@ class SemanticChecker {
       println current.descriptor
       println "printing parameters"
       println current.params
-      [current.descriptor.params, current.params].transpose().each{ a,b ->
-        println a
-        //println b.type
+      
+      def typeList = current.descriptor.params
+      def argList = current.params
+      // Ensure that the caller actually passed the correct number of parameters
+      if(typeList.size() != argList.size()){
+        errors << new CompilerError(
+          fileInfo: current.fileInfo,
+          message: "Encountered method call to ${current.descriptor.name} with different number of parameters than specified in function prototype"
+        )
+      }
+      // Ensure that the caller passed parameters of the correct type
+      [typeList,argList].transpose().each{ argDescriptor, argValue->
+        def argValueType = getExprType(argValue)
+        def argType = argDescriptor.type
+        if(argValueType != argType){
+          errors << new CompilerError(
+            fileInfo: current.fileInfo,
+            message: "Encountered method call to ${current.descriptor.name} with parameter of type ${argValueType}, which should be of type ${argType} instead."
+          )
+        }
       }
     }
     walk()
