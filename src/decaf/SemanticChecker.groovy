@@ -61,7 +61,7 @@ class SemanticChecker {
     walk()
 
     if (cur instanceof ForLoop) {
-      nestedForDepth++
+      nestedForDepth--
     }
   }
 
