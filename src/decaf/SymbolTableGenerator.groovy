@@ -35,7 +35,7 @@ public class SymbolTableGenerator {
     if (cur.getType() == ARRAY_DECL) declVar('arraySize')
     if (cur.getType() == VAR_DECL) declVar('vars',[])
     if (cur.getType() == METHOD_DECL) {
-      declVar('methodDesc', new MethodDescriptor(name:cur.getText(), fileInfo: cur.fileInfo))
+      declVar('methodDesc', new MethodDescriptor(name:cur.getText(), fileInfo: cur.fileInfo, params:[]))
       if (methodSymTable.map.containsKey(methodDesc.name)) {
         errors << new CompilerError(
           fileInfo: methodDesc.fileInfo,
@@ -65,12 +65,7 @@ public class SymbolTableGenerator {
         }
       }
       if (parent.getType() == METHOD_DECL) {
-        // parent.methodDesc.params = vars
-        if(parent.methodDesc.params == null){
-          parent.methodDesc.params = vars
-        } else {
           parent.methodDesc.params += vars
-        }
       }
       break
 
