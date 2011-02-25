@@ -7,13 +7,7 @@ import static decaf.BinOpType.*
 class SemanticChecker {
   def errors
 
-  // Need method to access symbol table
-  // Input: an expression
-  // Output: the type that it should evaluate to
-  // If the expression is found to be ill-typed, then we throw an exception
-
-  Closure getExprType = {expr -> 
-
+  static Type getExprType(Expr expr) {
     switch (expr) {
     case Location:
       def returnType = expr.descriptor.type;
