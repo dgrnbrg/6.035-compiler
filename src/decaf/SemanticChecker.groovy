@@ -14,7 +14,8 @@ class SemanticChecker {
 
   Closure getExprType = {expr -> 
 
-    if(expr instanceof Location) {
+    switch (expr) {
+    case Location:
       def returnType = expr.descriptor.type;
       
       if(expr.indexExpr == null) {
@@ -28,25 +29,25 @@ class SemanticChecker {
           throw new RuntimeException("Should run array semantic check first.");
         }
       }
-    } else if(expr instanceof BinOp) {
-      if([ADD, SUB, MUL, DIV, MOD].contains(expr.op)) {
+    case BinOp:
+      switch (expr.op) {
+      case [ADD, SUB, MUL, DIV, MOD]:
         return INT;
-      } else if ([LT, GT, LTE, GTE, EQ, NEQ, AND, OR, NOT].contains(expr.op)) { 
+      case [LT, GT, LTE, GTE, EQ, NEQ, AND, OR, NOT]:
         return BOOLEAN;
-      } else {
+      default:
         // should never reach this state
         assert(false);
       }
-    } else if(expr instanceof BooleanLiteral) {
+    case BooleanLiteral:
       return BOOLEAN;
-    } else if(expr instanceof IntLiteral) {
+    case IntLiteral:
+    case CallOut:
       return INT;
-    } else if(expr instanceof CallOut) {
-      return INT;
-    } else if(expr instanceof MethodCall) {
+    case MethodCall:
       return expr.descriptor.returnType;
-    } else {
-      assert(false);
+    default:
+      assert false;
     }
   }
 
