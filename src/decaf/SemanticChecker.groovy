@@ -105,11 +105,11 @@ class SemanticChecker {
    
   def methodCallArguments = {current ->
     if(current instanceof MethodCall){
-      println current
-      println "printing descriptor!"
-      println current.descriptor
-      println "printing parameters"
-      println current.params
+      // println current
+      // println "printing descriptor!"
+      // println current.descriptor
+      // println "printing parameters"
+      // println current.params
       
       def typeList = current.descriptor.params
       def argList = current.params
