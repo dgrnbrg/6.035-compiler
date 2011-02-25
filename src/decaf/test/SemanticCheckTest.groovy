@@ -91,8 +91,6 @@ class SemanticCheckTest extends GroovyTestCase {
       blah.inOrderWalk(badSemanticChecker.ifThenElseConditionCheck);
     }
 
-    badErrors.each { println it.message};
-
     assertEquals(numExpectedBadConds, badErrors.size());
     assertEquals(0, goodErrors.size());
   }

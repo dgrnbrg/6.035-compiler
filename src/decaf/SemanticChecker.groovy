@@ -33,7 +33,6 @@ class SemanticChecker {
       def rightType = getExprType(expr.right);
       
       if([ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].contains(expr.op)) {
-        println "Fell into binop of [ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE]"
         if(leftType == INT && rightType == INT) {
           if([ADD, SUB, MUL, DIV, MOD].contains(expr.op)) {
             return INT;
@@ -105,12 +104,6 @@ class SemanticChecker {
    
   def methodCallArguments = {current ->
     if(current instanceof MethodCall){
-      // println current
-      // println "printing descriptor!"
-      // println current.descriptor
-      // println "printing parameters"
-      // println current.params
-      
       def typeList = current.descriptor.params
       def argList = current.params
       // Ensure that the caller actually passed the correct number of parameters
@@ -159,12 +152,6 @@ class SemanticChecker {
   }
 
   def ifThenElseConditionCheck = {cur -> 
-    //println "Checking if then-else-condition: ${cur.class.name}"
-    //if(cur.class.name == "decaf.Block") {
-    //  println "encountered a block." 
-    //  println "it has the statements: ${cur.statements}"
-    //}
-    
     if(cur instanceof IfThenElse) {
       if(getExprType(cur.condition) != BOOLEAN) {
         errors << new CompilerError(

@@ -35,7 +35,7 @@ public class SymbolTableGenerator {
     if (cur.getType() == ARRAY_DECL) declVar('arraySize')
     if (cur.getType() == VAR_DECL) declVar('vars',[])
     if (cur.getType() == METHOD_DECL) {
-      declVar('methodDesc', new MethodDescriptor(name:cur.getText(), fileInfo: cur.fileInfo, params:[]))
+      declVar('methodDesc', new MethodDescriptor(name:cur.getText(), fileInfo: cur.fileInfo))
       if (methodSymTable.map.containsKey(methodDesc.name)) {
         errors << new CompilerError(
           fileInfo: methodDesc.fileInfo,

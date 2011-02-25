@@ -52,7 +52,7 @@ public class MethodDescriptor {
   String name
   Type returnType
   Block block
-  List<VariableDescriptor> params
+  List<VariableDescriptor> params = []
   FileInfo fileInfo
 
   String toString() {
