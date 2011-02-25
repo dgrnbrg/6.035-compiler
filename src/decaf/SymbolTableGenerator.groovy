@@ -65,7 +65,12 @@ public class SymbolTableGenerator {
         }
       }
       if (parent.getType() == METHOD_DECL) {
-        parent.methodDesc.params = vars
+        // parent.methodDesc.params = vars
+        if(parent.methodDesc.params == null){
+          parent.methodDesc.params = vars
+        } else {
+          parent.methodDesc.params += vars
+        }
       }
       break
 
