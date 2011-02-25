@@ -29,62 +29,10 @@ class SemanticChecker {
         }
       }
     } else if(expr instanceof BinOp) {
-      def leftType  = getExprType(expr.left);
-      def rightType = getExprType(expr.right);
-      
-      if([ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].contains(expr.op)) {
-        if(leftType == INT && rightType == INT) {
-          if([ADD, SUB, MUL, DIV, MOD].contains(expr.op)) {
-            return INT;
-          } else { 
-            // must be in [LT, GT, LTE, GTE]
-            return BOOLEAN;
-          }
-          return INT; 
-        } else {
-          if(leftType != INT) {
-            errors << new CompilerError(
-              fileInfo: expr.fileInfo,
-              message: "Encountered binary operator: ${expr.op}, expecting left operand to be an integer. "
-            ) 
-          } 
-
-          if(rightType != INT) {
-            errors << new CompilerError(
-              fileInfo: expr.fileInfo,
-              message: "Encountered binary operator expecting right operand to be an integer(array)."
-            ) 
-          }
-        }
-      } else if([EQ, NEQ].contains(expr.op)) {
-        // maybe someone can verify that I'm not making a mistake 
-        // for not explicitly checking for boolean arrays and int arrays?
-        if(leftType == rightType) {
-          return BOOLEAN;
-        } else {
-          errors << new CompilerError(
-              fileInfo: expr.fileInfo,
-              message: "Encountered binary operator expecting right operand and left operand to have same type."
-            )
-        }
-      } else if([AND, OR, NOT].contains(expr.op)) {
-        if(leftType == BOOLEAN && rightType == BOOLEAN) {
-          return BOOLEAN;
-        } else {
-          if(leftType != BOOLEAN) {
-            errors << new CompilerError(
-              fileInfo: expr.fileInfo,
-              message: "Encountered binary operator expecting left operand to have type boolean."
-            )
-          }
-
-          if(rightType != BOOLEAN) {
-            errors << new CompilerError(
-              fileInfo: expr.fileInfo,
-              message: "Encountered binary operator expecting right operand to have type boolean."
-            )
-          }
-        }
+      if([ADD, SUB, MUL, DIV, MOD].contains(expr.op)) {
+        return INT;
+      } else if ([LT, GT, LTE, GTE, EQ, NEQ, AND, OR, NOT].contains(expr.op)) { 
+        return BOOLEAN;
       } else {
         // should never reach this state
         assert(false);
@@ -101,7 +49,55 @@ class SemanticChecker {
       assert(false);
     }
   }
-   
+
+  def binOpOperands = { expr ->
+    if(expr instanceof BinOp) {
+      def leftType  = getExprType(expr.left);
+      def rightType = getExprType(expr.right);
+      def msg = {type, side -> "Encountered binary operator ${expr.op}, expecting $side operand to be $type"} 
+      if([ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].contains(expr.op)) {
+        if(leftType != INT) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('integer','left')
+          ) 
+        } 
+
+        if(rightType != INT) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('integer','right')
+          ) 
+        }
+      } else if([EQ, NEQ].contains(expr.op)) {
+        // maybe someone can verify that I'm not making a mistake 
+        // for not explicitly checking for boolean arrays and int arrays?
+        if(leftType != rightType) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('the same type','each')
+          )
+        }
+      } else if([AND, OR, NOT].contains(expr.op)) {
+        if(leftType != BOOLEAN) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('boolean','left')
+          )
+        }
+
+        if(rightType != BOOLEAN) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('boolean','right')
+          )
+        }
+      } else {
+        assert false;
+      }
+    }
+  }
+
   def methodCallArguments = {current ->
     if(current instanceof MethodCall){
       def typeList = current.descriptor.params
@@ -165,5 +161,5 @@ class SemanticChecker {
   }
 
   //Put your checks here
-  @Lazy def checks = {->[breakContinueFor, methodCallArguments, ifThenElseConditionCheck]}()
+  @Lazy def checks = {->[breakContinueFor, methodCallArguments, ifThenElseConditionCheck, binOpOperands]}()
 }
