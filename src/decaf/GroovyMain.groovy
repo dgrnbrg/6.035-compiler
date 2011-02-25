@@ -53,7 +53,7 @@ public class GroovyMain {
     } catch (FatalException e) {
       println e
       exitCode = e.code
-    } catch (Exception e) {
+    } catch (Throwable e) {
       def skipPrefixes = ['org.codehaus','sun.reflect','java.lang.reflect','groovy.lang.Meta']
       def st = e.getStackTrace().findAll { traceElement ->
         !skipPrefixes.any { prefix ->
