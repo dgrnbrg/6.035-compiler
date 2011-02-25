@@ -1,5 +1,7 @@
 package decaf.test
 import decaf.*
+import static decaf.BinOpType.*
+import static decaf.Type.*
 
 class SemanticCheckTest extends GroovyTestCase {
   // void testGetTypeIntLiteral(){
@@ -10,103 +12,89 @@ class SemanticCheckTest extends GroovyTestCase {
   //   def booleanLiteral = new BooleanLiteral(value:true)
   //   assertEquals(Type.BOOLEAN, SemanticChecker.getExprType(booleanLiteral))
   // }
-  void testGetTypeBinOpADD(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
-
-    def binOp = new BinOp(op:BinOpType.ADD, left:lhs, right:rhs)
-
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.INT, binOp.operandType)
-  }
   
-  void testGetTypeBinOpSUB(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
 
-    def binOp = new BinOp(op:BinOpType.SUB, left:lhs, right:rhs)
+  void testGetExprType() {
+    def goodErrors = [];
+    def badErrors = [];
+    def goodSemanticChecker = new SemanticChecker(errors: goodErrors)
+    def badSemanticChecker  = new SemanticChecker(errors: badErrors)
+    
+    def goodConditions = [];
+    def badConditions = [];
 
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.INT, binOp.operandType)
-  }
-  
-  void testGetTypeBinOpMUL(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
+    def typicalBlnLiteral = new BooleanLiteral(value: true);
+    def typicalIntLiteral = new IntLiteral(value: 3);
 
-    def binOp = new BinOp(op:BinOpType.MUL, left:lhs, right:rhs)
+    // test the good conditions
+    goodConditions.addAll([LT, GT, LTE, GTE].collect { 
+      new BinOp(op: it, left: typicalIntLiteral, right: typicalIntLiteral)
+    });
 
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.INT, binOp.operandType)
-  }
-  
-  void testGetTypeBinOpDIV(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
+    goodConditions.addAll([EQ, NEQ].collect { 
+      new BinOp(op: it, left: typicalIntLiteral, right: typicalIntLiteral)
+    });
 
-    def binOp = new BinOp(op:BinOpType.DIV, left:lhs, right:rhs)
+    goodConditions.addAll([EQ, NEQ, AND, OR, NOT].collect { 
+      new BinOp(op: it, left: typicalBlnLiteral, right: typicalBlnLiteral)
+    });
 
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.INT, binOp.operandType)
-  }
+    goodConditions.add(new MethodCall(descriptor: new MethodDescriptor(returnType: BOOLEAN)));
 
-  void testGetTypeBinOpMOD(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
+    goodConditions.add(new Location(descriptor: new VariableDescriptor(type: BOOLEAN)));
+    goodConditions.add(new Location(descriptor: new VariableDescriptor(type: BOOLEAN_ARRAY), indexExpr: typicalIntLiteral));
 
-    def binOp = new BinOp(op:BinOpType.MOD, left:lhs, right:rhs)
+    goodConditions.add(typicalBlnLiteral);
 
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.INT, binOp.operandType)
-  }
-  
-  void testGetTypeBinOpGT(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
+    def badTypeCombos1 = [[typicalIntLiteral, typicalBlnLiteral], 
+                         [typicalBlnLiteral, typicalIntLiteral], 
+                         [typicalBlnLiteral, typicalBlnLiteral]];
 
-    def binOp = new BinOp(op:BinOpType.GT, left:lhs, right:rhs)
+    // 36 + 27 = 63
+    badTypeCombos1.each { combo -> 
+      [ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].each { arithOp -> 
+          badConditions.add(new BinOp(op: arithOp, left: combo[0], right: combo[1]))
+        }
+      }
 
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.BOOLEAN, binOp.operandType)
-  }
-  
-  void testGetTypeBinOpLT(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
+    def badTypeCombos2 = [[typicalIntLiteral, typicalBlnLiteral], 
+                         [typicalBlnLiteral, typicalIntLiteral], 
+                         [typicalIntLiteral, typicalIntLiteral]];
 
-    def binOp = new BinOp(op:BinOpType.LT, left:lhs, right:rhs)
+    // 12 + 9 = 21
+    badTypeCombos2.each { combo -> 
+      [AND, OR, NOT].each { op -> 
+        badConditions.add(new BinOp(op: op, left: combo[0], right: combo[1]));
+      }
+    }
 
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.BOOLEAN, binOp.operandType)
-  }
-  
-  void testGetTypeBinOpGTE(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
+    // 4 + 4 = 8
+    [EQ, NEQ].each { op -> 
+      badConditions.add(new BinOp(op: op, left: typicalIntLiteral, right: typicalBlnLiteral));
+      badConditions.add(new BinOp(op: op, left: typicalBlnLiteral, right: typicalIntLiteral));
+    }
+    
+    // 3
+    badConditions.add(new MethodCall(descriptor: new MethodDescriptor(returnType: INT)));
+    badConditions.add(new MethodCall(descriptor: new MethodDescriptor(returnType: VOID)));
+    badConditions.add(new CallOut());
+    
+    def numExpectedBadConds = 95;
+    
+    goodConditions.each { 
+      def blah = new IfThenElse(condition: it, thenBlock: new Block());
+      blah.inOrderWalk(goodSemanticChecker.ifThenElseConditionCheck);
+    }
+    
+    badConditions.each { 
+      def blah = new IfThenElse(condition: it, thenBlock: new Block());
+      blah.inOrderWalk(badSemanticChecker.ifThenElseConditionCheck);
+    }
 
-    def binOp = new BinOp(op:BinOpType.GTE, left:lhs, right:rhs)
+    badErrors.each { println it.message};
 
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.BOOLEAN, binOp.operandType)
-  }
-
-  void testGetTypeBinOpLTE(){
-    def semanticChecker = new SemanticChecker()
-    def lhs = new IntLiteral(value:1)
-    def rhs = new IntLiteral(value:2)
-
-    def binOp = new BinOp(op:BinOpType.LTE, left:lhs, right:rhs)
-
-    binOp.inOrderWalk(semanticChecker.getExprType)
-    assertEquals(Type.BOOLEAN, binOp.operandType)
+    assertEquals(numExpectedBadConds, badErrors.size());
+    assertEquals(0, goodErrors.size());
   }
 
 }

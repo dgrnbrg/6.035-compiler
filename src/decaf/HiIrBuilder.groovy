@@ -159,7 +159,7 @@ class HiIrBuilder {
 
     case TK_if:
       assert children.size() == 2 || children.size() == 3
-      def ifStmt = new IfThenElse()
+      def ifStmt = new IfThenElse(fileInfo: cur.fileInfo)
       ifStmt.condition = children[0]
       ifStmt.thenBlock = children[1]
       if (children.size() == 3)

@@ -1,5 +1,9 @@
 package decaf
 
+import static decaf.Type.*
+import static decaf.BinOpType.*
+
+
 class SemanticChecker {
   def errors
 
@@ -7,23 +11,95 @@ class SemanticChecker {
   // Input: an expression
   // Output: the type that it should evaluate to
   // If the expression is found to be ill-typed, then we throw an exception
-  Closure getExprType = {expression->
-    if(expression instanceof BinOp){
-      switch(expression.op){
-        case BinOpType.ADD:
-          walk()
-          if(expression.left.operandType == Type.INT && expression.right.operandType == Type.INT){
-            declVar('operandType', Type.INT)
-          } else {
-            throw new RuntimeException("[types incorrect] BinOp(+)!")
-          }
+
+  Closure getExprType = {expr -> 
+
+    if(expr instanceof Location) {
+      def returnType = expr.descriptor.type;
+      
+      if(expr.indexExpr == null) {
+        return returnType;
+      } else {
+        if(returnType == INT_ARRAY) {
+          return INT;
+        } else if(returnType == BOOLEAN_ARRAY) {
+          return BOOLEAN;
+        } else {
+          throw new RuntimeException("Should run array semantic check first.");
+        }
       }
-    }
-    if(expression instanceof IntLiteral){
-      declVar('operandType', Type.INT)
-    }
-    else if(expression instanceof BooleanLiteral){
-      declVar('operandType', Type.BOOLEAN)
+    } else if(expr instanceof BinOp) {
+      def leftType  = getExprType(expr.left);
+      def rightType = getExprType(expr.right);
+      
+      if([ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].contains(expr.op)) {
+        println "Fell into binop of [ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE]"
+        if(leftType == INT && rightType == INT) {
+          if([ADD, SUB, MUL, DIV, MOD].contains(expr.op)) {
+            return INT;
+          } else { 
+            // must be in [LT, GT, LTE, GTE]
+            return BOOLEAN;
+          }
+          return INT; 
+        } else {
+          if(leftType != INT) {
+            errors << new CompilerError(
+              fileInfo: expr.fileInfo,
+              message: "Encountered binary operator: ${expr.op}, expecting left operand to be an integer. "
+            ) 
+          } 
+
+          if(rightType != INT) {
+            errors << new CompilerError(
+              fileInfo: expr.fileInfo,
+              message: "Encountered binary operator expecting right operand to be an integer(array)."
+            ) 
+          }
+        }
+      } else if([EQ, NEQ].contains(expr.op)) {
+        // maybe someone can verify that I'm not making a mistake 
+        // for not explicitly checking for boolean arrays and int arrays?
+        if(leftType == rightType) {
+          return BOOLEAN;
+        } else {
+          errors << new CompilerError(
+              fileInfo: expr.fileInfo,
+              message: "Encountered binary operator expecting right operand and left operand to have same type."
+            )
+        }
+      } else if([AND, OR, NOT].contains(expr.op)) {
+        if(leftType == BOOLEAN && rightType == BOOLEAN) {
+          return BOOLEAN;
+        } else {
+          if(leftType != BOOLEAN) {
+            errors << new CompilerError(
+              fileInfo: expr.fileInfo,
+              message: "Encountered binary operator expecting left operand to have type boolean."
+            )
+          }
+
+          if(rightType != BOOLEAN) {
+            errors << new CompilerError(
+              fileInfo: expr.fileInfo,
+              message: "Encountered binary operator expecting right operand to have type boolean."
+            )
+          }
+        }
+      } else {
+        // should never reach this state
+        assert(false);
+      }
+    } else if(expr instanceof BooleanLiteral) {
+      return BOOLEAN;
+    } else if(expr instanceof IntLiteral) {
+      return INT;
+    } else if(expr instanceof CallOut) {
+      return INT;
+    } else if(expr instanceof MethodCall) {
+      return expr.descriptor.returnType;
+    } else {
+      assert(false);
     }
   }
    
@@ -65,6 +141,25 @@ class SemanticChecker {
     }
   }
 
+  def ifThenElseConditionCheck = {cur -> 
+    //println "Checking if then-else-condition: ${cur.class.name}"
+    //if(cur.class.name == "decaf.Block") {
+    //  println "encountered a block." 
+    //  println "it has the statements: ${cur.statements}"
+    //}
+    
+    if(cur instanceof IfThenElse) {
+      if(getExprType(cur.condition) != BOOLEAN) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered if statement, expected boolean condition."
+        )
+      }
+    }
+
+    walk();
+  }
+
   //Put your checks here
-  @Lazy def checks = {->[breakContinueFor,methodCallArguments]}()
+  @Lazy def checks = {->[breakContinueFor, methodCallArguments, ifThenElseConditionCheck]}()
 }
