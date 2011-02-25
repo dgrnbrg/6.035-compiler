@@ -50,6 +50,7 @@ class HiIrTest extends GroovyTestCase {
     assertTrue(statementList[0] instanceof Return)
     assertTrue(statementList[1] instanceof Break)
   }
+
   void testBreak() {
     def breakStatement = new Break()
 
