@@ -10,7 +10,7 @@ public class GroovyMain {
     return { cur ->
       out.println("${cur.hashCode()} [label=\"$cur\"]")
       walk()
-      if (parent != null)
+      if (cur.parent != null)
         out.println("${parent.hashCode()} -> ${cur.hashCode()}")
     }
   }
@@ -174,18 +174,18 @@ public class GroovyMain {
     dotOut.println('}')
   }
 
-  def hiirBuilder = new HiIrBuilder()
+  def hiirGenerator = new HiIrGenerator()
 
   def genHiIr = {->
     depends(genSymTable)
-    ast.inOrderWalk(hiirBuilder.c)
+    ast.inOrderWalk(hiirGenerator.c)
   }
 
   def hiir = {->
     depends(genHiIr)
     depends(setupDot)
     dotOut.println('digraph g {')
-    hiirBuilder.methods.each {k, v ->
+    hiirGenerator.methods.each {k, v ->
       dotOut.println("${k.hashCode()} [label=\"$k\"]")
       v.inOrderWalk(makeGraph(dotOut, k))
     }
@@ -195,7 +195,7 @@ public class GroovyMain {
   def inter = {->
     depends(genHiIr)
     def checker = new SemanticChecker(errors: errors)
-    hiirBuilder.methods.values().each { methodHiIr ->
+    hiirGenerator.methods.values().each { methodHiIr ->
       assert methodHiIr != null
       //ensure that all HiIr nodes have their fileInfo
       methodHiIr.inOrderWalk{

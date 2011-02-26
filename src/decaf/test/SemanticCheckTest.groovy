@@ -28,7 +28,7 @@ class SemanticCheckTest extends GroovyTestCase {
         }
       }
     }
-    assertTrue(prog1 instanceof HiIrBuilder)
+    assertTrue(prog1 instanceof HiIrGenerator)
     def errors = []
     def semCheck = new SemanticChecker(errors: errors)
     prog1.methods['main'].inOrderWalk(semCheck.methodCallArguments)
@@ -158,7 +158,7 @@ class SemanticCheckTest extends GroovyTestCase {
       }
     }
     
-    assertTrue(prog1 instanceof HiIrBuilder)    
+    assertTrue(prog1 instanceof HiIrGenerator)    
     assertEquals(1, prog2.size())
   }
 }
