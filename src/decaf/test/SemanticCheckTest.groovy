@@ -2,8 +2,39 @@ package decaf.test
 import decaf.*
 import static decaf.BinOpType.*
 import static decaf.Type.*
+import static decaf.DecafParserTokenTypes.*
 
 class SemanticCheckTest extends GroovyTestCase {
+  def ASTBuilder astb = new ASTBuilder()
+
+  void testMethodCallArguments() {
+    def prog1 = astb.compile {
+      Program(PROGRAM) {
+        bar(METHOD_DECL) {
+          'void'(TK_void)
+          'int'(VAR_DECL) {
+            a(ID)
+          }
+          block(BLOCK)
+        }
+        main(METHOD_DECL) {
+          'void'(TK_void)
+          block(BLOCK) {
+            bar(METHOD_CALL) {
+              '1'(INT_LITERAL)
+              '2'(INT_LITERAL)
+            }
+          }
+        }
+      }
+    }
+    assertTrue(prog1 instanceof HiIrBuilder)
+    def errors = []
+    def semCheck = new SemanticChecker(errors: errors)
+    prog1.methods['main'].inOrderWalk(semCheck.methodCallArguments)
+    assertEquals(1, errors.size())
+  }
+
   void testIfThenElseCondition() {
     def good = new IfThenElse(condition: new BooleanLiteral(value:true), thenBlock: new Block())
     def bad = new IfThenElse(condition: new IntLiteral(value:1), thenBlock: new Block())
