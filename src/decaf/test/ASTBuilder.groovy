@@ -34,7 +34,6 @@ public class ASTBuilder{
       val = val[0]
     }
     def ret = new MockAST(text:node.name(), type:val, parent: parent)
-    ret.walkerDelegate.declVar('parent',parent)
     def n_childs = node.children().size()
     node.children().eachWithIndex { child, index ->
       if (index > 0) {

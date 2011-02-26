@@ -7,6 +7,8 @@ interface Walkable {
 abstract class WalkableImpl implements Walkable {
   ImplicitWalkerDelegate walkerDelegate = new ImplicitWalkerDelegate()
   FileInfo fileInfo
+  //root has null as parent
+  WalkableImpl parent
 
   abstract void howToWalk(Closure c);
 
@@ -23,6 +25,11 @@ abstract class WalkableImpl implements Walkable {
 
   def propertyMissing(String propName, value) {
     walkerDelegate."$propName" = value
+  }
+
+  void setParent(WalkableImpl parent) {
+    this.parent = parent
+    walkerDelegate.@properties['parent'] = parent
   }
 }
 

@@ -7,15 +7,11 @@ import antlr.collections.AST as AntlrAST
 
 public class GroovyMain {
   static Closure makeGraph(PrintStream out, root = null) {
-    def parentStack = []
-    if (root) parentStack << root
     return { cur ->
       out.println("${cur.hashCode()} [label=\"$cur\"]")
-      parentStack << cur
       walk()
-      parentStack.pop()
-      if (parentStack)
-        out.println("${parentStack[-1].hashCode()} -> ${cur.hashCode()}")
+      if (parent != null)
+        out.println("${parent.hashCode()} -> ${cur.hashCode()}")
     }
   }
 
