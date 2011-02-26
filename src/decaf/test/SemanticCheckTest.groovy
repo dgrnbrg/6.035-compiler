@@ -112,4 +112,26 @@ class SemanticCheckTest extends GroovyTestCase {
     assertEquals(0, goodErrors.size());
   }
 
+  void testForLoopInitEndExprTypeInt() {
+    def errors = [];
+    def semanticChecker = new SemanticChecker(errors: errors);
+
+    // david if you are reading this say hi!
+    def myInt = new IntLiteral(value: 3);
+    def myBln = new BooleanLiteral(value: false);
+    
+    def good = new ForLoop(low: myInt, high: myInt);
+    def bad = [new ForLoop(low: myInt, high: myBln),
+                new ForLoop(low: myBln, high: myInt),
+                new ForLoop(low: myBln, high: myBln)];
+
+    good.inOrderWalk(semanticChecker.forLoopInitEndExprTypeInt);
+    bad.each { 
+      it.inOrderWalk(semanticChecker.forLoopInitEndExprTypeInt);
+    }
+    
+    // should get a total of 4 errors
+    assertEquals(4, errors.size());
+  }
+
 }

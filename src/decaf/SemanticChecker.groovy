@@ -127,7 +127,7 @@ class SemanticChecker {
       errors << new CompilerError(
         fileInfo: cur.fileInfo,
         message: "Encountered break outside of for loop"
-      )
+      ) 
     } else if (cur instanceof Continue && nestedForDepth == 0) {
       errors << new CompilerError(
         fileInfo: cur.fileInfo,
@@ -155,6 +155,29 @@ class SemanticChecker {
     walk();
   }
 
+  def forLoopInitEndExprTypeInt = {cur -> 
+    if(cur instanceof ForLoop) {
+      if(getExprType(cur.low) != INT) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo, 
+          message: "Encountered ForLoop, expected init expression to be of type INT."
+        )
+      }
+
+      if(getExprType(cur.high) != INT) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered ForLoop, expected end expression to be of type INT."
+        )
+      }
+    }
+  }
+  
   //Put your checks here
-  @Lazy def checks = {->[breakContinueFor, methodCallArguments, ifThenElseConditionCheck, binOpOperands]}()
+  @Lazy def checks = {-> 
+    [breakContinueFor, 
+      methodCallArguments, 
+      ifThenElseConditionCheck, 
+      binOpOperands, 
+      forLoopInitEndExprTypeInt]}()
 }
