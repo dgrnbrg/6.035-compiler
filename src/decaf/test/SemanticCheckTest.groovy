@@ -28,11 +28,11 @@ class SemanticCheckTest extends GroovyTestCase {
         }
       }
     }
-    //assertTrue(prog1 instanceof HiIrBuilder)
-    //def errors = []
-    //def semCheck = new SemanticChecker(errors: errors)
-    //prog1.methods['main'].inOrderWalk(semCheck.methodCallArguments)
-    //assertEquals(1, errors.size())
+    assertTrue(prog1 instanceof HiIrBuilder)
+    def errors = []
+    def semCheck = new SemanticChecker(errors: errors)
+    prog1.methods['main'].inOrderWalk(semCheck.methodCallArguments)
+    assertEquals(1, errors.size())
   }
 
   void testIfThenElseCondition() {

@@ -20,6 +20,10 @@
   <taskdef name="groovyc"
          classname="org.codehaus.groovy.ant.Groovyc"
          classpath="${groovy-lib.dir}/groovy-1.6.9.jar"/>
+  <taskdef name="groovy"
+         classname="org.codehaus.groovy.ant.Groovy"
+         classpath="${groovy-lib.dir}/groovy-1.6.9.jar"/>
+  <property name="gradingscripts"     location="gradingscripts"     />
   <!-- the main class -->
   <property name="mainclass" value="decaf.GroovyMain" />
 
@@ -181,6 +185,23 @@
         <fileset dir="${lib}" includes="**/*.jar" />
       </classpath>
     </cobertura-report>
+  </target>
+
+  <target name="grade" depends="compile">
+    <groovy>
+      new File('/mit/6.035/provided/gradingscripts').eachFile {file ->
+        assert file.name.endsWith('py')
+        println "executing $file"
+        Process p = "$file.canonicalPath .".execute()
+        Thread.start { ->
+          println '
+          p.inputStream.eachLine{ println it}
+          p.inputStream.close()
+        }
+        Thread.start { -> p.errorStream.eachLine{ println it}; p.errorStream.close() }
+        p.waitFor()
+      }
+    </groovy>
   </target>
 
  <!-- to clean, delete everything in the java, classes, and dist

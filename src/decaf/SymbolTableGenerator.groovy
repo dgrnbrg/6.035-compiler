@@ -92,7 +92,7 @@ public class SymbolTableGenerator {
       if(arraySize < 1) {
         errors << new CompilerError(
           fileInfo: desc.fileInfo,
-          message: "Encountered array declaration with array size less than 0: arraySize = $arraySize"
+          message: "Encountered array declaration with zero or negative size = $arraySize"
         )
       }
       
