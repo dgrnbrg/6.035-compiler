@@ -171,6 +171,72 @@ class SemanticChecker {
         )
       }
     }
+
+    walk();
+  }
+  
+  def methodCallsThatAreExprReturnValue = {cur -> 
+    if (cur instanceof Statement) {
+      declVar('returnCount', 0)
+    }
+
+    walk();
+
+    switch (cur) {
+    case Block:
+      if(returnCount != 0) {
+        if (parent != null) {
+          parent.returnCount++
+        } else if (returnCount == 0) {
+          //parent == null, top level block of method
+          errors << new CompilerError(
+            fileInfo: fileInfo,
+            message: "Missing return statement in method"
+          )
+        }
+      }
+      break;
+    case IfThenElse:
+      if (returnCount == 2)
+        parent.returnCount++
+      break;
+    case ForLoop:
+      if(returnCount != 0) 
+        parents.returnCount++
+      break;
+    case Return:
+      parent.returnCount++
+      break;
+    }
+  }
+
+  def expectedReturnType = null;
+  def methodDeclTypeMatchesTypeOfReturnExpr = {cur ->
+    if(cur instanceof Block && cur.parent == null) {
+      // this is the top level block, check symbol table to extract 
+      // the return type of the appropriate method declaration
+      assert(expectedReturnType);
+      correctMethodDesc = cur.methodSymTable.values().findAll { -> 
+        it.block.is(cur)
+      }
+      
+      // we should have only found one method that matches this block
+      assert(correctMethodDesc.size() == 1);
+      expectedReturnType = correctMethodDesc[0].returnType;
+    } else {
+      declVar('expectedReturnType', parent.expectedReturnType)
+    }
+    
+    if(cur instanceof Return) {
+      if(getExprType(cur.expr) != expectedReturnType) {
+        errors << new CompilerError(
+            fileInfo: fileInfo,
+            message: "Type of Return expr must match type of Method Declaration."
+          )
+      }
+    }
+
+    walk();
   }
   
   //Put your checks here
