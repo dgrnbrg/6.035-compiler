@@ -46,9 +46,12 @@ class SemanticChecker {
   }
 
   def binOpOperands = { expr ->
+    walk()
+    
     if(expr instanceof BinOp) {
       def leftType  = getExprType(expr.left);
       def rightType = getExprType(expr.right);
+      
       def msg = {type, side -> "Encountered binary operator ${expr.op}, expecting $side operand to be $type"} 
       if([ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].contains(expr.op)) {
         if(leftType != INT) {
