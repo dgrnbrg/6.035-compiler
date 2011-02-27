@@ -217,7 +217,7 @@ class SemanticCheckTest extends GroovyTestCase {
     assertEquals(1, prog2.size())
   }
 
-<<<<<<< HEAD
+
   void testMethodMustReturn() {
     def goodErrors = [];
     def badErrors = [];
@@ -239,12 +239,11 @@ class SemanticCheckTest extends GroovyTestCase {
         }
         'bar2'(METHOD_DECL) {
           'void'(TK_void)
-          
+        }
       }
     }
-            
-          
-=======
+  }
+  
   void testAssignmentTypesAreCorrect() {
     def hiir = new HiIrBuilder().Block(){
       var(name:'a', type:INT_ARRAY, arraySize: 3)
@@ -271,6 +270,5 @@ class SemanticCheckTest extends GroovyTestCase {
     def semCheck = new SemanticChecker(errors: errors)
     hiir.inOrderWalk(semCheck.arrayIndicesAreInts)
     assertEquals(1,errors.size())
->>>>>>> ecb4d3d90780bf0b5953dbd9345c9c6bb37fb38b
   }
 }

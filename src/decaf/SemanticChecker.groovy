@@ -6,7 +6,7 @@ import static decaf.BinOpType.*
 
 class SemanticChecker {
   def errors
-
+  
   static Type getExprType(Expr expr) {
     switch (expr) {
     case Location:
