@@ -2,6 +2,8 @@ package decaf
 import static decaf.DecafParserTokenTypes.*
 
 class HiIrGenerator {
+  def errors
+
   def methods = [:]
   Closure c = { AST cur ->
     declVar('children',[])
@@ -78,7 +80,7 @@ class HiIrGenerator {
       } else {
         assert children.size() == 1
 	parent.children <<
-	  new BinOp(op:BinOpType.SUB, left:new IntLiteral(value:0), right:children[0], fileInfo: cur.fileInfo)
+	  new BinOp(op:BinOpType.SUB, left:new IntLiteral(value:0, fileInfo: cur.fileInfo), right:children[0], fileInfo: cur.fileInfo)
       }
       break
 
@@ -95,6 +97,12 @@ class HiIrGenerator {
 
     case LOCATION:
       assert children.size() == 1 || children.size() == 2
+      if (symTable[children[0]] == null) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Used variable ${children[0]} without declaring it"
+        )
+      }
       parent.children << new Location(
         descriptor: symTable[children[0]],
         indexExpr: children.size() == 2 ? children[1] : null,
@@ -103,8 +111,20 @@ class HiIrGenerator {
       break
 
     case METHOD_CALL:
+      def methDesc = methodSymTable[cur.getText()]
+      if (methDesc == null) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Used method ${cur.getText()} without declaring it"
+        )
+      } else if (methDesc.fileInfo.line > cur.fileInfo.line) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Used method ${cur.getText()} before it was declared on line $cur.fileInfo.line"
+        )
+      }
       parent.children << new MethodCall(
-        descriptor: methodSymTable[cur.getText()],
+        descriptor: methDesc,
         params: children as List<Expr>,
         fileInfo: cur.fileInfo
       )
@@ -154,6 +174,8 @@ class HiIrGenerator {
           expr = children[0]
         parent.children << new Return(expr: expr, fileInfo: cur.fileInfo)
         break
+      default:
+        assert false
       }
       break
 
