@@ -35,7 +35,20 @@ class SymbolTable extends WalkableImpl {
 
   String toString() {
     return "SymbolTable(${map.values()})"
-  }  
+  }
+
+  boolean equals(Object other) {
+    if (other instanceof SymbolTable) {
+      if (other.children == children) {
+        return true
+      }
+    }
+  return false
+  }
+
+  int hashCode() {
+    return children.hashCode() * 19 + parent.hashCode() * 41
+  }
 }
 
 enum Type {
@@ -51,6 +64,22 @@ public class VariableDescriptor {
   String toString() {
     "$type $name" + (arraySize ? "[$arraySize]" : "")
   }
+
+  boolean equals(Object other) {
+    if (other instanceof VariableDescriptor) {
+      if (other.name == name &&
+        type == other.type &&
+        arraySize == other.arraySize) {
+          return true
+      } 
+    }
+    return false
+  }
+
+  int hashCode() {
+    def p = arraySize?.hashCode() ?: 0
+    return name.hashCode() * 17 + type.hashCode() * 31 + p * 37;
+  }
 }
 
 public class MethodDescriptor {
@@ -62,5 +91,20 @@ public class MethodDescriptor {
 
   String toString() {
     "$returnType $name($params)"
+  }
+
+  boolean equals(Object other) {
+    if (other instanceof MethodDescriptor) {
+      if (other.name == name &&
+        returnType == other.returnType &&
+        params == other.params) {
+          return true
+      } 
+    }
+    return false
+  }
+
+  int hashCode() {
+    return name.hashCode() * 17 + returnType.hashCode() * 31 + params.hashCode() * 37;
   }
 }

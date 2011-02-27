@@ -9,7 +9,7 @@ public class SymbolTableGenerator {
 
   // This is the closure that is passed around
   Closure c = { AST cur -> 
-
+    //println cur
     //pull method symbol table unless PROGRAM node
     declVar('methodSymTable',
       cur.getType() == PROGRAM ? new SymbolTable() : parent.methodSymTable)
@@ -39,7 +39,7 @@ public class SymbolTableGenerator {
       if (methodSymTable.map.containsKey(methodDesc.name)) {
         errors << new CompilerError(
           fileInfo: methodDesc.fileInfo,
-          message: "Encountered duplicate method declaration: $methodDesc.name"
+          message: "En	countered duplicate method declaration: $methodDesc.name"
         )
       } else {
         methodSymTable[cur.getText()] = methodDesc
@@ -47,7 +47,7 @@ public class SymbolTableGenerator {
     }
 
     walk()
-
+ 
     switch(cur.getType()) {
     case VAR_DECL:
       assert cur.getText() == 'int' || cur.getText() == 'boolean'
