@@ -38,12 +38,12 @@ public class GroovyMain {
     }
     file = argparser['other'][0]
 
+    int exitCode = 0
     exitHooks << { ->
       errors*.file = file
-      errors.each { println it }
+      errors.each { println it; exitCode = 1 }
     }
 
-    int exitCode = 0
     try {
       depends(this."${argparser['target']}")
     } catch (FatalException e) {
