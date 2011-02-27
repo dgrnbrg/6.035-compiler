@@ -78,6 +78,13 @@ class HiIrBuilder extends BuilderSupport {
           assert false
         }
         break
+      case Location:
+        if (parent.indexExpr == null) {
+          parent.indexExpr = child
+        } else {
+          assert false
+        }
+        break
       default:
         assert false
     }
@@ -105,7 +112,6 @@ class HiIrBuilder extends BuilderSupport {
       return
     case 'method':
       def desc = new MethodDescriptor(name: attributes.name, returnType: attributes.returns)
-      println "Making desc $desc with attrs $attributes"
       def params = attributes.takes.collect {
         new VariableDescriptor(type: it, fileInfo: nullFI)
       }
@@ -139,7 +145,7 @@ class HiIrBuilder extends BuilderSupport {
       ret = new Return()
       break
     case 'Block':
-      symTable = new SymbolTable(parent: symTable)
+      symTable = new SymbolTable(symTable)
       ret = new Block()
       break
     case 'Break':
@@ -152,7 +158,7 @@ class HiIrBuilder extends BuilderSupport {
       ret = new IfThenElse()
       break
     case 'ForLoop':
-      symTable = new SymbolTable(parent: symTable)
+      symTable = new SymbolTable(symTable)
       def index = new VariableDescriptor(name: attributes.index, type:Type.INT, fileInfo: nullFI)
       symTable[attributes.index] = index
       ret = new ForLoop(index: new Location(descriptor: index))
@@ -164,7 +170,11 @@ class HiIrBuilder extends BuilderSupport {
     default:
       throw new RuntimeException("Unknown node: $name")
     }
-    ret.fileInfo = nullFI
+    if (attributes.containsKey('line')) {
+      ret.fileInfo = new FileInfo(line: attributes.line, col: 0)
+    } else {
+      ret.fileInfo = nullFI
+    }
     return ret
   }
 

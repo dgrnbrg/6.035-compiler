@@ -34,11 +34,56 @@ class SemanticCheckTest extends GroovyTestCase {
     def semCheck = new SemanticChecker(errors: errors)
     prog1.methods['main'].inOrderWalk(semCheck.methodCallArguments)
     assertEquals(1, errors.size())
+
+    def noArgs = new HiIrBuilder().Block(){
+      method(name:'foo', returns: INT)
+      MethodCall('foo')
+      MethodCall('foo') { lit(true) }
+    }
+    errors.clear()
+    noArgs.inOrderWalk(semCheck.methodCallArguments)
+    assertEquals(1, errors.size())
+
+    def twoArgs = new HiIrBuilder().Block(){
+      method(name:'foo', returns: INT, takes:[BOOLEAN, INT])
+      MethodCall('foo') { lit(true) }
+      MethodCall('foo') { lit(true); lit(3) }
+      MethodCall('foo') { lit(true); lit(true) }
+      MethodCall('foo') { lit(true); lit(true); lit(3) }
+      MethodCall('foo') { lit(true); lit(3); lit(false) }
+    }
+    errors.clear()
+    twoArgs.inOrderWalk(semCheck.methodCallArguments)
+    assertEquals(5, errors.size())
+  }
+
+  void testBreakContinueFor() {
+    def bcfHiir = new HiIrBuilder().Block(){
+      Break()
+      Continue()
+      ForLoop(index: 'i') {
+        lit(1); lit(10); Block() {
+          Break(); Continue()
+        }
+      }
+      Break()
+      Continue()
+    }
+    def errors = []
+    def semCheck = new SemanticChecker(errors: errors)
+    bcfHiir.inOrderWalk(semCheck.breakContinueFor)
+    assertEquals(4, errors.size())
   }
 
   void testIfThenElseCondition() {
-    def good = new IfThenElse(condition: new BooleanLiteral(value:true), thenBlock: new Block())
-    def bad = new IfThenElse(condition: new IntLiteral(value:1), thenBlock: new Block())
+    def good = new HiIrBuilder().IfThenElse(){
+      lit(true)
+      Block()
+    }
+    def bad = new HiIrBuilder().IfThenElse(){
+      lit(1)
+      Block()
+    }
     def errors = []
     def semCheck = new SemanticChecker(errors: errors)
     good.inOrderWalk(semCheck.ifThenElseConditionCheck)
@@ -121,10 +166,18 @@ class SemanticCheckTest extends GroovyTestCase {
     def myInt = new IntLiteral(value: 3);
     def myBln = new BooleanLiteral(value: false);
     
-    def good = new ForLoop(low: myInt, high: myInt);
-    def bad = [new ForLoop(low: myInt, high: myBln),
-                new ForLoop(low: myBln, high: myInt),
-                new ForLoop(low: myBln, high: myBln)];
+    def good = new HiIrBuilder().Block() {
+      ForLoop(index: 'i') { lit(1); lit(10)
+        Block()
+      }
+    }
+    def bad = new HiIrBuilder().Block() {
+      [[true,10],[1,false],[true,false]].each { argPair ->
+        ForLoop(index: 'i') { lit(argPair[0]); lit(argPair[1])
+          Block()
+        }
+      }
+    }
 
     good.inOrderWalk(semanticChecker.forLoopInitEndExprTypeInt);
     bad.each { 
@@ -164,6 +217,7 @@ class SemanticCheckTest extends GroovyTestCase {
     assertEquals(1, prog2.size())
   }
 
+<<<<<<< HEAD
   void testMethodMustReturn() {
     def goodErrors = [];
     def badErrors = [];
@@ -190,5 +244,33 @@ class SemanticCheckTest extends GroovyTestCase {
     }
             
           
+=======
+  void testAssignmentTypesAreCorrect() {
+    def hiir = new HiIrBuilder().Block(){
+      var(name:'a', type:INT_ARRAY, arraySize: 3)
+      var(name:'b', type:BOOLEAN)
+      Assignment(line: 0) { Location('a'){lit(0)}; lit(3) }
+      Assignment(line: 1) { Location('a'); lit(3) }
+      Assignment(line: 2) { Location('a'); lit(true) }
+      Assignment(line: 3) { Location('b'); lit(true) }
+      Assignment(line: 4) { Location('b'); lit(3) }
+    }
+    def errors = []
+    def semCheck = new SemanticChecker(errors: errors)
+    hiir.inOrderWalk(semCheck.assignmentTypesAreCorrect)
+    assertEquals(3,errors.size())
+  }
+
+  void testArrayIndicesAreInts() {
+    def hiir = new HiIrBuilder().Block(){
+      var(name:'a', type:INT_ARRAY, arraySize: 3)
+      Assignment() { Location('a'){lit(true)}; lit(2) }
+      Assignment() { Location('a'){lit(1)}; lit(2) }
+    }
+    def errors = []
+    def semCheck = new SemanticChecker(errors: errors)
+    hiir.inOrderWalk(semCheck.arrayIndicesAreInts)
+    assertEquals(1,errors.size())
+>>>>>>> ecb4d3d90780bf0b5953dbd9345c9c6bb37fb38b
   }
 }

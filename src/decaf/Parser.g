@@ -74,10 +74,11 @@ method_decl! {AST returnType;}:
 method_arg_decls: method_arg_decl (COMMA! method_arg_decl)*;
 method_arg_decl!: t:type id:ID {#method_arg_decl = #(createNewNode(VAR_DECL,t_AST),id);};
 
+var_decls: (var_decl)*;
 var_decl!: t:type names:var_decl_names SEMICOLON {#var_decl = #(createNewNode(VAR_DECL,t_AST),names);};
 var_decl_names: ID (COMMA! ID)*;
 
-block!: lc:LCURLY (a:var_decl)* b:statements RCURLY {#block = #(createNewNode(BLOCK,"block",#lc),a,b);};
+block!: lc:LCURLY a:var_decls b:statements RCURLY {#block = #(createNewNode(BLOCK,"block",#lc),a,b);};
 
 type: (TK_int | TK_boolean);
 

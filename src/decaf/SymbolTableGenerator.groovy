@@ -23,7 +23,7 @@ public class SymbolTableGenerator {
     case METHOD_DECL:
     case BLOCK:
     case TK_for:
-      declVar('symTable', new SymbolTable(parent: parent.symTable))
+      declVar('symTable', new SymbolTable(parent.symTable))
       break
 
     default:
