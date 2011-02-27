@@ -218,7 +218,7 @@ public class GroovyMain {
 
   def inter = {->
     depends(genHiIr)
-    def checker = new SemanticChecker(errors: errors)
+    def checker = new SemanticChecker(errors: errors, methodSymTable:ast.methodSymTable)
     hiirGenerator.methods.values().each { methodHiIr ->
       assert methodHiIr != null
       //ensure that all HiIr nodes have their fileInfo
@@ -231,6 +231,9 @@ public class GroovyMain {
         methodHiIr.inOrderWalk(check)
       }
     }
+    
+    checker.mainMethodCorrect()
+    
     if (errors != []) throw new FatalException(code: 1)
   }
 }
