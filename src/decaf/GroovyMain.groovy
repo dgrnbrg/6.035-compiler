@@ -12,6 +12,8 @@ public class GroovyMain {
       walk()
       if (cur.parent != null)
         out.println("${parent.hashCode()} -> ${cur.hashCode()}")
+      else if (root)
+        out.println("${root.hashCode()} -> ${cur.hashCode()}")
     }
   }
 
