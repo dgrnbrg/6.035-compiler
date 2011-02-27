@@ -28,11 +28,8 @@ class SemanticCheckTest extends GroovyTestCase {
         }
       }
     }
-<<<<<<< HEAD
-    assertTrue(prog1 instanceof HiIrBuilder)
-=======
+
     assertTrue(prog1 instanceof HiIrGenerator)
->>>>>>> 7214e975c4f8f445acb8d2f60ddf5729163113f7
     def errors = []
     def semCheck = new SemanticChecker(errors: errors)
     prog1.methods['main'].inOrderWalk(semCheck.methodCallArguments)
