@@ -12,6 +12,8 @@ public class GroovyMain {
       walk()
       if (cur.parent != null)
         out.println("${parent.hashCode()} -> ${cur.hashCode()}")
+      else if (root)
+        out.println("${root.hashCode()} -> ${cur.hashCode()}")
     }
   }
 
@@ -38,12 +40,12 @@ public class GroovyMain {
     }
     file = argparser['other'][0]
 
+    int exitCode = 0
     exitHooks << { ->
       errors*.file = file
-      errors.each { println it }
+      errors.each { println it; exitCode = 1 }
     }
 
-    int exitCode = 0
     try {
       depends(this."${argparser['target']}")
     } catch (FatalException e) {
