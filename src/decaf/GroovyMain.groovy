@@ -23,8 +23,27 @@ public class GroovyMain {
 
   def argparser
   def file
+  def inputStream
   def exitHooks = []
   def errors = []
+  //used for storing a failure exception when called from code
+  def failException
+
+  static GroovyMain runMain(String target, String decafProgram) {
+    def bytes = decafProgram.getBytes()
+    def is = new ByteArrayInputStream(bytes)
+    def main = new GroovyMain(is)
+    try {
+      main."$target"()
+    } catch (Exception e) {
+      main.failException = e
+    }
+    return main
+  }
+
+  GroovyMain(InputStream is) {
+    inputStream = is
+  }
 
   GroovyMain(args) {
     argparser = new ArgParser()
@@ -39,6 +58,7 @@ public class GroovyMain {
       System.exit(1)
     }
     file = argparser['other'][0]
+    inputStream = new File(file).newDataInputStream()
 
     int exitCode = 0
     exitHooks << { ->
@@ -63,6 +83,7 @@ public class GroovyMain {
         def location = it.getFileName() != null ? "${it.getFileName()}:${it.getLineNumber()}" : 'Unknown'
         println "  at ${it.getClassName()}.${it.getMethodName()}($location)"
       }
+      exitCode = 1
     } finally {
       exitHooks.each{ it() }
     }
@@ -86,7 +107,7 @@ public class GroovyMain {
 
   def scan = {->
     def lexer = new LexerIterator(
-      lexer: new DecafScanner(new File(file).newDataInputStream()),
+      lexer: new DecafScanner(inputStream),
       onError: {e, l -> println "$file $e"; l.consume() })
 
     lexer.each{ token ->
@@ -106,7 +127,7 @@ public class GroovyMain {
   def ast
   def parse = {->
     try {
-      def lexer = new DecafScanner(new File(file).newDataInputStream())
+      def lexer = new DecafScanner(inputStream)
       def parser = new DecafParser(lexer)
       ASTFactory factory = new ASTFactory()
       factory.setASTNodeClass(CommonASTWithLines.class)
