@@ -45,8 +45,8 @@ class SemanticChecker {
     }
   }
 
+
   def binOpOperands = { expr ->
-    walk()
     
     if(expr instanceof BinOp) {
       def leftType  = getExprType(expr.left);
