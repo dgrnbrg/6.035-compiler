@@ -105,7 +105,6 @@ class HiIrBuilder extends BuilderSupport {
       return
     case 'method':
       def desc = new MethodDescriptor(name: attributes.name, returnType: attributes.returns)
-      println "Making desc $desc with attrs $attributes"
       def params = attributes.takes.collect {
         new VariableDescriptor(type: it, fileInfo: nullFI)
       }

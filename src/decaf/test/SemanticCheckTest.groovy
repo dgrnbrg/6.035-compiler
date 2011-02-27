@@ -33,11 +33,56 @@ class SemanticCheckTest extends GroovyTestCase {
     def semCheck = new SemanticChecker(errors: errors)
     prog1.methods['main'].inOrderWalk(semCheck.methodCallArguments)
     assertEquals(1, errors.size())
+
+    def noArgs = new HiIrBuilder().Block(){
+      method(name:'foo', returns: INT)
+      MethodCall('foo')
+      MethodCall('foo') { lit(true) }
+    }
+    errors.clear()
+    noArgs.inOrderWalk(semCheck.methodCallArguments)
+    assertEquals(1, errors.size())
+
+    def twoArgs = new HiIrBuilder().Block(){
+      method(name:'foo', returns: INT, takes:[BOOLEAN, INT])
+      MethodCall('foo') { lit(true) }
+      MethodCall('foo') { lit(true); lit(3) }
+      MethodCall('foo') { lit(true); lit(true) }
+      MethodCall('foo') { lit(true); lit(true); lit(3) }
+      MethodCall('foo') { lit(true); lit(3); lit(false) }
+    }
+    errors.clear()
+    twoArgs.inOrderWalk(semCheck.methodCallArguments)
+    assertEquals(5, errors.size())
+  }
+
+  void testBreakContinueFor() {
+    def bcfHiir = new HiIrBuilder().Block(){
+      Break()
+      Continue()
+      ForLoop(index: 'i') {
+        lit(1); lit(10); Block() {
+          Break(); Continue()
+        }
+      }
+      Break()
+      Continue()
+    }
+    def errors = []
+    def semCheck = new SemanticChecker(errors: errors)
+    bcfHiir.inOrderWalk(semCheck.breakContinueFor)
+    assertEquals(4, errors.size())
   }
 
   void testIfThenElseCondition() {
-    def good = new IfThenElse(condition: new BooleanLiteral(value:true), thenBlock: new Block())
-    def bad = new IfThenElse(condition: new IntLiteral(value:1), thenBlock: new Block())
+    def good = new HiIrBuilder().IfThenElse(){
+      lit(true)
+      Block()
+    }
+    def bad = new HiIrBuilder().IfThenElse(){
+      lit(1)
+      Block()
+    }
     def errors = []
     def semCheck = new SemanticChecker(errors: errors)
     good.inOrderWalk(semCheck.ifThenElseConditionCheck)
