@@ -6,7 +6,8 @@ import static decaf.BinOpType.*
 
 class SemanticChecker {
   def errors
-  
+  def methodSymTable = [:];
+
   static Type getExprType(Expr expr) {
     switch (expr) {
     case Location:
@@ -176,68 +177,74 @@ class SemanticChecker {
     walk();
   }
   
+  // Actually the test below just enforces that all 
+  // methods that don't have return type void do 
+  // return a value (checks all paths through method).
   def methodCallsThatAreExprReturnValue = {cur -> 
-    if (cur instanceof Statement) {
-      declVar('returnCount', 0)
-    }
+    declVar('returnCount', 0)
 
     walk();
 
     switch (cur) {
     case Block:
-      if(returnCount != 0) {
-        if (parent != null) {
-          parent.returnCount++
-        } else if (returnCount == 0) {
+      if(cur.returnCount != 0) {
+        if (cur.parent != null)
+          cur.parent.returnCount++
+      } else {
+        if (cur.parent == null) {
           //parent == null, top level block of method
           errors << new CompilerError(
-            fileInfo: fileInfo,
+            fileInfo: cur.fileInfo,
             message: "Missing return statement in method"
           )
         }
       }
       break;
     case IfThenElse:
-      if (returnCount == 2)
-        parent.returnCount++
+      if (cur.returnCount == 2)
+        cur.parent.returnCount++
       break;
     case ForLoop:
-      if(returnCount != 0) 
-        parents.returnCount++
+      if(cur.returnCount != 0)
+        cur.parent.returnCount++
       break;
     case Return:
-      parent.returnCount++
+      cur.parent.returnCount++
       break;
     }
   }
 
   def expectedReturnType = null;
   def methodDeclTypeMatchesTypeOfReturnExpr = {cur ->
+    
     if(cur instanceof Block && cur.parent == null) {
       // this is the top level block, check symbol table to extract 
       // the return type of the appropriate method declaration
-      assert(expectedReturnType);
-      correctMethodDesc = cur.methodSymTable.values().findAll { -> 
-        it.block.is(cur)
+      methodSymTable.keySet().each { it ->
+        if(methodSymTable[(it)].block.is(cur))
+          expectedReturnType = methodSymTable[(it)].returnType;
       }
-      
-      // we should have only found one method that matches this block
-      assert(correctMethodDesc.size() == 1);
-      expectedReturnType = correctMethodDesc[0].returnType;
-    } else {
-      declVar('expectedReturnType', parent.expectedReturnType)
     }
     
     if(cur instanceof Return) {
-      if(getExprType(cur.expr) != expectedReturnType) {
-        errors << new CompilerError(
-            fileInfo: fileInfo,
+      if(cur.expr == null) {
+        if(expectedReturnType != VOID) {
+          errors << new CompilerError(
+            fileInfo: cur.fileInfo,
             message: "Type of Return expr must match type of Method Declaration."
           )
+        }
+      } else {
+        if(getExprType(cur.expr) != expectedReturnType) {
+          errors << new CompilerError(
+              fileInfo: cur.fileInfo,
+              message: "Type of Return expr must match type of Method Declaration."
+            )
+        }
       }
     }
 
-    walk()
+    walk();
   }
 
   def arrayIndicesAreInts = { cur ->
@@ -279,5 +286,7 @@ class SemanticChecker {
       ifThenElseConditionCheck, 
       binOpOperands, 
       forLoopInitEndExprTypeInt,
-      arrayIndicesAreInts]}()
+      arrayIndicesAreInts,
+      methodCallsThatAreExprReturnValue,
+      methodDeclTypeMatchesTypeOfReturnExpr]}()
 }

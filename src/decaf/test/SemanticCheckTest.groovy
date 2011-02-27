@@ -217,31 +217,173 @@ class SemanticCheckTest extends GroovyTestCase {
     assertEquals(1, prog2.size())
   }
 
-
   void testMethodMustReturn() {
-    def goodErrors = [];
-    def badErrors = [];
-    def goodSemanticChecker = new SemanticChecker(errors: goodErrors)
-    def badSemanticChecker  = new SemanticChecker(errors: badErrors)
+    HiIrBuilder hb = new HiIrBuilder();
 
-    def goodConditions = [];
-    def badConditions = [];
+    // R = return
+    Block g1 = hb.Block {
+      Return() {
+        lit(3)
+      }
+    }
 
-    def ASTBuilder astb1 = new ASTBuilder()
-
-    astb1.compile {
-      'Program'(PROGRAM) {
-        // bar 1 has no return statement!
-        'bar1'(METHOD_DECL) {
-          'void'(TK_void)
-          block(BLOCK) {
-          }
-        }
-        'bar2'(METHOD_DECL) {
-          'void'(TK_void)
+    // R = { return }
+    Block g2 = hb.Block {
+      Block {
+        Return() {
+          lit(3)
         }
       }
     }
+
+    // R = if R else R
+    Block g3 = hb.Block {
+      IfThenElse() {
+        lit(true)
+        Block() { Return() }
+        Block() { Return() }
+      }
+    }
+
+    // R = for R
+    Block g4 = hb.Block {
+      ForLoop(index: 'i') {
+        lit(1); lit(10); 
+        Block() { Return () }
+      }
+    }
+
+    // R = R, NR
+    Block g5 = hb.Block {
+      Return();
+      Block() { };
+    }
+
+    // R = NR, R
+    Block g6 = hb.Block {
+      Block() { };
+      Return();
+    }
+
+    // NR = {}
+    Block b1 = hb.Block {
+    }
+
+    // NR = if R
+    Block b2 = hb.Block {
+      IfThenElse() {
+        lit(true)
+        Block() { Return() }
+      }
+    }
+
+    // NR = if NR
+    Block b3 = hb.Block {
+      IfThenElse() {
+        lit(true)
+        Block() { }
+      }
+    }
+
+    // NR = if NR else NR
+    Block b4 = hb.Block {
+      IfThenElse() {
+        lit(true)
+        Block() { }
+        Block() { }
+      }
+    }
+
+    // NR = if R else NR
+    Block b5 = hb.Block {
+      IfThenElse() {
+        lit(true)
+        Block() { Return() }
+        Block() { }
+      }
+    }
+
+    // NR = if NR else R
+    Block b6 = hb.Block {
+      IfThenElse() {
+        lit(true)
+        Block() { }
+        Block() { Return() }
+      }
+    }
+
+    // NR = for NR 
+    Block b7 = hb.Block {
+      ForLoop(index: 'i') {
+        lit(1); lit(10); 
+        Block() { }
+      }
+    }
+
+    def goodConditions = [g1, g2, g3, g4, g5, g6];
+    def badConditions  = [b1, b2, b3, b4, b5, b6, b7];
+
+    def goodErrors = []
+    def badErrors = []
+    def goodSemanticChecker = new SemanticChecker(errors: goodErrors)
+    def badSemanticChecker  = new SemanticChecker(errors: badErrors)
+
+    goodConditions.each {
+      it.inOrderWalk(goodSemanticChecker.methodCallsThatAreExprReturnValue);
+    }
+
+
+    badConditions.each {
+      it.inOrderWalk(badSemanticChecker.methodCallsThatAreExprReturnValue);
+    }
+
+    assertEquals(0, goodErrors.size());
+    assertEquals(badConditions.size(),  badErrors.size());
+  }
+  
+  void testReturnExprTypeMatchesMethodType() {
+    def errors = [];
+    HiIrBuilder hb = new HiIrBuilder();
+
+    // Check for type INT, should give 2 errors
+    Block b1 = hb.Block {
+      method(name:'foo', returns: Type.INT)
+      // here we return the right type!
+      Return() { lit(3) }
+      Return() { lit(true) }
+      Return()
+    }
+    
+    // Check for type BOOLEAN
+    Block b2 = hb.Block {
+      method(name:'bar', returns: Type.BOOLEAN)
+      Return() { lit(3) }
+      // here we return the right type!
+      Return() { lit(true) }
+      Return()
+    }
+
+    // Check for type VOID
+    Block b3 = hb.Block {
+      method(name:'bat', returns: Type.VOID)
+      Return() { lit(3) }
+      Return() { lit(true) }
+      // here we return the right type!
+      Return()
+    }
+
+    hb.methodSymTable['foo'].block = b1;
+    hb.methodSymTable['bar'].block = b2;
+    hb.methodSymTable['bat'].block = b3;
+    
+    // now we need to reach into b and create a methodSymTable
+    def semanticChecker = new SemanticChecker(errors: errors, methodSymTable: hb.methodSymTable);
+    
+    [b1, b2, b3].each {
+      it.inOrderWalk(semanticChecker.methodDeclTypeMatchesTypeOfReturnExpr);
+    }
+
+    assertEquals(6, errors.size());
   }
   
   void testAssignmentTypesAreCorrect() {
