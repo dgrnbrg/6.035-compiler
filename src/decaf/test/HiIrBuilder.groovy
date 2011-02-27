@@ -78,6 +78,13 @@ class HiIrBuilder extends BuilderSupport {
           assert false
         }
         break
+      case Location:
+        if (parent.indexExpr == null) {
+          parent.indexExpr = child
+        } else {
+          assert false
+        }
+        break
       default:
         assert false
     }
@@ -163,7 +170,11 @@ class HiIrBuilder extends BuilderSupport {
     default:
       throw new RuntimeException("Unknown node: $name")
     }
-    ret.fileInfo = nullFI
+    if (attributes.containsKey('line')) {
+      ret.fileInfo = new FileInfo(line: attributes.line, col: 0)
+    } else {
+      ret.fileInfo = nullFI
+    }
     return ret
   }
 
