@@ -15,6 +15,40 @@ class Program {
    assertNotNull(gm.failException)
   }
 
+  void testUndeclaredFunctions() {
+    def gm = GroovyMain.runMain('inter','''
+class Program {
+  void main() {
+    foo(10);
+  }
+  void foo(int x) {
+    if (x != 0) {
+      foo(x-1);
+    }
+  }
+}
+''')
+    assertEquals(1,gm.errors.size())
+    assertNotNull(gm.failException)
+  }
+
+  void testRecursiveFunctions() {
+    def gm = GroovyMain.runMain('inter','''
+class Program {
+  void foo(int x) {
+    if (x != 0) {
+      foo(x-1);
+    }
+  }
+  void main() {
+    foo(10);
+  }
+}
+''')
+    assertEquals(0,gm.errors.size())
+    assertNull(gm.failException)
+  }
+
   void testLegal01() {
     def gm = GroovyMain.runMain('inter', '''
 // a quicksort program.  set the "length" parameter in main() to the
