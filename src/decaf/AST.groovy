@@ -9,8 +9,6 @@ class AST extends WalkableImpl {
   }()
 
   @Delegate AntlrAST antlrNode
-  //root has null as parent
-  AST parent
   static def cache = [:]
 
   def eachChild(Closure c) {
@@ -32,7 +30,6 @@ class AST extends WalkableImpl {
       //create it if it doesn't exist
       if (result == null) {
         result = new AST(antlrNode: ast, parent: parent)
-        result.walkerDelegate.declVar('parent', parent)
         result.fileInfo = new FileInfo(line: ast.line, col: ast.column)
         cache[ast] = result
       }

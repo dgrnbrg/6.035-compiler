@@ -23,9 +23,12 @@ class BinOp extends WalkableImpl implements Expr {
   Expr right
 
   void howToWalk(Closure c) {
+    left.parent = this
     left.inOrderWalk(c)
-    if (op != BinOpType.NOT)
+    if (op != BinOpType.NOT) {
+      right.parent = this
       right.inOrderWalk(c)
+    }
   }
 
   public String toString() {
@@ -67,10 +70,11 @@ class StringLiteral extends WalkableImpl {
 
 class CallOut extends WalkableImpl implements Expr, Statement {
   def name
-  List params
+  List params = []
 
   void howToWalk(Closure c) {
     params.each {
+      it.parent = this
       it.inOrderWalk(c)
     }
   }
@@ -82,10 +86,11 @@ class CallOut extends WalkableImpl implements Expr, Statement {
 
 class MethodCall extends WalkableImpl implements Expr, Statement {
   MethodDescriptor descriptor
-  List<Expr> params
+  List<Expr> params = []
 
   void howToWalk(Closure c) {
     params.each {
+      it.parent = this
       it.inOrderWalk(c)
     }
   }
@@ -97,10 +102,11 @@ class MethodCall extends WalkableImpl implements Expr, Statement {
 
 class Block extends WalkableImpl implements Statement {
   def symbolTable
-  List<Statement> statements
+  List<Statement> statements = []
 
   void howToWalk(Closure c) {
     statements.each { stmt ->
+      stmt.parent = this
       stmt.inOrderWalk(c)
     }
   }
@@ -117,6 +123,7 @@ class Location extends WalkableImpl implements Expr {
   Expr indexExpr
 
   void howToWalk(Closure c) {
+    indexExpr?.parent = this
     indexExpr?.inOrderWalk(c)
   }
   
@@ -130,7 +137,9 @@ class Assignment extends WalkableImpl implements Statement {
   Expr expr
 
   void howToWalk(Closure c) {
+    loc.parent = this
     loc.inOrderWalk(c)
+    expr.parent = this
     expr.inOrderWalk(c)
   }
   
@@ -143,7 +152,8 @@ class Return extends WalkableImpl implements Statement {
   Expr expr
 
   void howToWalk(Closure c) {
-    expr.inOrderWalk(c)
+    expr?.parent = this
+    expr?.inOrderWalk(c)
   }
 
   public String toString(){
@@ -175,8 +185,11 @@ class IfThenElse extends WalkableImpl implements Statement {
   Block elseBlock
 
   void howToWalk(Closure c) {
+    condition.parent = this
     condition.inOrderWalk(c)
+    thenBlock.parent = this
     thenBlock.inOrderWalk(c)
+    elseBlock?.parent = this
     elseBlock?.inOrderWalk(c)
   }
 
@@ -195,9 +208,13 @@ class ForLoop extends WalkableImpl implements Statement {
   void howToWalk(Closure c) {
     //prevent idiocy
     assert index.indexExpr == null
+    index.parent = this
     index.inOrderWalk(c)
+    low.parent = this
     low.inOrderWalk(c)
+    high.parent = this
     high.inOrderWalk(c)
+    block.parent = this
     block.inOrderWalk(c)
   }
 

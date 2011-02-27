@@ -1,16 +1,21 @@
 package decaf
 
 class SymbolTable extends WalkableImpl {
-  SymbolTable parent
   def children = []
   @Delegate(interfaces=false) AbstractMap map = [:]
   boolean checkCanonical
 
-  SymbolTable(parent) {
-    this.parent = parent
+  SymbolTable(SymbolTable parent) {
+    setParent(parent)
+  }
+
+  //Note that typing parent like this is really important to make sure all the
+  //code that should be run is run
+  void setParent(WalkableImpl parent) {
+    super.setParent(parent)
     if (parent != null) {
       parent.children << this
-    }
+    } 
   }
 
   void howToWalk(Closure c) {

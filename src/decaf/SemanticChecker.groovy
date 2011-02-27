@@ -50,8 +50,10 @@ class SemanticChecker {
     
     if(expr instanceof BinOp) {
       def leftType  = getExprType(expr.left);
-      def rightType = getExprType(expr.right);
       
+      //Don't get the rightType of a NOT, since it'll be null and thus fail
+      def rightType = expr.op != NOT ? getExprType(expr.right) : null;
+
       def msg = {type, side -> "Encountered binary operator ${expr.op}, expecting $side operand to be $type"} 
       if([ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].contains(expr.op)) {
         if(leftType != INT) {
@@ -76,7 +78,7 @@ class SemanticChecker {
             message: msg('the same type','each')
           )
         }
-      } else if([AND, OR, NOT].contains(expr.op)) {
+      } else if([AND, OR].contains(expr.op)) {
         if(leftType != BOOLEAN) {
           errors << new CompilerError(
             fileInfo: expr.fileInfo,
@@ -90,10 +92,18 @@ class SemanticChecker {
             message: msg('boolean','right')
           )
         }
+      } else if (expr.op == NOT) {
+        if(leftType != BOOLEAN) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('boolean','the')
+          )
+        }
       } else {
         assert false;
       }
     }
+    walk()
   }
 
   def methodCallArguments = {current ->
@@ -130,7 +140,7 @@ class SemanticChecker {
       errors << new CompilerError(
         fileInfo: cur.fileInfo,
         message: "Encountered break outside of for loop"
-      )
+      ) 
     } else if (cur instanceof Continue && nestedForDepth == 0) {
       errors << new CompilerError(
         fileInfo: cur.fileInfo,
@@ -158,6 +168,68 @@ class SemanticChecker {
     walk();
   }
 
+  def forLoopInitEndExprTypeInt = {cur -> 
+    if(cur instanceof ForLoop) {
+      if(getExprType(cur.low) != INT) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo, 
+          message: "Encountered ForLoop, expected init expression to be of type INT."
+        )
+      }
+
+      if(getExprType(cur.high) != INT) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered ForLoop, expected end expression to be of type INT."
+        )
+      }
+    }
+    walk()
+  }
+
+  def arrayIndicesAreInts = { cur ->
+    if (cur instanceof Location && cur.indexExpr != null) {
+      if (![INT_ARRAY, BOOLEAN_ARRAY].contains(cur.descriptor.type)) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered a scalar value ${cur.descriptor.name} being used as an array"
+        )
+      } else if (getExprType(cur.indexExpr) != INT) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered array whose index is an ${getExprType(cur.indexExpr)}, expecting INT."
+        )
+      }
+    }
+    walk()
+  }
+
+  def assignmentTypesAreCorrect = { cur ->
+    if (cur instanceof Assignment) {
+      def lhs = getExprType(cur.loc)
+      def rhs = getExprType(cur.expr)
+      if (![INT, BOOLEAN].contains(lhs)) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered assignment to a non-scalar type"
+        )
+      } else if (lhs != rhs) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered assignment with mismatched types. Left hand side was $lhs, right hand side was $rhs"
+        )
+      }
+    }
+    walk()
+  }
+  
   //Put your checks here
-  @Lazy def checks = {->[breakContinueFor, methodCallArguments, ifThenElseConditionCheck, binOpOperands]}()
+  @Lazy def checks = {-> 
+    [breakContinueFor,
+      assignmentTypesAreCorrect,
+      methodCallArguments, 
+      ifThenElseConditionCheck, 
+      binOpOperands, 
+      forLoopInitEndExprTypeInt,
+      arrayIndicesAreInts]}()
 }

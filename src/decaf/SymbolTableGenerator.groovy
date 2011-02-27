@@ -80,10 +80,22 @@ public class SymbolTableGenerator {
 
     case ARRAY_DECL:      
       assert arraySize != null
-      parent.vars << new VariableDescriptor(
+
+      // SEMANTIC CHECK: Array size must be > 0.
+      def desc = new VariableDescriptor(
         name: cur.getText(),
         arraySize: arraySize
       )
+    
+      parent.vars << desc;
+      
+      if(arraySize < 1) {
+        errors << new CompilerError(
+          fileInfo: desc.fileInfo,
+          message: "Encountered array declaration with zero or negative size = $arraySize"
+        )
+      }
+      
       break
 
     case INT_LITERAL: 
