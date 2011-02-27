@@ -91,6 +91,7 @@ class SemanticChecker {
         assert false;
       }
     }
+    walk()
   }
 
   def methodCallArguments = {current ->
@@ -171,13 +172,47 @@ class SemanticChecker {
         )
       }
     }
+    walk()
+  }
+
+  def arrayIndicesAreInts = { cur ->
+    if (cur instanceof Location && cur.indexExpr != null) {
+      if (getExprType(cur.indexExpr) != INT) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered array whose index is an ${getExprType(cur.indexExpr)}, expecting INT."
+        )
+      }
+    }
+    walk()
+  }
+
+  def assignmentTypesAreCorrect = { cur ->
+    if (cur instanceof Assignment) {
+      def lhs = getExprType(cur.loc)
+      def rhs = getExprType(cur.expr)
+      if (![INT, BOOLEAN].contains(lhs)) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered assignment to a non-scalar type"
+        )
+      } else if (lhs != rhs) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered assignment with mismatched types. Left hand side was $lhs, right hand side was $rhs"
+        )
+      }
+    }
+    walk()
   }
   
   //Put your checks here
   @Lazy def checks = {-> 
-    [breakContinueFor, 
+    [breakContinueFor,
+      assignmentTypesAreCorrect,
       methodCallArguments, 
       ifThenElseConditionCheck, 
       binOpOperands, 
-      forLoopInitEndExprTypeInt]}()
+      forLoopInitEndExprTypeInt,
+      arrayIndicesAreInts]}()
 }

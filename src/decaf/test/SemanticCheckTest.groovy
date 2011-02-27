@@ -165,10 +165,18 @@ class SemanticCheckTest extends GroovyTestCase {
     def myInt = new IntLiteral(value: 3);
     def myBln = new BooleanLiteral(value: false);
     
-    def good = new ForLoop(low: myInt, high: myInt);
-    def bad = [new ForLoop(low: myInt, high: myBln),
-                new ForLoop(low: myBln, high: myInt),
-                new ForLoop(low: myBln, high: myBln)];
+    def good = new HiIrBuilder().Block() {
+      ForLoop(index: 'i') { lit(1); lit(10)
+        Block()
+      }
+    }
+    def bad = new HiIrBuilder().Block() {
+      [[true,10],[1,false],[true,false]].each { argPair ->
+        ForLoop(index: 'i') { lit(argPair[0]); lit(argPair[1])
+          Block()
+        }
+      }
+    }
 
     good.inOrderWalk(semanticChecker.forLoopInitEndExprTypeInt);
     bad.each { 
@@ -205,5 +213,33 @@ class SemanticCheckTest extends GroovyTestCase {
     
     assertTrue(prog1 instanceof HiIrGenerator)    
     assertEquals(1, prog2.size())
+  }
+
+  void testAssignmentTypesAreCorrect() {
+    def hiir = new HiIrBuilder().Block(){
+      var(name:'a', type:INT_ARRAY, arraySize: 3)
+      var(name:'b', type:BOOLEAN)
+      Assignment(line: 0) { Location('a'){lit(0)}; lit(3) }
+      Assignment(line: 1) { Location('a'); lit(3) }
+      Assignment(line: 2) { Location('a'); lit(true) }
+      Assignment(line: 3) { Location('b'); lit(true) }
+      Assignment(line: 4) { Location('b'); lit(3) }
+    }
+    def errors = []
+    def semCheck = new SemanticChecker(errors: errors)
+    hiir.inOrderWalk(semCheck.assignmentTypesAreCorrect)
+    assertEquals(3,errors.size())
+  }
+
+  void testArrayIndicesAreInts() {
+    def hiir = new HiIrBuilder().Block(){
+      var(name:'a', type:INT_ARRAY, arraySize: 3)
+      Assignment() { Location('a'){lit(true)}; lit(2) }
+      Assignment() { Location('a'){lit(1)}; lit(2) }
+    }
+    def errors = []
+    def semCheck = new SemanticChecker(errors: errors)
+    hiir.inOrderWalk(semCheck.arrayIndicesAreInts)
+    assertEquals(1,errors.size())
   }
 }
