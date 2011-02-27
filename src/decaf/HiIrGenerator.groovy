@@ -2,6 +2,8 @@ package decaf
 import static decaf.DecafParserTokenTypes.*
 
 class HiIrGenerator {
+  def errors
+
   def methods = [:]
   Closure c = { AST cur ->
     declVar('children',[])
@@ -95,6 +97,12 @@ class HiIrGenerator {
 
     case LOCATION:
       assert children.size() == 1 || children.size() == 2
+      if (symTable[children[0]] == null) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Used variable ${children[0]} without declaring it"
+        )
+      }
       parent.children << new Location(
         descriptor: symTable[children[0]],
         indexExpr: children.size() == 2 ? children[1] : null,
@@ -154,6 +162,8 @@ class HiIrGenerator {
           expr = children[0]
         parent.children << new Return(expr: expr, fileInfo: cur.fileInfo)
         break
+      default:
+        assert false
       }
       break
 

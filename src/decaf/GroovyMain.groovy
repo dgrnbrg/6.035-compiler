@@ -197,11 +197,12 @@ public class GroovyMain {
     dotOut.println('}')
   }
 
-  def hiirGenerator = new HiIrGenerator()
+  def hiirGenerator = new HiIrGenerator(errors: errors)
 
   def genHiIr = {->
     depends(genSymTable)
     ast.inOrderWalk(hiirGenerator.c)
+    if (errors != []) throw new FatalException(code: 1)
   }
 
   def hiir = {->
