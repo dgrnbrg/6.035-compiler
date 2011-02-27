@@ -78,7 +78,7 @@ class HiIrGenerator {
       } else {
         assert children.size() == 1
 	parent.children <<
-	  new BinOp(op:BinOpType.SUB, left:new IntLiteral(value:0), right:children[0], fileInfo: cur.fileInfo)
+	  new BinOp(op:BinOpType.SUB, left:new IntLiteral(value:0, fileInfo: cur.fileInfo), right:children[0], fileInfo: cur.fileInfo)
       }
       break
 
