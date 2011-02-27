@@ -138,7 +138,7 @@ class HiIrBuilder extends BuilderSupport {
       ret = new Return()
       break
     case 'Block':
-      symTable = new SymbolTable(parent: symTable)
+      symTable = new SymbolTable(symTable)
       ret = new Block()
       break
     case 'Break':
@@ -151,7 +151,7 @@ class HiIrBuilder extends BuilderSupport {
       ret = new IfThenElse()
       break
     case 'ForLoop':
-      symTable = new SymbolTable(parent: symTable)
+      symTable = new SymbolTable(symTable)
       def index = new VariableDescriptor(name: attributes.index, type:Type.INT, fileInfo: nullFI)
       symTable[attributes.index] = index
       ret = new ForLoop(index: new Location(descriptor: index))
