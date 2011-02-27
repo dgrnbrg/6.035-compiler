@@ -56,7 +56,37 @@ class SemanticCheckTest extends GroovyTestCase {
     assertEquals(5, errors.size())
   }
 
-  void testDeclareLocation() {
+  void testDeclareMethodLocation() {
+    def ast = new ASTBuilder().build {
+      Program(PROGRAM) {
+        bar(METHOD_DECL) {
+          'void'(TK_void)
+          block(BLOCK)
+        }
+        main(METHOD_DECL) {
+          'void'(TK_void)
+          block(BLOCK) {
+            foo(METHOD_CALL)
+            bar(METHOD_CALL)
+            baz(METHOD_CALL)
+          }
+        }
+        foo(METHOD_DECL, line: 3) {
+          'void'(TK_void)
+          block(BLOCK)
+        }
+      }
+    }
+    def errors = []
+    def stGen = new SymbolTableGenerator(errors: errors)
+    def hiirGen = new HiIrGenerator(errors: errors)
+    ast.inOrderWalk(stGen.c)
+    assertEquals(0, errors.size())
+    ast.inOrderWalk(hiirGen.c)
+    assertEquals(2, errors.size())
+  }
+
+  void testDeclareVariableLocation() {
     def ast = new ASTBuilder().build {
       Program(PROGRAM) {
         main(METHOD_DECL) {
@@ -177,12 +207,15 @@ class SemanticCheckTest extends GroovyTestCase {
                          [typicalBlnLiteral, typicalIntLiteral], 
                          [typicalIntLiteral, typicalIntLiteral]];
 
-    // 12
+    // 8
     badTypeCombos2.each { combo -> 
-      [AND, OR, NOT].each { op -> 
+      [AND, OR].each { op -> 
         badConditions.add(new BinOp(op: op, left: combo[0], right: combo[1]));
       }
     }
+
+    // 1
+    badConditions.add(new BinOp(op: NOT, left: typicalIntLiteral))
 
     // 4
     [EQ, NEQ].each { op -> 
@@ -190,7 +223,7 @@ class SemanticCheckTest extends GroovyTestCase {
       badConditions.add(new BinOp(op: op, left: typicalBlnLiteral, right: typicalIntLiteral));
     }
     
-    def numExpectedBadConds = 52;
+    def numExpectedBadConds = 49;
     
     goodConditions.each { 
       it.inOrderWalk(goodSemanticChecker.binOpOperands)

@@ -111,8 +111,20 @@ class HiIrGenerator {
       break
 
     case METHOD_CALL:
+      def methDesc = methodSymTable[cur.getText()]
+      if (methDesc == null) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Used method ${cur.getText()} without declaring it"
+        )
+      } else if (methDesc.fileInfo.line > cur.fileInfo.line) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Used method ${cur.getText()} before it was declared on line $cur.fileInfo.line"
+        )
+      }
       parent.children << new MethodCall(
-        descriptor: methodSymTable[cur.getText()],
+        descriptor: methDesc,
         params: children as List<Expr>,
         fileInfo: cur.fileInfo
       )

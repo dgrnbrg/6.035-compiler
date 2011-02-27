@@ -6,6 +6,7 @@ import static decaf.DecafParserTokenTypes.*
 public class ASTBuilder{
 
   SymbolTableGenerator symTableGen = new SymbolTableGenerator()
+  def nullFI = new FileInfo(line: -1, col: -1)
 
   def compile(Closure c) {
     def errors = []
@@ -33,7 +34,10 @@ public class ASTBuilder{
     if (val instanceof List) {
       val = val[0]
     }
-    def ret = new MockAST(text:node.name(), type:val, parent: parent)
+    def fileInfo = node.attributes().containsKey('line') ?
+      new FileInfo(line: node.attributes().line, col: 0) :
+      nullFI;
+    def ret = new MockAST(text:node.name(), type:val, parent: parent, fileInfo: fileInfo)
     def n_childs = node.children().size()
     node.children().eachWithIndex { child, index ->
       if (index > 0) {

@@ -48,7 +48,8 @@ class SemanticChecker {
   def binOpOperands = { expr ->
     if(expr instanceof BinOp) {
       def leftType  = getExprType(expr.left);
-      def rightType = getExprType(expr.right);
+      //Don't get the rightType of a NOT, since it'll be null and thus fail
+      def rightType = expr.op != NOT ? getExprType(expr.right) : null;
       def msg = {type, side -> "Encountered binary operator ${expr.op}, expecting $side operand to be $type"} 
       if([ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].contains(expr.op)) {
         if(leftType != INT) {
@@ -73,7 +74,7 @@ class SemanticChecker {
             message: msg('the same type','each')
           )
         }
-      } else if([AND, OR, NOT].contains(expr.op)) {
+      } else if([AND, OR].contains(expr.op)) {
         if(leftType != BOOLEAN) {
           errors << new CompilerError(
             fileInfo: expr.fileInfo,
@@ -85,6 +86,13 @@ class SemanticChecker {
           errors << new CompilerError(
             fileInfo: expr.fileInfo,
             message: msg('boolean','right')
+          )
+        }
+      } else if (expr.op == NOT) {
+        if(leftType != BOOLEAN) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('boolean','the')
           )
         }
       } else {
