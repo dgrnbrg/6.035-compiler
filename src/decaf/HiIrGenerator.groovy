@@ -1,7 +1,7 @@
 package decaf
 import static decaf.DecafParserTokenTypes.*
 
-class HiIrBuilder {
+class HiIrGenerator {
   def methods = [:]
   Closure c = { AST cur ->
     declVar('children',[])

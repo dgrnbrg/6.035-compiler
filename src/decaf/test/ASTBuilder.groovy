@@ -13,7 +13,7 @@ public class ASTBuilder{
     AST ast = build(c)
     ast.inOrderWalk(symTableGen.c)
     if (errors != []) return errors
-    def hiir = new HiIrBuilder()
+    def hiir = new HiIrGenerator()
     ast.inOrderWalk(hiir.c)
     if (errors != []) {
       return errors

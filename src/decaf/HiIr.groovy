@@ -67,7 +67,7 @@ class StringLiteral extends WalkableImpl {
 
 class CallOut extends WalkableImpl implements Expr, Statement {
   def name
-  List params
+  List params = []
 
   void howToWalk(Closure c) {
     params.each {
@@ -82,7 +82,7 @@ class CallOut extends WalkableImpl implements Expr, Statement {
 
 class MethodCall extends WalkableImpl implements Expr, Statement {
   MethodDescriptor descriptor
-  List<Expr> params
+  List<Expr> params = []
 
   void howToWalk(Closure c) {
     params.each {
@@ -97,7 +97,7 @@ class MethodCall extends WalkableImpl implements Expr, Statement {
 
 class Block extends WalkableImpl implements Statement {
   def symbolTable
-  List<Statement> statements
+  List<Statement> statements = []
 
   void howToWalk(Closure c) {
     statements.each { stmt ->
@@ -143,7 +143,7 @@ class Return extends WalkableImpl implements Statement {
   Expr expr
 
   void howToWalk(Closure c) {
-    expr.inOrderWalk(c)
+    expr?.inOrderWalk(c)
   }
 
   public String toString(){

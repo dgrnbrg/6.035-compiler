@@ -23,7 +23,7 @@ public class SymbolTableGenerator {
     case METHOD_DECL:
     case BLOCK:
     case TK_for:
-      declVar('symTable', new SymbolTable(parent.symTable))
+      declVar('symTable', new SymbolTable(parent: parent.symTable))
       break
 
     default:
@@ -92,7 +92,7 @@ public class SymbolTableGenerator {
       if(arraySize < 1) {
         errors << new CompilerError(
           fileInfo: desc.fileInfo,
-          message: "Encountered array declaration with array size less than 0: arraySize = $arraySize"
+          message: "Encountered array declaration with zero or negative size = $arraySize"
         )
       }
       
