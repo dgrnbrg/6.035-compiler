@@ -301,119 +301,144 @@ class SemanticCheckTest extends GroovyTestCase {
 
     // R = return
     Block g1 = hb.Block {
+      method(name:'bar1', returns: Type.INT)
       Return() {
         lit(3)
       }
     }
+    hb.methodSymTable['bar1'].block = g1;
 
     // R = { return }
     Block g2 = hb.Block {
+      method(name:'bar2', returns: Type.INT)
       Block {
         Return() {
           lit(3)
         }
       }
     }
+    hb.methodSymTable['bar2'].block = g2;
 
     // R = if R else R
     Block g3 = hb.Block {
+      method(name:'bar3', returns: Type.INT)
       IfThenElse() {
         lit(true)
         Block() { Return() }
         Block() { Return() }
       }
     }
+    hb.methodSymTable['bar3'].block = g3;
 
     // R = for R
     Block g4 = hb.Block {
+      method(name:'bar4', returns: Type.INT)
       ForLoop(index: 'i') {
         lit(1); lit(10); 
         Block() { Return () }
       }
     }
+    hb.methodSymTable['bar4'].block = g4;
 
     // R = R, NR
     Block g5 = hb.Block {
+      method(name:'bar5', returns: Type.INT)
       Return();
       Block() { };
     }
+    hb.methodSymTable['bar5'].block = g5;
 
     // R = NR, R
     Block g6 = hb.Block {
+      method(name:'bar6', returns: Type.INT)
       Block() { };
       Return();
     }
+    hb.methodSymTable['bar6'].block = g6;
 
     // NR = {}
     Block b1 = hb.Block {
+      method(name:'foo1', returns: Type.INT)
     }
-
+    hb.methodSymTable['foo1'].block = b1;
+    
     // NR = if R
     Block b2 = hb.Block {
+      method(name:'foo2', returns: Type.INT)
       IfThenElse() {
         lit(true)
         Block() { Return() }
       }
     }
+    hb.methodSymTable['foo2'].block = b2;
 
     // NR = if NR
     Block b3 = hb.Block {
+      method(name:'foo3', returns: Type.INT)
       IfThenElse() {
         lit(true)
         Block() { }
       }
     }
+    hb.methodSymTable['foo3'].block = b3;
 
     // NR = if NR else NR
     Block b4 = hb.Block {
+      method(name:'foo4', returns: Type.INT)
       IfThenElse() {
         lit(true)
         Block() { }
         Block() { }
       }
     }
+    hb.methodSymTable['foo4'].block = b4;
 
     // NR = if R else NR
     Block b5 = hb.Block {
+      method(name:'foo5', returns: Type.INT)
       IfThenElse() {
         lit(true)
         Block() { Return() }
         Block() { }
       }
     }
+    hb.methodSymTable['foo5'].block = b5;
 
     // NR = if NR else R
     Block b6 = hb.Block {
+      method(name:'foo6', returns: Type.INT)
       IfThenElse() {
         lit(true)
         Block() { }
         Block() { Return() }
       }
     }
+    hb.methodSymTable['foo6'].block = b6;
 
     // NR = for NR 
     Block b7 = hb.Block {
+      method(name:'foo7', returns: Type.INT)
       ForLoop(index: 'i') {
         lit(1); lit(10); 
         Block() { }
       }
     }
+    hb.methodSymTable['foo7'].block = b7;
 
     def goodConditions = [g1, g2, g3, g4, g5, g6];
     def badConditions  = [b1, b2, b3, b4, b5, b6, b7];
 
     def goodErrors = []
     def badErrors = []
-    def goodSemanticChecker = new SemanticChecker(errors: goodErrors)
-    def badSemanticChecker  = new SemanticChecker(errors: badErrors)
+    def goodSemanticChecker = new SemanticChecker(errors: goodErrors, methodSymTable: hb.methodSymTable)
+    def badSemanticChecker  = new SemanticChecker(errors: badErrors, methodSymTable: hb.methodSymTable)
 
     goodConditions.each {
-      it.inOrderWalk(goodSemanticChecker.methodCallsThatAreExprReturnValue);
+      it.inOrderWalk(goodSemanticChecker.nonVoidMethodsMustReturnValue);
     }
 
-
     badConditions.each {
-      it.inOrderWalk(badSemanticChecker.methodCallsThatAreExprReturnValue);
+      it.inOrderWalk(badSemanticChecker.nonVoidMethodsMustReturnValue);
     }
 
     assertEquals(0, goodErrors.size());
