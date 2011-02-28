@@ -6,10 +6,6 @@ class CompilerError {
   def file
 
   String toString() {
-    if(fileInfo != null){
-      "$File: file Line: $fileInfo.line Column: $fileInfo.col: $message"
-    } else {
-      "$message"
-    }
+    "File: $file Line: $fileInfo.line Column: $fileInfo.col: $message"
   }
 }

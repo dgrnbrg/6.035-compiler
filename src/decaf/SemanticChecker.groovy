@@ -6,7 +6,7 @@ import static decaf.BinOpType.*
 
 class SemanticChecker {
   def errors
-  def methodSymTable
+  def methodSymTable = [:];
 
   static Type getExprType(Expr expr) {
     switch (expr) {
@@ -224,7 +224,103 @@ class SemanticChecker {
         )
       }
     }
-    walk()
+
+    walk();
+  }
+  
+  // Actually the test below just enforces that all 
+  // methods that don't have return type void do 
+  // return a value (checks all paths through method).
+  def nonVoidMethodsMustReturnValue = {cur ->
+    def methodDesc
+    if(cur instanceof Block && cur.parent == null) {
+      // this is the top level block, check symbol table to extract 
+      // the return type of the appropriate method declaration
+      methodSymTable.keySet().each { it ->
+        def desc = methodSymTable[it]
+        if(desc.block == cur) {
+          methodDesc = desc
+          if(desc.returnType == VOID) {
+            methodDesc = null
+          }
+        }
+      }
+      if (methodDesc == null) return;
+    }
+    
+    declVar('returnCount', 0)
+
+    walk();
+
+    switch (cur) {
+    case Block:
+      if(cur.returnCount != 0) {
+        if (cur.parent != null)
+          cur.parent.returnCount++
+      } else {
+        if (cur.parent == null) {
+          //parent == null, top level block of method
+          errors << new CompilerError(
+            fileInfo: cur.fileInfo,
+            message: "Missing return statement for method $methodDesc"
+          )
+        }
+      }
+      break;
+    case IfThenElse:
+      if (cur.returnCount == 2)
+        cur.parent.returnCount++
+      break;
+    case ForLoop:
+      if(cur.returnCount != 0)
+        cur.parent.returnCount++
+      break;
+    case Return:
+      cur.parent.returnCount++
+      break;
+    }
+  }
+
+  def expectedReturnType = null;
+  def methodDeclTypeMatchesTypeOfReturnExpr = {cur ->
+    
+    if(cur instanceof Block && cur.parent == null) {
+      // this is the top level block, check symbol table to extract 
+      // the return type of the appropriate method declaration
+      methodSymTable.keySet().each { it ->
+        if(methodSymTable[(it)].block.is(cur))
+          expectedReturnType = methodSymTable[(it)].returnType;
+      }
+
+      if(expectedReturnType == null) {
+        println "ERROR FROM SEMANTIC CHECKER: expectedReturnType of this block is null!"
+        methodSymTable.keySet().each {
+          println "key = $it"
+          println "value = the method descriptor: ${methodSymTable[(it)]}"
+          println "Is this block associated with this method? ... ${methodSymTable[(it)].block.is(cur)}"
+        }
+      }
+    }
+    
+    if(cur instanceof Return) {
+      if(cur.expr == null) {
+        if(expectedReturnType != VOID) {
+          errors << new CompilerError(
+            fileInfo: cur.fileInfo,
+            message: "Type of Return expr (null) must match type of Method Declaration ($expectedReturnType)."
+          )
+        }
+      } else {
+        if(getExprType(cur.expr) != expectedReturnType) {
+          errors << new CompilerError(
+              fileInfo: cur.fileInfo,
+              message: "Type of Return expr (${getExprType(cur.expr)}) must match type of Method Declaration ($expectedReturnType)."
+            )
+        }
+      }
+    }
+
+    walk();
   }
 
   def arrayIndicesAreInts = { cur ->
@@ -271,5 +367,7 @@ class SemanticChecker {
       ifThenElseConditionCheck, 
       binOpOperands, 
       forLoopInitEndExprTypeInt,
-      arrayIndicesAreInts]}()
+      arrayIndicesAreInts,
+      nonVoidMethodsMustReturnValue,
+      methodDeclTypeMatchesTypeOfReturnExpr]}()
 }

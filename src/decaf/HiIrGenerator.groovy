@@ -136,6 +136,7 @@ class HiIrGenerator {
 
     case METHOD_DECL:
       assert children.size() == 1
+      methodSymTable[cur.getText()].block = children[0]
       methods[cur.getText()] = children[0]
       break
 
