@@ -2,23 +2,23 @@ Writeup for Semantic Checker
 
 Work Division
 --------------------------
-David - wrote HiIr builder and semantic checks and HiIr generator, worked on GroovyMain.groovy, build.xml
-Aysylu - wrote symbol table generator, wrote tests for symbol table generator, wrote AST builder
-Sagar - worked on symbol table generator, semantic checks
-Nathan - worked on semantic checks, semantic check tests, wrote test cases for HiIr
+David  - wrote HiIr builder and semantic checks and HiIr generator, worked on GroovyMain.groovy and build.xml.
+Aysylu - wrote symbol table generator, wrote tests for symbol table generator and wrote AST builder.
+Sagar  - wrote symbol table generator, semantic checks and semantic check tests.
+Nathan - worked on semantic checks, semantic check tests and wrote test cases for HiIr.
 --------------------------
 
 Clarifications / Assumptions / Additions to the Problem Assigned
 --------------------------
 Instead of handling negative literals, we simply convert them into a binary expression of "0 - literal" and then leave this for constant folding, to be done later.
 
-String literals - ignore that.
+We also ignored String literals.
 --------------------------
 
 Design Overview
 --------------------------
 Higher level structure:
-- Compiler is an object that consists of tasks. Tasks are functions. There is a DSL that allows one to specify the dependencies between tasks.
+- The compiler is an object that consists of tasks. Tasks are functions. There is a DSL (domain specific language) that allows one to specify the dependencies between tasks so that they are automatically executed in the correct order.
 - The compiler can be started from the command line or invoked within the code itself. In either case, the desired target is given to the compiler, which will run all of the phases in the correct order.
 - Given that our compiler is a form of recursive tree walking, we implemented a generic tree walking interface called Walkable. We retrofitted ANTLR's AST to support this interface. Our intermediate representation and symbol tables also support this interface. We wrote a binding to GraphViz in order to render a PDF of our compiler internals operation on certain examples.
 - The relevant targets are: "antlrast", "symtable", and "hiir". If you target one of these, you will see the results.
@@ -30,11 +30,61 @@ Higher level structure:
 - We use the semantic checker to walk each method's HiIr representation. Some semantic checks are done during symbol table generation or HiIr generation, specifically the ones related to variable and method declarations.
 
 >> Difficulties
-- Groovy's dynamic nature makes it hard to make immutable objects. We use detailed code coverage analysis / in depth testing to test the program's correctness. To facilitate testing, we created a number of DSLs that allow us to declaratively instantiate decaf program fragments within the source code. For instance, we can create a snippet of HiIr or an ANTLR AST, or even an entire decaf program. We generated exhaustive tests for many of the compiler operations.
+- Groovy's dynamic nature makes it hard to make immutable objects. We use detailed code coverage analysis / in depth testing to test the program's correctness. To facilitate testing, we created a number of DSLs that allow us to declaratively instantiate decaf program fragments within the source code. For instance, we can create a snippet of HiIr or an ANTLR AST, or even an entire decaf program. We generated exhaustive tests for many of the compiler operations. Here are some examples (both of which are drawn from src/decaf/test/SemanticCheckTest.groovy):
+
+Using AST Builder: 
+
+def prog1 = astb.compile {
+  Program(PROGRAM) {
+    bar(METHOD_DECL) {
+      'void'(TK_void)
+      'int'(VAR_DECL) {
+        a(ID)
+      }
+      block(BLOCK)
+    }
+    main(METHOD_DECL) {
+      'void'(TK_void)
+      block(BLOCK) {
+        bar(METHOD_CALL) {
+          '1'(INT_LITERAL)
+          '2'(INT_LITERAL)
+        }
+      }
+    }
+  }
+}
+
+Using the HiIrBuilder:
+
+def bcfHiir = new HiIrBuilder().Block(){
+  Break()
+  Continue()
+  ForLoop(index: 'i') {
+    lit(1); lit(10); Block() {
+      Break(); Continue()
+    }
+  }
+  ForLoop(index: 'i') {
+    lit(1); lit(10); Block() {
+      Break(); Continue()
+        ForLoop(index: 'i') {
+          lit(1); lit(10); Block() {
+            Break(); Continue()
+          }
+        }
+        Break(); Continue()
+      }
+    }
+    Break()
+    Continue()
+  }
+
+
 - The generic Walker's dynamic scope was confusing to write with. It is somewhat difficult to understand which variables exist at any point in time. However, it is all quite intuitive to work with once the higher level structure is done. Moreover, it is quite easy to read.
 - Walkable objects must know what their parents are. The implementation for meeting this constraint is implemented in a somewhat hackish manner. Our testing appears to indicate that this approach is sufficient at this point in time.However, we have an easy fix for this that will be implemented promptly.
-- ANTLR's AST generation is garbage. We had to significantly extend the parser from the previous project to make it work.
-- Getting used to Groovy. Half of the group had not used Groovy before. While the differences between (Java / Python / Ruby) and Groovy are minimal, there are some differences that are enough to cause problems for the novice.
+- We did not find ANTLR's AST generation abilities sufficient; we significantly extended the parser from the previous project in order to make it work.
+- Getting used to Groovy required some patience. Half of the group had not used Groovy before. While the differences between (Java / Python / Ruby) and Groovy are minimal, there are some differences that are enough to cause problems for the novice.
 --------------------------
 
 Known Problems
@@ -46,9 +96,28 @@ Cool Stuff
 --------------------------
 - FileInfo is propagated pervasively throughout the program so that our error messages have the pertinent information.
 - Our compiler is a groovy object, enabling us to embed it into test cases.
-- Can embed decaf files into the tests, run the compiler on it phase by phase, verifying correctness at the end of each phase.
+- Can embed decaf files into the tests, run the compiler on it phase by phase, verifying correctness at the end of each phase. Here is an example of being able to embed a decaf program within a semantic check (this can be found in src/decaf/test/FullDecafSemanticsTest.groovy, triple single-quotes signify a multi-line string):
+
+void testUndeclaredFunctions() {
+  def gm = GroovyMain.runMain('inter','''
+    class Program {
+      void main() {
+        foo(10);
+      }
+      void foo(int x) {
+        if (x != 0) {
+          foo(x-1);
+        }
+      }
+    }
+  ''')
+
+  assertEquals(1,gm.errors.size())
+  assertNotNull(gm.failException)
+}
+
 - Everything is highly modularized. Every semantic check and compiler phase can be invoked independently of the others.
-- Three DSLs: ASTBuilder, HiIrBuilder, and the Walkable interface.
+- Three DSLs: ASTBuilder (src/decaf/test/ASTBuilder.groovy), HiIrBuilder (src/decaf/test/HiIrBuilder.groovy), and the Walkable interface.
 - Non-pretentious error messages. They try to simply tell you what you did wrong rather than trying appeal to formalities.
 - Our build system is greatly improved. Some of the features include: automatic code coverage analysis of our test cases, the ability to package our compiler and all of its dependencies into a single JAR, and the ability to run tests from the build script.
 --------------------------
