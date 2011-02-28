@@ -291,15 +291,6 @@ class SemanticChecker {
         if(methodSymTable[(it)].block.is(cur))
           expectedReturnType = methodSymTable[(it)].returnType;
       }
-
-      if(expectedReturnType == null) {
-        println "ERROR FROM SEMANTIC CHECKER: expectedReturnType of this block is null!"
-        methodSymTable.keySet().each {
-          println "key = $it"
-          println "value = the method descriptor: ${methodSymTable[(it)]}"
-          println "Is this block associated with this method? ... ${methodSymTable[(it)].block.is(cur)}"
-        }
-      }
     }
     
     if(cur instanceof Return) {
