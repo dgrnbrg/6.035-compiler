@@ -47,7 +47,7 @@ class SymbolTable extends WalkableImpl {
   }
 
   int hashCode() {
-    return children.hashCode() * 19 + parent.hashCode() * 41
+    return children.hashCode() * 19 + super.hashCode()
   }
 }
 
