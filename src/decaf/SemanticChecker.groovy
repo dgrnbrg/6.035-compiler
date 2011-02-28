@@ -46,11 +46,54 @@ class SemanticChecker {
     }
   }
 
+  def mainMethodCorrect(){
+    def mainMethod = methodSymTable['main']
+    // Check: main() method exists
+    if(mainMethod){
+      // Check: main() has return type of VOID
+      if(mainMethod.returnType != Type.VOID){
+        errors << new CompilerError(
+          fileInfo: mainMethod.fileInfo,
+          message: "Return type of main method should be void."
+        )
+      }
+      // Check: main() has no arguments
+      if(mainMethod.params.size() != 0){
+        errors << new CompilerError(
+          fileInfo: mainMethod.fileInfo,
+          message: "main() should accept NO parameters."
+        )
+      }
+      // Check: main() is the last function declared in the file
+      def maximizeLineNumber = [compare:{a, b->
+          def aLine = a?.fileInfo?.line
+          def bLine = b?.fileInfo?.line
+          (aLine == bLine) ? 0 : (aLine < bLine)? -1 : 1
+      }] as Comparator
+
+      def lastMethod = methodSymTable.values().max(maximizeLineNumber)
+      if(lastMethod.name != "main"){
+        errors << new CompilerError(
+          fileInfo: mainMethod.fileInfo,
+          message: "main() method is not the last method declared in the file."
+        )
+      }
+    } else {
+      errors << new CompilerError (
+        fileInfo: null,
+        message: "Function definition with prototype \"void main()\" does not exist (you didn't declare a main() method")
+    }
+
+  }
+
   def binOpOperands = { expr ->
+    
     if(expr instanceof BinOp) {
       def leftType  = getExprType(expr.left);
+      
       //Don't get the rightType of a NOT, since it'll be null and thus fail
       def rightType = expr.op != NOT ? getExprType(expr.right) : null;
+
       def msg = {type, side -> "Encountered binary operator ${expr.op}, expecting $side operand to be $type"} 
       if([ADD, SUB, MUL, DIV, MOD, LT, GT, LTE, GTE].contains(expr.op)) {
         if(leftType != INT) {

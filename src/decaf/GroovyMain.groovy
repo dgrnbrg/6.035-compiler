@@ -231,6 +231,9 @@ public class GroovyMain {
         methodHiIr.inOrderWalk(check)
       }
     }
+    
+    checker.mainMethodCorrect()
+    
     if (errors != []) throw new FatalException(code: 1)
   }
 }
