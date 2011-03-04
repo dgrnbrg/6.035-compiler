@@ -13,9 +13,9 @@ class HiIrGenerator {
     if (cur.walkerDelegate.@properties['symTable'] == null) {
       declVar('symTable', cur.parent.symTable)
     }
-    if (cur.walkerDelegate.@properties['methodSymTable'] != null) {
-//      declVar('methodSymTable', cur.parent.methodSymTable)
-      methodSymTable = cur.walkerDelegate.@properties['methodSymTable']
+    def methodSymTableTmp
+    if (methodSymTable == null && (methodSymTableTmp = cur.walkerDelegate.@properties['methodSymTable']) != null) {
+      methodSymTable = methodSymTableTmp
     }
     walk()
     switch (cur.getType()) {
