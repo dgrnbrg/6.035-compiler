@@ -46,7 +46,9 @@ public class SymbolTableGenerator {
       }
     }
 
-    walk()
+    if ([METHOD_DECL, VAR_DECL, BLOCK, TK_for, PROGRAM, ARRAY_DECL].contains(cur.getType())) {
+      walk()
+    }
  
     switch(cur.getType()) {
     case VAR_DECL:
