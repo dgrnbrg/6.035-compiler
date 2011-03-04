@@ -5,8 +5,18 @@ class HiIrGenerator {
   def errors
 
   def methods = [:]
+
+  def methodSymTable
+
   Closure c = { AST cur ->
     declVar('children',[])
+    if (cur.walkerDelegate.@properties['symTable'] == null) {
+      declVar('symTable', cur.parent.symTable)
+    }
+    def methodSymTableTmp
+    if (methodSymTable == null && (methodSymTableTmp = cur.walkerDelegate.@properties['methodSymTable']) != null) {
+      methodSymTable = methodSymTableTmp
+    }
     walk()
     switch (cur.getType()) {
     case TK_false:
