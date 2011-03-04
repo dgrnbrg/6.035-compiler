@@ -159,10 +159,14 @@
         <exclude name="**/*Test*"/>
       </fileset>
     </cobertura-instrument>
+    <property name="instrumentedClasses" value="true"/>
   </target>
 
   <target name="test" depends="compile">
-    <junit fork="yes">
+    <condition property="junitfork">
+      <isset property="instrumentedClasses"/>
+    </condition>
+    <junit fork="${junitfork}">
       <classpath>
         <pathelement path="${classes.instrumented}"/>
         <pathelement path="${classes}"/>
