@@ -17,6 +17,17 @@ public class GroovyMain {
     }
   }
 
+  def lastTime
+  def time(msg) {
+    if (lastTime == null) {
+      lastTime = System.currentTimeMillis()
+    } else {
+      lastTime = System.currentTimeMillis() - lastTime
+      println "it took $lastTime ms to run $msg"
+      lastTime = null
+    }
+  }
+
   public static void main(String[] args) {
     new GroovyMain(args)
   }
@@ -127,12 +138,14 @@ public class GroovyMain {
   def ast
   def parse = {->
     try {
+    time()
       def lexer = new DecafScanner(inputStream)
       def parser = new DecafParser(lexer)
       ASTFactory factory = new ASTFactory()
       factory.setASTNodeClass(CommonASTWithLines.class)
       parser.setASTFactory(factory)
       parser.program()
+    time('parse')
       ast = AST.fromAntlrAST(parser.getAST())
     } catch (RecognitionException e) {
       e.printStackTrace()
@@ -184,7 +197,9 @@ public class GroovyMain {
   //ie test that the finally block in the entry point is executed when we system.exit
   def genSymTable = {->
     depends(parse)
+    time()
     ast.inOrderWalk(symTableGenerator.c)
+    time('genSymTable')
     if (errors != []) throw new FatalException(code: 1)
   }
 
@@ -201,7 +216,9 @@ public class GroovyMain {
 
   def genHiIr = {->
     depends(genSymTable)
+    time()
     ast.inOrderWalk(hiirGenerator.c)
+    time('genHiIr')
     if (errors != []) throw new FatalException(code: 1)
   }
 
@@ -218,6 +235,7 @@ public class GroovyMain {
 
   def inter = {->
     depends(genHiIr)
+    time()
     def checker = new SemanticChecker(errors: errors, methodSymTable: ast.methodSymTable)
     hiirGenerator.methods.values().each { methodHiIr ->
       assert methodHiIr != null
@@ -236,6 +254,7 @@ public class GroovyMain {
     }
     
     checker.mainMethodCorrect()
+    time('semantic checks')
     
     if (errors != []) throw new FatalException(code: 1)
   }
