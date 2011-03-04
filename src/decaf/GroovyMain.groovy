@@ -226,10 +226,13 @@ public class GroovyMain {
         assert it.fileInfo != null
         walk()
       }
+/*
       checker.checks.each { check ->
         assert check != null
         methodHiIr.inOrderWalk(check)
       }
+*/
+      methodHiIr.inOrderWalk(checker.hyperblast)
     }
     
     checker.mainMethodCorrect()
