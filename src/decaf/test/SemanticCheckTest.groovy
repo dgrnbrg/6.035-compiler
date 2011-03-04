@@ -54,7 +54,7 @@ class SemanticCheckTest extends GroovyTestCase {
     }
     errors.clear()
     twoArgs.inOrderWalk(semCheck.methodCallArguments)
-    assertEquals(5, errors.size())
+    assertEquals(4, errors.size())
   }
 
   void testDeclareMethodLocation() {

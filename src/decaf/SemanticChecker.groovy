@@ -159,16 +159,20 @@ class SemanticChecker {
           fileInfo: current.fileInfo,
           message: "Encountered method call to ${current.descriptor.name} with different number of parameters than specified in function prototype"
         )
-      }
-      // Ensure that the caller passed parameters of the correct type
-      [typeList,argList].transpose().each{ argDescriptor, argValue->
-        def argValueType = getExprType(argValue)
-        def argType = argDescriptor.type
-        if(argValueType != argType){
-          errors << new CompilerError(
-            fileInfo: current.fileInfo,
-            message: "Encountered method call to ${current.descriptor.name} with parameter of type ${argValueType}, which should be of type ${argType} instead."
-          )
+      } else {
+        // Ensure that the caller passed parameters of the correct type
+        //[typeList,argList].transpose().each{ argDescriptor, argValue->
+        for (int i = 0; i < typeList.size(); i++) {
+          def argValue = argList[i]
+          def argDescriptor = typeList[i]
+          def argValueType = getExprType(argValue)
+          def argType = argDescriptor.type
+          if(argValueType != argType){
+            errors << new CompilerError(
+              fileInfo: current.fileInfo,
+              message: "Encountered method call to ${current.descriptor.name} with parameter of type ${argValueType}, which should be of type ${argType} instead."
+            )
+          }
         }
       }
     }
@@ -251,7 +255,7 @@ class SemanticChecker {
     if(cur instanceof Block && cur.parent == null) {
       // this is the top level block, check symbol table to extract 
       // the return type of the appropriate method declaration
-      methodSymTable.keySet().each { it ->
+      for (it in methodSymTable.keySet()) {
         def desc = methodSymTable[it]
         if(desc.block == cur) {
           methodDesc = desc
@@ -302,7 +306,7 @@ class SemanticChecker {
     if(cur instanceof Block && cur.parent == null) {
       // this is the top level block, check symbol table to extract 
       // the return type of the appropriate method declaration
-      methodSymTable.keySet().each { it ->
+      for (it in methodSymTable.keySet()) {
         if(methodSymTable[(it)].block.is(cur))
           expectedReturnType = methodSymTable[(it)].returnType;
       }
@@ -373,7 +377,7 @@ class SemanticChecker {
 
   def hyperblast = {cur ->
     hyperspeed = true
-    checks.each {
+    for (it in checks) {
       it.delegate = delegate
       it(cur)
     }
