@@ -10,13 +10,16 @@ class HiIrGenerator {
 
   Closure c = { AST cur ->
     declVar('children',[])
-    if (cur.walkerDelegate.@properties['symTable'] == null) {
+    def symTable = cur.walkerDelegate.@properties['symTable']
+    if (symTable == null) {
+      symTable = cur.parent.symTable
       declVar('symTable', cur.parent.symTable)
     }
     def methodSymTableTmp
     if (methodSymTable == null && (methodSymTableTmp = cur.walkerDelegate.@properties['methodSymTable']) != null) {
       methodSymTable = methodSymTableTmp
     }
+
     walk()
     switch (cur.getType()) {
     case TK_false:
