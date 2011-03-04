@@ -1,38 +1,18 @@
 package decaf
-import groovytools.builder.*
 
 public class ArgParser {
   public static final int ARGS_UNLIMITED = -1;
-  MetaBuilder mb = new MetaBuilder()
   def argStruct
   def results = [other: []]
 
   public ArgParser() {
-    mb.define {
-      program {
-        collections {
-          options {
-            '%' {
-              properties {
-                count(req: true, check: { it.class == Integer })
-                restrict(check: { it instanceof List })
-              }
-            }
-          }
-        }
-      }
+    def nb = new NodeBuilder()
+    argStruct = nb.options {
+      o(count: 1)
+      target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly','hiir','antlrast','symtable','inter'])
+      opt(count: -1, restrict: ['-?unroll'])
+      debug(count: 0)
     }
-    def tmp = mb.build {
-      program {
-        options {
-          o(count: 1)
-          target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly','hiir','antlrast','symtable','inter'])
-          opt(count: -1, restrict: ['-?unroll'])
-          debug(count: 0)
-        }
-      }
-    }
-    argStruct = tmp['options'][0]
   }
 
   def getAt(String x) {
