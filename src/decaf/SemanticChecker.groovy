@@ -7,6 +7,7 @@ import static decaf.BinOpType.*
 class SemanticChecker {
   def errors
   def methodSymTable = [:];
+  def hyperspeed = false
 
   static Type getExprType(Expr expr) {
     switch (expr) {
@@ -143,7 +144,9 @@ class SemanticChecker {
         assert false;
       }
     }
-    walk()
+    if (!hyperspeed) {
+      walk();
+    }
   }
 
   def methodCallArguments = {current ->
@@ -169,7 +172,9 @@ class SemanticChecker {
         }
       }
     }
-    walk()
+    if (!hyperspeed) {
+      walk();
+    }
   }
   
   int nestedForDepth = 0
@@ -188,8 +193,12 @@ class SemanticChecker {
       )
     }
 
-    walk()
-
+    if (!hyperspeed) {
+      walk();
+      breakContinueForPost(cur)
+    }
+  }
+  def breakContinueForPost(cur) {
     if (cur instanceof ForLoop) {
       nestedForDepth--
     }
@@ -205,7 +214,9 @@ class SemanticChecker {
       }
     }
 
-    walk();
+    if (!hyperspeed) {
+      walk();
+    }
   }
 
   def forLoopInitEndExprTypeInt = {cur -> 
@@ -225,14 +236,18 @@ class SemanticChecker {
       }
     }
 
-    walk();
+    if (!hyperspeed) {
+      walk();
+    }
   }
   
   // Actually the test below just enforces that all 
   // methods that don't have return type void do 
   // return a value (checks all paths through method).
   def nonVoidMethodsMustReturnValue = {cur ->
-    def methodDesc
+    declVar('methodDesc',null)
+    declVar('returnCount', 0)
+
     if(cur instanceof Block && cur.parent == null) {
       // this is the top level block, check symbol table to extract 
       // the return type of the appropriate method declaration
@@ -240,18 +255,18 @@ class SemanticChecker {
         def desc = methodSymTable[it]
         if(desc.block == cur) {
           methodDesc = desc
-          if(desc.returnType == VOID) {
-            methodDesc = null
-          }
         }
       }
-      if (methodDesc == null) return;
     }
-    
-    declVar('returnCount', 0)
+ 
+    if (!hyperspeed) {
+      walk();
+      nonVoidMethodsMustReturnValuePost(cur)
+    }
+  }
 
-    walk();
-
+  def nonVoidMethodsMustReturnValuePost(cur) {
+    if (cur.methodDesc?.returnType == VOID) return;
     switch (cur) {
     case Block:
       if(cur.returnCount != 0) {
@@ -262,7 +277,7 @@ class SemanticChecker {
           //parent == null, top level block of method
           errors << new CompilerError(
             fileInfo: cur.fileInfo,
-            message: "Missing return statement for method $methodDesc"
+            message: "Missing return statement for method $cur.methodDesc"
           )
         }
       }
@@ -311,7 +326,9 @@ class SemanticChecker {
       }
     }
 
-    walk();
+    if (!hyperspeed) {
+      walk();
+    }
   }
 
   def arrayIndicesAreInts = { cur ->
@@ -328,7 +345,9 @@ class SemanticChecker {
         )
       }
     }
-    walk()
+    if (!hyperspeed) {
+      walk();
+    }
   }
 
   def assignmentTypesAreCorrect = { cur ->
@@ -347,9 +366,22 @@ class SemanticChecker {
         )
       }
     }
-    walk()
+    if (!hyperspeed) {
+      walk();
+    }
   }
-  
+
+  def hyperblast = {cur ->
+    hyperspeed = true
+    checks.each {
+      it.delegate = delegate
+      it(cur)
+    }
+    walk()
+    breakContinueForPost(cur)
+    nonVoidMethodsMustReturnValuePost(cur)
+  }
+
   //Put your checks here
   @Lazy def checks = {-> 
     [breakContinueFor,
