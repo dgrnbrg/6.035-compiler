@@ -1,9 +1,11 @@
 package decaf
 
-class LowerBlock{
+class LowIrStatement{}
+
+class LowIrBlock{
   String id
-  List<LowerStatement> statements = []
-  LowerBlock fallthroughBlock
+  List<LowIrStatement> statements = []
+  LowIrBlock fallthroughBlock
 }
 
 class SSAVar{
@@ -31,7 +33,7 @@ class Callout{
   SSAVar result
 }
 
-class LowerBinOp{
+class LowIrBinOp{
   SSAVar left
   SSAVar right
   // Ensure that HiIr.groovy is actually imported
@@ -45,13 +47,24 @@ class LoadConstant{
 }
 
 class UnconditionalJump{
-  LowerBlock destination
+  LowIrBlock destination
 }
 
 class ConditionalJump{
   SSAVar condition
-  LowerBlock destination
+  LowIrBlock destination
 }
 
-class LowerReturn{
+class LowIrReturn{
+}
+
+// For non-SSA control flow graph
+class LoadVariable{
+  SSAVar result
+  VariableDescriptor variable
+}
+
+class StoreVariable{
+  SSAVar valueToStore
+  VariableDescriptor destination
 }
