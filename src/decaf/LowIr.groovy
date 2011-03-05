@@ -39,6 +39,11 @@ class LowerBinOp{
   SSAVar result
 }
 
+class LoadConstant{
+  int constant
+  SSAVar result 
+}
+
 class UnconditionalJump{
   LowerBlock destination
 }
