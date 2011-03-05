@@ -1,8 +1,8 @@
 package decaf.graph;
 import java.util.*;
+import org.apache.commons.collections.iterators.IteratorChain;
 
 public class DominanceComputations {
-//  private FlowGraph g;
   private Map<GraphNode, Set<GraphNode>> domFrontier;
   //This is a representation of the dominance tree
   //it allows for efficient things I'll make up
@@ -27,13 +27,15 @@ public class DominanceComputations {
     domTree = new HashMap<GraphNode, Set<GraphNode>>();
   }
 
-//  public DominanceComputations(FlowGraph g) {
-//    this.g = g;
-//  }
+  private final boolean doesDominate(GraphNode dom, GraphNode child) {
+    while (dom != child && (child = ancestor.get(child)) != null);
+    //terminates when dom == child or we hit the root
+    return dom == child;
+  }
 
   //see page 406 of modern compiler implementation in Java for this algorithm
   //immediate dominators are on page 380
-/*
+  //untested
   private void computeDominanceFrontier(GraphNode n) {
     Set<GraphNode> s = new HashSet<GraphNode>();
     for (GraphNode y : n.getSuccessors()) {
@@ -41,18 +43,18 @@ public class DominanceComputations {
         s.add(y);
       }
     }
-    for (GraphNode c : getDomTreeChildrenOf(n)) {
+    for (Iterator iter = getDomTreeChildrenOf(n); iter.hasNext(); ) {
+      GraphNode c = (GraphNode) iter.next();
       computeDominanceFrontier(c);
       for (GraphNode w : domFrontier.get(c)) {
-//todo: how to determine if n dominates w
-        if (n does not dominate w || n == w) {
+        if (!doesDominate(n, w) || n == w) {
           s.add(w);
         }
       }
     }
     domFrontier.put(n, s);
   }
-*/
+
   private void doDFS(GraphNode p, GraphNode n) {
     Integer result = dfNum.get(n);
     if (result == null || result == 0) {
@@ -137,5 +139,17 @@ public class DominanceComputations {
       map.put(key, set);
       return set;
     }
+  }
+
+  private Iterator<GraphNode> getDomTreeChildrenOf(GraphNode n) {
+    IteratorChain toReturn = new IteratorChain();
+    Set<GraphNode> childrenSet = domTree.get(n);
+    if (childrenSet != null && childrenSet.size() > 0) {
+      toReturn.addIterator(childrenSet.iterator());
+      for (GraphNode child : childrenSet) {
+        toReturn.addIterator(getDomTreeChildrenOf(child));
+      }
+    }
+    return toReturn;
   }
 }
