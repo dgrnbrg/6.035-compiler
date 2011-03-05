@@ -173,9 +173,9 @@
       <formatter type="plain" usefile="false"/>
       <batchtest>
         <fileset dir="${classes}">
-          <include name="**/*Test*"/>
+          <include name="decaf/test/*Test*"/>
           <!-- exclude inner classes/closures -->
-          <exclude name="**/*$*"/>
+          <exclude name="decaf/test/*$*"/>
         </fileset>
       </batchtest>
     </junit>
