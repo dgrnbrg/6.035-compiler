@@ -9,7 +9,7 @@ public class ArgParser {
     def nb = new NodeBuilder()
     argStruct = nb.options {
       o(count: 1)
-      target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly','hiir','antlrast','symtable','inter'])
+      target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly','hiir','antlrast','symtable','inter', 'lowir'])
       opt(count: -1, restrict: ['-?unroll'])
       debug(count: 0)
     }

@@ -57,16 +57,24 @@ link(e,c)
 link(c,h)
 link(b,g)
 
+class DotTrav extends Traverser {
+  void visitNode(GraphNode n) {}
+  void link(GraphNode src, GraphNode dst) { println "$src.text -> $dst.text" }
+}
+
 def comp = new DominanceComputations()
 try {
-
-comp.computeDominators(a);
 println "digraph g {"
+/*
+comp.computeDominators(a);
 comp.idom.each{key, val ->
  println "$key.text -> $val.text"
 }
+*/
+def t = new DotTrav()
+t.reset()
+t.traverse(a)
 println "}"
-
 
 
 } catch (Throwable err) {

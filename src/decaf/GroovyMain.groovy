@@ -2,8 +2,21 @@ package decaf
 import antlr.*
 import groovy.util.*
 import org.apache.commons.cli.*
+import decaf.graph.*
 import static decaf.DecafScannerTokenTypes.*
 import antlr.collections.AST as AntlrAST
+import decaf.test.HiIrBuilder
+
+class LowIrDotTraverser extends Traverser {
+  def out
+
+  void visitNode(GraphNode cur) {
+    out.println("${cur.hashCode()} [label=\"$cur\"]")
+  }
+  void link(GraphNode src, GraphNode dst) {
+    out.println("${src.hashCode()} -> ${dst.hashCode()}")
+  }
+}
 
 public class GroovyMain {
   static Closure makeGraph(PrintStream out, root = null) {
@@ -238,6 +251,35 @@ public class GroovyMain {
     checker.mainMethodCorrect()
     
     if (errors != []) throw new FatalException(code: 1)
+  }
+
+  def lowir = {->
+    depends(setupDot)
+    def lidt = new LowIrDotTraverser(out: dotOut)
+    def gen = new LowIrGenerator()
+    def hb = new HiIrBuilder()
+    def if1 = hb.Block{
+      var(name:'a', type:Type.INT)
+      ForLoop(index: 'i') {
+        lit(1); lit(10); Block {
+          Assignment{ Location('a'); lit(0) }
+          IfThenElse {
+            lit(true)
+            Block {
+              Assignment{ Location('a'); lit(2) }
+              Continue()
+            }
+            Block {
+              Assignment{ Location('a'); lit(4) }
+              Break()
+            }
+          }
+        }
+      }
+    }
+    dotOut.println('digraph g {')
+    lidt.traverse(gen.handleStatement(if1).begin)
+    dotOut.println '}'
   }
 }
 

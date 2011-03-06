@@ -1,11 +1,48 @@
 package decaf
+import decaf.graph.*
 
 class LowIrStatement{}
 
-class LowIrBlock{
+class LowIrPath {
+  LowIrBlock begin, end
+
+  LowIrPath(begin, end) {
+    this.begin = begin
+    this.end = end
+  }
+
+  static LowIrPath unit(LowIrBlock block) {
+    return new LowIrPath(block, block)
+  }
+}
+
+class LowIrBlock implements GraphNode {
+  private static int genvar = 0
   String id
   List<LowIrStatement> statements = []
-  LowIrBlock fallthroughBlock
+
+  LowIrBlock() {
+    id = "lowirblock${genvar++}"
+  }
+
+  List getSuccessors() {
+    def lastInstr = statements[-1]
+    switch (lastInstr) {
+    case UnconditionalJump:
+      return lastInstr.destination != null ? [lastInstr.destination] : []
+    case ConditionalJump:
+      return [statements[-1].trueDestination, statements[-1].falseDestination]
+    default: assert false
+    }
+  }
+
+  List getPredecessors() {
+    return []
+  }
+
+  String toString() {
+    "$id: $statements"
+  }
 }
 
 class SSAVar{
@@ -17,42 +54,61 @@ class Allocate{
 }
 
 class Phi{
-  List<SSAVar> choices
-  SSAVar result
+  List choices
+  def result
 }
 
 class CallMethod{
   MethodDescriptor descriptor
-  List<SSAVar> arguments
-  SSAVar result
+  List arguments
+  def result
 }
 
 class Callout{
   StringLiteral name
-  List<SSAVar> arguments
-  SSAVar result
+  List arguments
+  def result
 }
 
 class LowIrBinOp{
-  SSAVar left
-  SSAVar right
+  def left
+  def right
   // Ensure that HiIr.groovy is actually imported
   BinOpType op
-  SSAVar result
+  def result
+
+  String toString() {
+    def opStr = ['+','-','*','/','%','<','>',
+     '<=','>=','==','!=','&&','||','!'][BinOpType.findIndexOf{it == op}]
+    "LowIrBinOp($opStr, $left, $right, $result)"
+  }
 }
 
 class LoadConstant{
   int constant
-  SSAVar result 
+  def result 
+
+  String toString() {
+    "LoadConst($constant, $result)"
+  }
 }
 
 class UnconditionalJump{
   LowIrBlock destination
+
+  String toString() {
+    "Jump(${destination?.id})"
+  }
 }
 
 class ConditionalJump{
-  SSAVar condition
-  LowIrBlock destination
+  def condition
+  LowIrBlock trueDestination
+  LowIrBlock falseDestination
+
+  String toString() {
+    "CondJump($condition, $trueDestination.id, $falseDestination.id)"
+  }
 }
 
 class LowIrReturn{
@@ -60,11 +116,15 @@ class LowIrReturn{
 
 // For non-SSA control flow graph
 class LoadVariable{
-  SSAVar result
+  def result
   VariableDescriptor variable
 }
 
 class StoreVariable{
-  SSAVar valueToStore
+  def valueToStore
   VariableDescriptor destination
+
+  String toString() {
+    "StoreVar($valueToStore, $destination)"
+  }
 }
