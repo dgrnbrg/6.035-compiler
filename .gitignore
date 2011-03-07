@@ -1,3 +1,13 @@
 classes
 dist
 java
+*.pdf
+*.png
+*.dcf
+nbproject
+cobertura.ser
+.settings
+.project
+.classpath
+*.dot
+execute.properties
