@@ -8,37 +8,6 @@ class SemanticChecker {
   def errors
   def methodSymTable = [:];
   def hyperspeed = false
-  def maxLexicalDepth = 0
-  //lexical depth starts at 0 for method bodies
-  def currentLexicalDepth = -1
-
-  def lexicalAccounting = { cur ->
-    if (currentLexicalDepth > maxLexicalDepth)
-      maxLexicalDepth = currentLexicalDepth
-
-    switch (expr) {
-    case Block:
-    case ForLoop:
-      currentLexicalDepth++
-      break
-    }
-
-    declVar('lexicalDepth', currentLexicalDepth)
-
-    if (!hyperspeed) {
-      walk()
-      lexicalAccountingPost(cur)
-    }
-  }
-
-  def lexicalAccountingPost(cur) {
-    switch (expr) {
-    case Block:
-    case ForLoop:
-      currentLexicalDepth--
-      break
-    }
-  }
 
   static Type getExprType(Expr expr) {
     switch (expr) {
