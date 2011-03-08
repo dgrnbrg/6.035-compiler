@@ -40,7 +40,7 @@ class Instruction {
     case 1:
       return "$type.name $op1"
     case 2:
-      return "$type.name $op1 $op2"
+      return "$type.name $op1, $op2"
     }
   }
 }
@@ -86,23 +86,23 @@ class Operand {
   def val
   def offset
 
-  Operand(OperType type, int val) {
-    this.type = type
+  Operand(int val) {
+    this.type = OperType.IMM
     this.val = val
   }
 
-  Operand(OperType type, Reg val) {
-    this.type = type
+  Operand(Reg val) {
+    this.type = OperType.REG
     this.val = val
   }
 
-  Operand(OperType type, String val) {
-    this.type = type
+  Operand(String val) {
+    this.type = OperType.ADDR
     this.val = val
   }
 
-  Operand(OperType type, int offset, Reg val) {
-    this.type = type
+  Operand(int offset, Reg val) {
+    this.type = OperType.MEM
     this.val = val
     this.offset = offset
   }
