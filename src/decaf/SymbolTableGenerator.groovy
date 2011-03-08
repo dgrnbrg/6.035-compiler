@@ -6,6 +6,7 @@ import decaf.SymbolTable
 public class SymbolTableGenerator {
 
   def errors
+  def maxLexicalDepth = 0
 
   // This is the closure that is passed around
   Closure c = { AST cur -> 
@@ -39,7 +40,7 @@ public class SymbolTableGenerator {
       if (methodSymTable.map.containsKey(methodDesc.name)) {
         errors << new CompilerError(
           fileInfo: methodDesc.fileInfo,
-          message: "En	countered duplicate method declaration: $methodDesc.name"
+          message: "Encountered duplicate method declaration: $methodDesc.name"
         )
       } else {
         methodSymTable[cur.getText()] = methodDesc
@@ -117,6 +118,10 @@ public class SymbolTableGenerator {
         ][cur.getType()]
       }
       break
+    }
+
+    if (maxLexicalDepth < symTable.lexicalDepth) {
+      maxLexicalDepth = symTable.lexicalDepth
     }
   }
 }

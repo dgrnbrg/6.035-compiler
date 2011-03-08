@@ -4,9 +4,16 @@ class SymbolTable extends WalkableImpl {
   def children = []
   @Delegate(interfaces=false) AbstractMap map = [:]
   boolean checkCanonical
+  //this is -2 for the globals, -1 for formal params, and logical for the rest
+  int lexicalDepth
+
+  SymbolTable() {
+    this.lexicalDepth = -2
+  }
 
   SymbolTable(SymbolTable parent) {
     setParent(parent)
+    this.lexicalDepth = parent.lexicalDepth + 1
   }
 
   //Note that typing parent like this is really important to make sure all the
@@ -30,11 +37,14 @@ class SymbolTable extends WalkableImpl {
   def putAt(String symbol, desc) {
     if (checkCanonical && !symbol.is(symbol.intern()))
       System.err.println("Warning: adding uninterned symbol $symbol")
+    if (desc instanceof VariableDescriptor) {
+      desc.lexicalDepth = this.lexicalDepth
+    }
     map[symbol] = desc
   }
 
   String toString() {
-    return "SymbolTable(${map.values()})"
+    return "SymbolTable(lexicalDepth=$lexicalDepth)${map.values()}"
   }
 
   boolean equals(Object other) {
@@ -60,6 +70,7 @@ public class VariableDescriptor {
   Type type
   def arraySize
   FileInfo fileInfo
+  int lexicalDepth
 
   String toString() {
     "$type $name" + (arraySize ? "[$arraySize]" : "")
