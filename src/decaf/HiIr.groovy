@@ -101,7 +101,7 @@ class MethodCall extends WalkableImpl implements Expr, Statement {
 }
 
 class Block extends WalkableImpl implements Statement {
-  def symbolTable
+  SymbolTable symbolTable
   List<Statement> statements = []
 
   void howToWalk(Closure c) {
