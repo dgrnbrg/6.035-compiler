@@ -11,3 +11,5 @@ cobertura.ser
 .classpath
 *.dot
 execute.properties
+instrumented
+report
