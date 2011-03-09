@@ -20,28 +20,35 @@ class CodeGenerator extends Traverser {
     ret()
   }
 
+  Operand getTmp(int tmpNum) {
+    return rbp(-8 * (tmpNum + method.params.size()))
+  }
+
   void visitNode(GraphNode stmt) {
     switch (stmt) {
     case LowIrStringLiteral:
       def strLitOperand = asmString(stmt.value)
       strLitOperand.type = OperType.IMM
-      movq(strLitOperand, rbp(-8*(stmt.tmpNum+method.params.size())))
+      movq(strLitOperand, getTmp(stmt.tmpNum))
       break
     case LowIrIntLiteral:
-      movq(new Operand(stmt.value), rbp(-8*(stmt.tmpNum+method.params.size())))
+      movq(new Operand(stmt.value), getTmp(stmt.tmpNum))
       break
     case LowIrCallOut:
-      stmt.params.eachWithIndex {arg, index ->
-        //could be stringliteral(.value) or descriptor
-        if (arg instanceof LowIrValueNode) {
-          movq(rbp(-8*(arg.tmpNum+method.params.size())), paramRegs[index])
-        }
+      stmt.paramNums.eachWithIndex {tmpNum, index ->
+        movq(getTmp(tmpNum), paramRegs[index])
       }
       if (stmt.name == 'printf') {
         //stmt.params.add(0,0) //must have 0 in rax
         movq(0,rax)
       }
       call(stmt.name)
+      break
+    case LowIrBinOp:
+      movq(getTmp(stmt.leftTmpNum),r10)
+      movq(getTmp(stmt.rightTmpNum),r11)
+      imul(r10,r11)
+      movq(r11,getTmp(stmt.tmpNum))
       break
     }
   }

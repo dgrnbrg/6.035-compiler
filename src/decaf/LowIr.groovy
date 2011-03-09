@@ -23,14 +23,21 @@ class LowIrBridge {
 }
 
 class LowIrValueBridge extends LowIrBridge {
-  def value
+  int tmpNum
 
-  LowIrValueBridge(LowIrNode node) {
+  LowIrValueBridge(LowIrValueNode node) {
     super(node)
+    tmpNum = node.tmpNum
   }
 
-  LowIrValueBridge(LowIrNode begin, LowIrNode end) {
+  LowIrValueBridge(LowIrNode begin, LowIrValueNode end) {
     super(begin, end)
+    tmpNum = end.tmpNum
+  }
+
+  LowIrBridge seq(LowIrBridge next) {
+    LowIrNode.link(this.end, next.begin)
+    return new LowIrValueBridge(this.begin, next.end)
   }
 }
 
@@ -49,8 +56,7 @@ class LowIrNode implements GraphNode{
 
 class LowIrCallOut extends LowIrNode {
   String name
-  //must be lowir values
-  def params = []
+  int[] paramNums
 }
 
 class LowIrValueNode extends LowIrNode{
@@ -63,4 +69,9 @@ class LowIrStringLiteral extends LowIrValueNode {
 
 class LowIrIntLiteral extends LowIrValueNode {
   int value
+}
+
+class LowIrBinOp extends LowIrValueNode {
+  int leftTmpNum, rightTmpNum
+  BinOpType op
 }
