@@ -25,21 +25,21 @@ class CodeGenerator extends Traverser {
     case LowIrStringLiteral:
       def strLitOperand = asmString(stmt.value)
       strLitOperand.type = OperType.IMM
-      mov(strLitOperand, rbp(-8*(stmt.tmpNum+method.params.size())))
+      movq(strLitOperand, rbp(-8*(stmt.tmpNum+method.params.size())))
       break
     case LowIrIntLiteral:
-      mov(new Operand(stmt.value), rbp(-8*(stmt.tmpNum+method.params.size())))
+      movq(new Operand(stmt.value), rbp(-8*(stmt.tmpNum+method.params.size())))
       break
     case LowIrCallOut:
       stmt.params.eachWithIndex {arg, index ->
         //could be stringliteral(.value) or descriptor
         if (arg instanceof LowIrValueNode) {
-          mov(rbp(-8*(arg.tmpNum+method.params.size())), paramRegs[index])
+          movq(rbp(-8*(arg.tmpNum+method.params.size())), paramRegs[index])
         }
       }
       if (stmt.name == 'printf') {
         //stmt.params.add(0,0) //must have 0 in rax
-        mov(0,rax)
+        movq(0,rax)
       }
       call(stmt.name)
       break

@@ -49,7 +49,7 @@ class Instruction {
 
 enum InstrType {
 //copying values
-  MOV('mov', 2),
+  MOV('movq', 2),
 
 //Stack Management
   ENTER('enter',2),
