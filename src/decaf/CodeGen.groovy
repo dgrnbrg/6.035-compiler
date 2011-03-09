@@ -1,5 +1,6 @@
 package decaf
 import decaf.graph.*
+import static decaf.BinOpType.*
 
 class CodeGenerator extends Traverser {
   def asm = [text: ['.text'], strings: ['.data']]
@@ -45,10 +46,42 @@ class CodeGenerator extends Traverser {
       call(stmt.name)
       break
     case LowIrBinOp:
-      movq(getTmp(stmt.leftTmpNum),r10)
-      movq(getTmp(stmt.rightTmpNum),r11)
-      imul(r10,r11)
-      movq(r11,getTmp(stmt.tmpNum))
+      switch (stmt.op) {
+      case ADD:
+        movq(getTmp(stmt.leftTmpNum),r10)
+        movq(getTmp(stmt.rightTmpNum),r11)
+        add(r10,r11)
+        movq(r11,getTmp(stmt.tmpNum))
+        break
+      case SUB:
+        movq(getTmp(stmt.leftTmpNum),r10)
+        movq(getTmp(stmt.rightTmpNum),r11)
+        sub(r10,r11)
+        movq(r11,getTmp(stmt.tmpNum))
+        break
+      case MUL:
+        movq(getTmp(stmt.leftTmpNum),r10)
+        movq(getTmp(stmt.rightTmpNum),r11)
+        imul(r10,r11)
+        movq(r11,getTmp(stmt.tmpNum))
+        break
+      case DIV:
+        movq(getTmp(stmt.leftTmpNum),rax)
+        movq(0,rdx)
+        movq(getTmp(stmt.rightTmpNum),r10)
+        idiv(r10)
+        movq(rax,getTmp(stmt.tmpNum))
+        break
+      case MOD:
+        movq(getTmp(stmt.leftTmpNum),rax)
+        movq(0,rdx)
+        movq(getTmp(stmt.rightTmpNum),r10)
+        idiv(r10)
+        movq(rdx,getTmp(stmt.tmpNum))
+        break
+      default:
+        throw new RuntimeException("still haven't implemented that yet")
+      }
       break
     }
   }
