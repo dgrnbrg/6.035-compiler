@@ -232,7 +232,7 @@ public class GroovyMain {
   def inter = {->
     depends(genHiIr)
     def checker = new SemanticChecker(errors: errors, methodSymTable: ast.methodSymTable)
-    hiirGenerator.methods.values().each { methodHiIr ->
+    hiirGenerator.methods.each { methodName, methodHiIr ->
       assert methodHiIr != null
       //ensure that all HiIr nodes have their fileInfo
       methodHiIr.inOrderWalk{
@@ -245,7 +245,9 @@ public class GroovyMain {
         methodHiIr.inOrderWalk(check)
       }
 */
+      checker.tmpNum = ast.methodSymTable[methodName].params.size()
       methodHiIr.inOrderWalk(checker.hyperblast)
+      ast.methodSymTable[methodName].maxTmps = checker.maxTmpNum
     }
     
     checker.mainMethodCorrect()
@@ -255,7 +257,10 @@ public class GroovyMain {
 
   def lowir = {->
     depends(setupDot)
+    depends(inter)
     def lidt = new LowIrDotTraverser(out: dotOut)
+    def lg = new LowIrGenerator()
+/*
     def gen = new LowIrGenerator()
     def hb = new HiIrBuilder()
     def if1 = hb.Block{
@@ -277,9 +282,23 @@ public class GroovyMain {
         }
       }
     }
+*/
     dotOut.println('digraph g {')
-    lidt.traverse(gen.handleStatement(if1).begin)
+    hiirGenerator.methods.values().each { methodHiIr ->
+      lidt.traverse(lg.destruct(methodHiIr).begin)
+    }
     dotOut.println '}'
+  }
+
+  def codegen = {->
+    depends(inter)
+    def lg = new LowIrGenerator()
+    def cg = new CodeGenerator()
+    hiirGenerator.methods.each { methodName, methodHiIr ->
+      cg.handleMethod(ast.methodSymTable[methodName], lg.destruct(methodHiIr).begin)
+    }
+    println cg.getAsm()
+    new File('tmp.S').text = cg.getAsm()
   }
 }
 

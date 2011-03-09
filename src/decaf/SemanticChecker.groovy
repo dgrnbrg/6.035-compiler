@@ -219,6 +219,22 @@ class SemanticChecker {
     }
   }
 
+  //this must be set to the number of params per function
+  def tmpNum = 0
+  def maxTmpNum = 0
+  def computeTmpNums = { cur ->
+    if (cur.parent instanceof Block) {
+      tmpNum = 0
+    } else if (cur instanceof Expr || cur instanceof StringLiteral) {
+      declVar('tmpNum', tmpNum++)
+      if (tmpNum > maxTmpNum) maxTmpNum = tmpNum
+    }
+
+    if (!hyperspeed) {
+      walk()
+    }
+  }
+
   def forLoopInitEndExprTypeInt = {cur -> 
     if(cur instanceof ForLoop) {
       if(getExprType(cur.low) != INT) {
@@ -392,5 +408,6 @@ class SemanticChecker {
       forLoopInitEndExprTypeInt,
       arrayIndicesAreInts,
       nonVoidMethodsMustReturnValue,
+      computeTmpNums,
       methodDeclTypeMatchesTypeOfReturnExpr]}()
 }

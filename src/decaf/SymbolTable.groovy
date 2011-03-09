@@ -98,6 +98,7 @@ public class MethodDescriptor {
   Type returnType
   Block block
   List<VariableDescriptor> params = []
+  int maxTmps
   FileInfo fileInfo
 
   String toString() {

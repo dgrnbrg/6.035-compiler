@@ -43,6 +43,8 @@ class Instruction {
       return "$type.name $op1, $op2"
     }
   }
+
+  String toString() { getOpCode() }
 }
 
 enum InstrType {

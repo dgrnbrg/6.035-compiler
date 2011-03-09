@@ -1,130 +1,66 @@
 package decaf
 import decaf.graph.*
 
-class LowIrStatement{}
+class LowIr {}
 
-class LowIrPath {
-  LowIrBlock begin, end
+class LowIrBridge {
+  LowIrNode begin, end
 
-  LowIrPath(begin, end) {
+  LowIrBridge(LowIrNode node) {
+    begin = node
+    end = node
+  }
+
+  LowIrBridge(LowIrNode begin, LowIrNode end) {
     this.begin = begin
     this.end = end
   }
 
-  static LowIrPath unit(LowIrBlock block) {
-    return new LowIrPath(block, block)
+  LowIrBridge seq(LowIrBridge next) {
+    LowIrNode.link(this.end, next.begin)
+    return new LowIrBridge(this.begin, next.end)
   }
 }
 
-class LowIrBlock implements GraphNode {
-  private static int genvar = 0
-  String id
-  List<LowIrStatement> statements = []
+class LowIrValueBridge extends LowIrBridge {
+  def value
 
-  LowIrBlock() {
-    id = "lowirblock${genvar++}"
+  LowIrValueBridge(LowIrNode node) {
+    super(node)
   }
 
-  List getSuccessors() {
-    def lastInstr = statements[-1]
-    switch (lastInstr) {
-    case UnconditionalJump:
-      return lastInstr.destination != null ? [lastInstr.destination] : []
-    case ConditionalJump:
-      return [statements[-1].trueDestination, statements[-1].falseDestination]
-    default: assert false
-    }
-  }
-
-  List getPredecessors() {
-    return []
-  }
-
-  String toString() {
-    "$id: $statements"
+  LowIrValueBridge(LowIrNode begin, LowIrNode end) {
+    super(begin, end)
   }
 }
 
-class SSAVar{
-  int id
-}
+class LowIrNode implements GraphNode{
+  def predecessors = []
+  def successors = []
 
-class Allocate{
-  VariableDescriptor descriptor
-}
+  List getPredecessors() { predecessors }
+  List getSuccessors() { successors }
 
-class Phi{
-  List choices
-  def result
-}
-
-class CallMethod{
-  MethodDescriptor descriptor
-  List arguments
-  def result
-}
-
-class Callout{
-  StringLiteral name
-  List arguments
-  def result
-}
-
-class LowIrBinOp{
-  def left
-  def right
-  // Ensure that HiIr.groovy is actually imported
-  BinOpType op
-  def result
-
-  String toString() {
-    def opStr = ['+','-','*','/','%','<','>',
-     '<=','>=','==','!=','&&','||','!'][BinOpType.findIndexOf{it == op}]
-    "LowIrBinOp($opStr, $left, $right, $result)"
+  static void link(LowIrNode fst, LowIrNode snd) {
+    fst.successors << snd
+    snd.predecessors << fst
   }
 }
 
-class LoadConstant{
-  int constant
-  def result 
-
-  String toString() {
-    "LoadConst($constant, $result)"
-  }
+class LowIrCallOut extends LowIrNode {
+  String name
+  //must be lowir values
+  def params = []
 }
 
-class UnconditionalJump{
-  LowIrBlock destination
-
-  String toString() {
-    "Jump(${destination?.id})"
-  }
+class LowIrValueNode extends LowIrNode{
+  int tmpNum
 }
 
-class ConditionalJump{
-  def condition
-  LowIrBlock trueDestination
-  LowIrBlock falseDestination
-
-  String toString() {
-    "CondJump($condition, $trueDestination.id, $falseDestination.id)"
-  }
+class LowIrStringLiteral extends LowIrValueNode {
+  String value
 }
 
-class LowIrReturn{
-}
-
-// For non-SSA control flow graph
-class LoadVariable{
-  def result
-  VariableDescriptor variable
-}
-
-class StoreVariable{
-  def valueToStore
-  VariableDescriptor destination
-
-  String toString() {
-    "StoreVar($valueToStore, $destination)"
-  }
+class LowIrIntLiteral extends LowIrValueNode {
+  int value
 }
