@@ -51,6 +51,9 @@ class LowIrJumpBridge extends LowIrValueBridge {
 class LowIrNode implements GraphNode{
   def predecessors = []
   def successors = []
+  def uniqueLabel = null
+
+  static int nextLabel = 22;
 
   List getPredecessors() { predecessors }
   List getSuccessors() { successors }
@@ -58,6 +61,17 @@ class LowIrNode implements GraphNode{
   static void link(LowIrNode fst, LowIrNode snd) {
     fst.successors << snd
     snd.predecessors << fst
+  }
+
+  void TryAssignUniqueLabel() {
+    if(uniqueLabel == null) {
+      uniqueLabel = "label" + nextLabel;
+      nextLabel += 1;
+    }
+  }
+
+  boolean HasUniqueAssignedLabel() {
+    return !(uniqueLabel == null)
   }
 }
 

@@ -30,6 +30,26 @@ class CodeGenerator extends Traverser {
   }
 
   void visitNode(GraphNode stmt) {
+
+    // Code for making sure all nodes that can be jumped to 
+    // have a unique label.
+    stmt.getPredecessors().each { p -> 
+      if(p instanceof LowIrJump) {
+        if(p.jumpTrueDest.is(stmt) || p.jumpFalseDest.is(stmt)) {
+          // Somenode can jump to this node!
+          stmt.TryAssignUniqueLabel()
+        }
+      }
+    }
+    
+    // If stmt has a unique-label, then we should print out a 
+    // label in the assembler.
+    if(stmt.HasUniqueAssignedLabel()) {
+      // print out a label...
+    }
+
+    // The rest of the code...
+
     switch (stmt) {
     case LowIrStringLiteral:
       def strLitOperand = asmString(stmt.value)
@@ -53,12 +73,15 @@ class CodeGenerator extends Traverser {
       }
       call(stmt.name)
       break
-    case LowIrJump: {
+    case LowIrJump:
+      // First make sure that both branches have unique labels.
+      stmt.jmpTrueDest.TryAssignUniqueLabel()
+      stmt.jmpFalseDest.TryAssignUniqueLabel()
+
       // cmp(getTmp(stmt.tmpVar), 0)
-      // jne(getLabel(stmt.jmpTrueDest)
-      // je(getLabel(stmt.jmpFalseDest)
+      // jne(getLabel(stmt.jmpTrueDest.uniqueLabel)
+      // je(getLabel(stmt.jmpFalseDest.uniqueLabel)
       break;
-    }
     case LowIrBinOp:
       switch (stmt.op) {
       case ADD:
