@@ -71,6 +71,7 @@ public class VariableDescriptor {
   def arraySize
   FileInfo fileInfo
   int lexicalDepth
+  TempVar tmpVar
 
   String toString() {
     "$type $name" + (arraySize ? "[$arraySize]" : "")
@@ -119,4 +120,7 @@ public class MethodDescriptor {
   int hashCode() {
     return name.hashCode() * 17 + returnType.hashCode() * 31 + params.hashCode() * 37;
   }
+}
+
+class TempVar {
 }

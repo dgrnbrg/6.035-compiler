@@ -235,6 +235,18 @@ class SemanticChecker {
     }
   }
 
+  //annotate all exprs and all locals
+  def computeTmps = { cur ->
+    if (cur instanceof Expr || cur instanceof StringLiteral) {
+      declVar('tmpVar', new TempVar())
+    }
+    if (cur instanceof Block || cur instanceof ForLoop) {
+      cur.symTable.@map.each { k, v ->
+        v.tmpVar = new TempVar()
+      }
+    }
+  }
+
   def forLoopInitEndExprTypeInt = {cur -> 
     if(cur instanceof ForLoop) {
       if(getExprType(cur.low) != INT) {
