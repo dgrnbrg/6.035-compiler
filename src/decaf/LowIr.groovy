@@ -67,8 +67,11 @@ class LowIrValueNode extends LowIrNode{
   TempVar tmpVar
 }
 
-class LowIrJumpNode extends LowIrValueNode {
-  LowIrNode nodeToJumpTo
+class LowIrJump extends LowIrValueNode {
+  // true == 1
+  // false == 0
+  LowIrNode jmpTrueDest;
+  LowIrNode jmpFalseDest;
 }
 
 class LowIrStringLiteral extends LowIrValueNode {

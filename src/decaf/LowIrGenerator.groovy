@@ -47,16 +47,24 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(IfThenElse ite) {
-    // Here we need to handle short circuiting!
-    def condExpr = ite.condition
-    if(condExpr instanceof 
-    
     def thenBridge = destruct(ite.thenBlock)
-    def elseBridge = destruct(ite.elseBlock)
+    def elseBridge;
+
+    // This code handles the situation where there is no else block
+    if(ite.elseBlock)
+      elseBridge = destruct(ite.elseBlock)
+    else
+      elseBridge = new LowIrBridge(new LowIrNode(), new LowIrNode())
 
     // Get the short circuited bridge for the conditional expression
     def condBridge = destructShortCircuit(ite.condition, thenBridge.begin, elseBridge.begin)
 
+    // But the cond bridge doesn't handle jumping if no short-circuiting happened 
+    // (the tail of the returned bridge)
+    def jmpNode = new LowIrJump(jmpTrueDest: thenBridge.begin, jmpFalseDest: elseBridge.begin)
+    
+    condBridge = condBride.seq(new LowIrValueBridge(jmpNode))
+    
     // Now glue the ends of the then and else bridge to a common exit node.
     def exitNode = new LowIrNode()
     LowIrNode.link(thenBridge.end, exitNode)
@@ -65,30 +73,32 @@ class LowIrGenerator {
     return new LowIrBridge(condBridge.begin, exitNode);
   }
 
-  LowIrBridge destructShortCircuit(BinOp binop, LowIrNode trueBlockEntry, LowIrNode falseBlockEntry) {
+  LowIrBridge destructShortCircuit(BinOp binop, LowIrNode thenBlockEntry, LowIrNode elseBlockEntry) {
     if(binop.op == BinOpType.AND || binop.op == BinOpType.OR) {
       // Short circuiting required!
       // Compute the left sub-expression
-      def leftBridge = destructShortCircuit(binop.left, trueBlockEntry, falseBlockEntry)
+      def leftBridge = destructShortCircuit(binop.left, thenBlockEntry, elseBlockEntry)
       
       // Compute the right sub-expression
-      def rightBridge = destructShortCircuit(binop.right, trueBlockEntry, falseBlockEntry)
+      def rightBridge = destructShortCircuit(binop.right, thenBlockEntry, elseBlockEntry)
 
-      // If the left sub-expression was false, short-circuit and go to false block
       def jmpNode;
 
       if(binop.op == BinOpType.AND) {
-        jmpNode = new LowIrJump(jumpNode: falseBlockEntry)
-        LowIrNode.link(jmpNode, falseBlockEntry)
+        // if the returned value is false, then short circuit and 
+        // jump to the else Block. 
+        jmpNode = new LowIrJump(jmpTrueDest: rightBridge.begin, jmpFalseDest: elseBlockEntry)
+        LowIrNode.link(jmpNode, elseBlockEntry)
       } else {
-        jmpNode = new LowIrJump(jumpNode: trueBlockEntry)
-        LowIrNode.link(jmpNode, trueBlockEntry)
+        // Short circuit by jumping to the then Block. Jump if true.
+        jmpNode = new LowIrJump(jmpTrueDest: thenBlockEntry, jmpFalseDest: rightBridge.begin)
+        LowIrNode.link(jmpNode, thenBlockEntry)
       }
-      
-      def jumpBridge = null new LowIrJumpBridge(jmpNode)
 
-      // Join the three bridges together and return them.
-      return leftBridge.seq(jumpBridge.seq(rightBridge.seq))
+      LowIrNode.link(leftBridge.begin, jmpNode)
+      LowIrNode.link(jmpNode, rightBridge.begin)
+
+      return new LowIrBridge(leftBridge.begin, rightBridge.end)
     } else {
       return destruct(binop);
     }

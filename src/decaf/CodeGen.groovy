@@ -45,6 +45,12 @@ class CodeGenerator extends Traverser {
       }
       call(stmt.name)
       break
+    case LowIrJump: {
+      // cmp(getTmp(stmt.tmpVar), 0)
+      // jne(getLabel(stmt.jmpTrueDest)
+      // je(getLabel(stmt.jmpFalseDest)
+      break;
+    }
     case LowIrBinOp:
       switch (stmt.op) {
       case ADD:
