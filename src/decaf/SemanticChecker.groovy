@@ -377,6 +377,20 @@ class SemanticChecker {
     }
   }
 
+  def intLiteralsWithinRange = { cur ->
+    if (cur instanceof IntLiteral) {
+      if (cur.value > 2147483647 || cur.value < -2147483648) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered int literal out of range: $cur.value Note that this value could be computed by statically computing a constant expression, so it might not actually be in your source code written as it was computed."
+        )
+      }
+    }
+    if (!hyperspeed) {
+      walk();
+    }
+  }
+
   def hyperblast = {cur ->
     hyperspeed = true
     checks.each {
@@ -397,6 +411,7 @@ class SemanticChecker {
       binOpOperands, 
       forLoopInitEndExprTypeInt,
       arrayIndicesAreInts,
+      intLiteralsWithinRange,
       nonVoidMethodsMustReturnValue,
       methodDeclTypeMatchesTypeOfReturnExpr]}()
 }

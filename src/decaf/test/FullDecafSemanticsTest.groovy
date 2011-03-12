@@ -15,6 +15,22 @@ class Program {
    assertNotNull(gm.failException)
   }
 
+  void testLegal15() {
+    def gm = GroovyMain.runMain('inter','''
+// 15. <location> += <expr> must have type int on both sides
+class Program {
+  void main() {
+    int x;
+    x = 0;
+    x += 3;
+    x += x*7;
+  }
+}
+''')
+    assertEquals(0,gm.errors.size())
+    assertNull(gm.failException)
+  }
+
   void testUndeclaredFunctions() {
     def gm = GroovyMain.runMain('inter','''
 class Program {
