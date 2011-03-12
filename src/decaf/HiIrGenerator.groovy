@@ -97,8 +97,9 @@ class HiIrGenerator {
         parent.children << BinOpType.SUB
       } else {
         assert children.size() == 1
-	parent.children <<
-	  new BinOp(op:BinOpType.SUB, left:new IntLiteral(value:0, fileInfo: cur.fileInfo), right:children[0], fileInfo: cur.fileInfo)
+	def child = getBinOpOrConst(new IntLiteral(value:0, fileInfo: cur.fileInfo), BinOpType.SUB, children[0])
+        child.fileInfo = cur.fileInfo
+        parent.children << child
       }
       break
 
