@@ -72,6 +72,6 @@ class LowIrIntLiteral extends LowIrValueNode {
 }
 
 class LowIrBinOp extends LowIrValueNode {
-  int leftTmpNum, rightTmpNum
+  TempVar leftTempVar, rightTempVar
   BinOpType op
 }
