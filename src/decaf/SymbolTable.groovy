@@ -99,7 +99,7 @@ public class MethodDescriptor {
   Type returnType
   Block block
   List<VariableDescriptor> params = []
-  int maxTmps
+  int maxTmpVars
   FileInfo fileInfo
 
   String toString() {
@@ -123,4 +123,21 @@ public class MethodDescriptor {
 }
 
 class TempVar {
+  int tempVarNumber
+  static tempVarCounter = 0
+
+  // Constructor
+  // TempVar(number) {
+  //   tempVarNumber = number
+  // }
+  TempVar(){
+    tempVarNumber = TempVar.tempVarCounter
+    tempVarCounter++
+  }
+  int getId(){
+    return this.tempVarNumber
+  }
+  static exitFunction(){
+    TempVar.tempVarCounter = 0
+  }
 }

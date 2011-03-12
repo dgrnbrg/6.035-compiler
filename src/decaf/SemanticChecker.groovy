@@ -220,30 +220,42 @@ class SemanticChecker {
   }
 
   //this must be set to the number of params per function
-  def tmpNum = 0
-  def maxTmpNum = 0
-  def computeTmpNums = { cur ->
-    if (cur.parent instanceof Block) {
-      tmpNum = 0
-    } else if (cur instanceof Expr || cur instanceof StringLiteral) {
-      declVar('tmpNum', tmpNum++)
-      if (tmpNum > maxTmpNum) maxTmpNum = tmpNum
-    }
+  // def tmpNum = 0
+  // def maxTmpNum = 0
+  // def computeTmpNums = { cur ->
+  //   if (cur.parent instanceof Block) {
+  //     tmpNum = 0
+  //   } else if (cur instanceof Expr || cur instanceof StringLiteral) {
+  //     declVar('tmpNum', tmpNum++)
+  //     if (tmpNum > maxTmpNum) maxTmpNum = tmpNum
+  //   }
 
-    if (!hyperspeed) {
-      walk()
-    }
-  }
+  //   if (!hyperspeed) {
+  //     walk()
+  //   }
+  // }
 
-  //annotate all exprs and all locals
+  // tmpNum = number of variables needed for a given function
+  def tmpNum = 0 
   def computeTmps = { cur ->
-    if (cur instanceof Expr || cur instanceof StringLiteral) {
+    if(cur instanceof BinOp ||
+	    cur instanceof StringLiteral ||
+	    cur instanceof IntLiteral ||
+	    cur instanceof BooleanLiteral){
+      // Allocates TempVar()s for temporary nodes
+      tmpNum++
       declVar('tmpVar', new TempVar())
     }
-    if (cur instanceof Block || cur instanceof ForLoop) {
+    else if (cur instanceof Block || cur instanceof ForLoop) {
+      // Allocates TempVar()s for all declared variables
       cur.symTable.@map.each { k, v ->
+	println "(computeTmps): hit function ${k}"
+	tmpNum++
         v.tmpVar = new TempVar()
       }
+    }
+    if(!hyperspeed){
+      walk()
     }
   }
 
@@ -420,6 +432,8 @@ class SemanticChecker {
       forLoopInitEndExprTypeInt,
       arrayIndicesAreInts,
       nonVoidMethodsMustReturnValue,
-      computeTmpNums,
+      // Old temporary variable annotation/allocation mechanism
+      //computeTmpNums,
+      computeTmps,
       methodDeclTypeMatchesTypeOfReturnExpr]}()
 }

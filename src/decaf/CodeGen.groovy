@@ -15,14 +15,18 @@ class CodeGenerator extends Traverser {
     this.method = method
     asmMacro('.globl', method.name)
     emit(method.name + ':')
-    enter(8*(method.params.size() + method.maxTmps),0)
+    // enter(8*(method.params.size() + method.maxTmps),0)
+    enter(8*(method.params.size() + method.maxTmpVars),0)
     traverse(start)
     leave()
     ret()
   }
 
-  Operand getTmp(int tmpNum) {
-    return rbp(-8 * (tmpNum + method.params.size()))
+  // Operand getTmp(int tmpNum) {
+  //   return rbp(-8 * (tmpNum + method.params.size()))
+  // }
+  Operand getTmp(TempVar tmp){
+    return rbp(-8 * (tmp.getId() + method.params.size()))
   }
 
   void visitNode(GraphNode stmt) {
@@ -30,15 +34,19 @@ class CodeGenerator extends Traverser {
     case LowIrStringLiteral:
       def strLitOperand = asmString(stmt.value)
       strLitOperand.type = OperType.IMM
-      movq(strLitOperand, getTmp(stmt.tmpNum))
+      movq(strLitOperand, getTmp(stmt.tmpVar))
       break
     case LowIrIntLiteral:
-      movq(new Operand(stmt.value), getTmp(stmt.tmpNum))
+      movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
-      stmt.paramNums.eachWithIndex {tmpNum, index ->
-        movq(getTmp(tmpNum), paramRegs[index])
+      // stmt.paramNums.eachWithIndex {tmpVar, index ->
+      //   movq(getTmp(tmpVar), paramRegs[index])
+      // }
+      stmt.paramTmpVars.eachWithIndex {tmpVar, index ->
+        movq(getTmp(tmpVar), paramRegs[index])
       }
+
       if (stmt.name == 'printf') {
         //stmt.params.add(0,0) //must have 0 in rax
         movq(0,rax)
@@ -54,36 +62,36 @@ class CodeGenerator extends Traverser {
     case LowIrBinOp:
       switch (stmt.op) {
       case ADD:
-        movq(getTmp(stmt.leftTmpNum),r10)
-        movq(getTmp(stmt.rightTmpNum),r11)
+        movq(getTmp(stmt.leftTmpVar),r10)
+        movq(getTmp(stmt.rightTmpVar),r11)
         add(r10,r11)
-        movq(r11,getTmp(stmt.tmpNum))
+        movq(r11,getTmp(stmt.tmpVar))
         break
       case SUB:
-        movq(getTmp(stmt.leftTmpNum),r10)
-        movq(getTmp(stmt.rightTmpNum),r11)
+        movq(getTmp(stmt.leftTmpVar),r10)
+        movq(getTmp(stmt.rightTmpVar),r11)
         sub(r10,r11)
-        movq(r11,getTmp(stmt.tmpNum))
+        movq(r11,getTmp(stmt.tmpVar))
         break
       case MUL:
-        movq(getTmp(stmt.leftTmpNum),r10)
-        movq(getTmp(stmt.rightTmpNum),r11)
+        movq(getTmp(stmt.leftTmpVar),r10)
+        movq(getTmp(stmt.rightTmpVar),r11)
         imul(r10,r11)
-        movq(r11,getTmp(stmt.tmpNum))
+        movq(r11,getTmp(stmt.tmpVar))
         break
       case DIV:
-        movq(getTmp(stmt.leftTmpNum),rax)
+        movq(getTmp(stmt.leftTmpVar),rax)
         movq(0,rdx)
-        movq(getTmp(stmt.rightTmpNum),r10)
+        movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
-        movq(rax,getTmp(stmt.tmpNum))
+        movq(rax,getTmp(stmt.tmpVar))
         break
       case MOD:
-        movq(getTmp(stmt.leftTmpNum),rax)
+        movq(getTmp(stmt.leftTmpVar),rax)
         movq(0,rdx)
-        movq(getTmp(stmt.rightTmpNum),r10)
+        movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
-        movq(rdx,getTmp(stmt.tmpNum))
+        movq(rdx,getTmp(stmt.tmpVar))
         break
       default:
         throw new RuntimeException("still haven't implemented that yet")
