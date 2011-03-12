@@ -15,6 +15,24 @@ class Program {
    assertNotNull(gm.failException)
   }
 
+  void testMethodInArrayLocation() {
+    def gm = GroovyMain.runMain('inter','''
+class Program {
+  int a[100];
+  int foo(int x, int y) {
+    return x + y;
+  }
+  void main() {
+    int tmp;
+    a[foo(3,5)*3] += 8;
+  }
+}
+''')
+    gm.failException.printStackTrace()
+    assertEquals(0,gm.errors.size())
+    assertNull(gm.failException)
+  }
+
   void testLegal15() {
     def gm = GroovyMain.runMain('inter','''
 // 15. <location> += <expr> must have type int on both sides
