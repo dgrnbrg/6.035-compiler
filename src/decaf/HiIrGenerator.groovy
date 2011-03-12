@@ -31,7 +31,12 @@ class HiIrGenerator {
       break
 
     case INT_LITERAL:
-      parent.children << new IntLiteral(value: cur.getText() as int, fileInfo: cur.fileInfo)
+      def intLiteralVal
+      if (cur.getText().startsWith('0x'))
+        intLiteralVal = Integer.parseInt(cur.getText().substring(2), 16)
+      else
+        intLiteralVal = Integer.parseInt(cur.getText())
+      parent.children << new IntLiteral(value: intLiteralVal, fileInfo: cur.fileInfo)
       break
 
     case CHAR_LITERAL:
