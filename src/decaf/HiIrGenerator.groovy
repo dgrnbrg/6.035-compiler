@@ -33,9 +33,9 @@ class HiIrGenerator {
     case INT_LITERAL:
       def intLiteralVal
       if (cur.getText().startsWith('0x'))
-        intLiteralVal = Integer.parseInt(cur.getText().substring(2), 16)
+        intLiteralVal = Long.parseLong(cur.getText().substring(2), 16)
       else
-        intLiteralVal = Integer.parseInt(cur.getText())
+        intLiteralVal = Long.parseLong(cur.getText())
       parent.children << new IntLiteral(value: intLiteralVal, fileInfo: cur.fileInfo)
       break
 
@@ -108,7 +108,9 @@ class HiIrGenerator {
         def left = children.remove(0)
         def op = children.remove(0)
         def right = children.remove(0)
-        children.add(0, new BinOp(op: op, left: left, right: right, fileInfo: cur.fileInfo))
+        def child = getBinOpOrConst(left, op, right)
+        child.fileInfo = cur.fileInfo
+        children.add(0, child)
       }
       parent.children << children[0]
       break
@@ -255,6 +257,50 @@ class HiIrGenerator {
     default:
       assert false, "Missing handler for ${cur.getType()}"
       break
+    }
+  }
+
+  def getBinOpOrConst(left, op, right) {
+    if (left instanceof IntLiteral && right instanceof IntLiteral) {
+      switch (op) {
+      case BinOpType.ADD:
+        return new IntLiteral(value: left.value + right.value)
+      case BinOpType.SUB:
+        return new IntLiteral(value: left.value - right.value)
+      case BinOpType.MUL:
+        return new IntLiteral(value: left.value * right.value)
+      case BinOpType.DIV:
+        return new IntLiteral(value: left.value / right.value)
+      case BinOpType.MOD:
+        return new IntLiteral(value: left.value % right.value)
+      case BinOpType.LT:
+        return new BooleanLiteral(value: left.value < right.value)
+      case BinOpType.GT:
+        return new BooleanLiteral(value: left.value > right.value)
+      case BinOpType.LTE:
+        return new BooleanLiteral(value: left.value <= right.value)
+      case BinOpType.GTE:
+        return new BooleanLiteral(value: left.value >= right.value)
+      case BinOpType.EQ:
+        return new BooleanLiteral(value: left.value == right.value)
+      case BinOpType.NEQ:
+        return new BooleanLiteral(value: left.value != right.value)
+      }
+    } else if (left instanceof BooleanLiteral && right instanceof BooleanLiteral) {
+      switch (op) {
+      case BinOpType.EQ:
+        return new BooleanLiteral(value: left.value == right.value)
+      case BinOpType.NEQ:
+        return new BooleanLiteral(value: left.value != right.value)
+      case BinOpType.AND:
+        return new BooleanLiteral(value: left.value && right.value)
+      case BinOpType.OR:
+        return new BooleanLiteral(value: left.value || right.value)
+      }
+    } else if (left instanceof BooleanLiteral && op == BinOpType.NOT) {
+      return new BooleanLiteral(value: !left.value)
+    } else {
+      return new BinOp(op: op, left: left, right: right)
     }
   }
 }
