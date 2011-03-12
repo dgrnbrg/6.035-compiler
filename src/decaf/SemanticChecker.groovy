@@ -113,6 +113,12 @@ class SemanticChecker {
       } else if([EQ, NEQ].contains(expr.op)) {
         // maybe someone can verify that I'm not making a mistake 
         // for not explicitly checking for boolean arrays and int arrays?
+        if (![INT, BOOLEAN].contains(leftType)) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('integer or boolean','left')
+          )
+        }
         if(leftType != rightType) {
           errors << new CompilerError(
             fileInfo: expr.fileInfo,
