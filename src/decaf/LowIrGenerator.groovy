@@ -47,9 +47,53 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(IfThenElse ite) {
-    def condBridge = destruct(ite.condition)
+    // Here we need to handle short circuiting!
+    def condExpr = ite.condition
+    if(condExpr instanceof 
+    
     def thenBridge = destruct(ite.thenBlock)
     def elseBridge = destruct(ite.elseBlock)
-    def postNoOp = new LowIrNoOp()
+
+    // Get the short circuited bridge for the conditional expression
+    def condBridge = destructShortCircuit(ite.condition, thenBridge.begin, elseBridge.begin)
+
+    // Now glue the ends of the then and else bridge to a common exit node.
+    def exitNode = new LowIrNode()
+    LowIrNode.link(thenBridge.end, exitNode)
+    LowIrNode.link(elseBridge.end, exitNode)
+
+    return new LowIrBridge(condBridge.begin, exitNode);
+  }
+
+  LowIrBridge destructShortCircuit(BinOp binop, LowIrNode trueBlockEntry, LowIrNode falseBlockEntry) {
+    if(binop.op == BinOpType.AND || binop.op == BinOpType.OR) {
+      // Short circuiting required!
+      // Compute the left sub-expression
+      def leftBridge = destructShortCircuit(binop.left, trueBlockEntry, falseBlockEntry)
+      
+      // Compute the right sub-expression
+      def rightBridge = destructShortCircuit(binop.right, trueBlockEntry, falseBlockEntry)
+
+      // If the left sub-expression was false, short-circuit and go to false block
+      def jmpNode;
+
+      if(binop.op == BinOpType.AND) {
+        jmpNode = new LowIrJump(jumpNode: falseBlockEntry)
+        LowIrNode.link(jmpNode, falseBlockEntry)
+      } else {
+        jmpNode = new LowIrJump(jumpNode: trueBlockEntry)
+        LowIrNode.link(jmpNode, trueBlockEntry)
+      }
+      
+      def jumpBridge = null new LowIrJumpBridge(jmpNode)
+
+      // Join the three bridges together and return them.
+      return leftBridge.seq(jumpBridge.seq(rightBridge.seq))
+    } else {
+      return destruct(binop);
+    }
+
+    // should never reach here!
+    assert(false);
   }
 }
