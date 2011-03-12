@@ -146,7 +146,7 @@ class HiIrBuilder extends BuilderSupport {
       break
     case 'Block':
       symTable = new SymbolTable(symTable)
-      ret = new Block()
+      ret = new Block(symTable:symTable)
       break
     case 'Break':
       ret = new Break()
@@ -161,7 +161,7 @@ class HiIrBuilder extends BuilderSupport {
       symTable = new SymbolTable(symTable)
       def index = new VariableDescriptor(name: attributes.index, type:Type.INT, fileInfo: nullFI)
       symTable[attributes.index] = index
-      ret = new ForLoop(index: new Location(descriptor: index))
+      ret = new ForLoop(index: new Location(descriptor: index), symTable:symTable)
       ret.index.parent = ret
       break
     case 'MethodCall':
