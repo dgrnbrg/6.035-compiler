@@ -249,8 +249,10 @@ class SemanticChecker {
 	    cur instanceof IntLiteral ||
 	    cur instanceof BooleanLiteral){
       // Allocates TempVar()s for temporary nodes
-      tmpNum++
-      declVar('tmpVar', new TempVar())
+      try {
+        declVar('tmpVar', new TempVar())
+        tmpNum++
+      } catch (MissingPropertyException e) {}
     }
     else if (cur instanceof Block || cur instanceof ForLoop) {
       // Allocates TempVar()s for all declared variables
@@ -442,8 +444,8 @@ class SemanticChecker {
 
   def dontShadowMethodParams = { cur ->
     if (cur instanceof Block && cur.parent == null) {
-      cur.symbolTable.@map.each { k, v ->
-        if (cur.symbolTable.parent.@map.containsKey(k)) {
+      cur.symTable.@map.each { k, v ->
+        if (cur.symTable.parent.@map.containsKey(k)) {
         errors << new CompilerError(
           fileInfo: cur.fileInfo,
           message: "Local variable $k shouldn't shadow method parameter"
