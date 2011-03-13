@@ -28,7 +28,6 @@ class Program {
   }
 }
 ''')
-    gm.failException.printStackTrace()
     assertEquals(0,gm.errors.size())
     assertNull(gm.failException)
   }
@@ -71,6 +70,26 @@ class Program {
 class Program {
   void foo(int x) {
     if (x != 0) {
+      foo(x-1);
+    }
+  }
+  void main() {
+    foo(10);
+  }
+}
+''')
+    assertEquals(0,gm.errors.size())
+    assertNull(gm.failException)
+  }
+
+  void testShadowVars() {
+    def gm = GroovyMain.runMain('inter','''
+class Program {
+  int x;
+  void foo(int x) {
+    {
+      int x;
+      x = 0;
       foo(x-1);
     }
   }

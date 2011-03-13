@@ -251,8 +251,17 @@ class SemanticChecker {
   // methods that don't have return type void do 
   // return a value (checks all paths through method).
   def nonVoidMethodsMustReturnValue = {cur ->
-    declVar('methodDesc',null)
-    declVar('returnCount', 0)
+    try {
+      declVar('methodDesc',null)
+      declVar('returnCount', 0)
+    } catch (MissingPropertyException e) {
+      //Note: we don't throw the exception here b/c a += or -= will cause the location
+      //and expression for the array index to be walked twice in 2 places, and we want
+      //to avoid a garbage exception
+      if (!(cur instanceof Expr)) {
+        throw e
+      }
+    }
 
     if(cur instanceof Block && cur.parent == null) {
       // this is the top level block, check symbol table to extract 
