@@ -14,7 +14,7 @@ public class ASTBuilder{
     AST ast = build(c)
     ast.inOrderWalk(symTableGen.c)
     if (errors != []) return errors
-    def hiir = new HiIrGenerator()
+    def hiir = new HiIrGenerator(errors: errors)
     ast.inOrderWalk(hiir.c)
     if (errors != []) {
       return errors
