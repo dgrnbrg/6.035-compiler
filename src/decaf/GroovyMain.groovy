@@ -247,7 +247,9 @@ public class GroovyMain {
 */
       checker.tmpNum = ast.methodSymTable[methodName].params.size()
       methodHiIr.inOrderWalk(checker.hyperblast)
-      ast.methodSymTable[methodName].maxTmps = checker.maxTmpNum
+      // ast.methodSymTable[methodName].maxTmps = checker.maxTmpNum
+      ast.methodSymTable[methodName].maxTmpVars = checker.tmpNum
+      TempVar.exitFunction()
     }
     
     checker.mainMethodCorrect()

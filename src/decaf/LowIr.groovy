@@ -23,16 +23,19 @@ class LowIrBridge {
 }
 
 class LowIrValueBridge extends LowIrBridge {
-  int tmpNum
+  // int tmpNum
+  TempVar tmpVar
 
   LowIrValueBridge(LowIrValueNode node) {
     super(node)
-    tmpNum = node.tmpNum
+    // tmpNum = node.tmpNum
+    tmpVar = node.tmpVar
   }
 
   LowIrValueBridge(LowIrNode begin, LowIrValueNode end) {
     super(begin, end)
-    tmpNum = end.tmpNum
+    // tmpNum = end.tmpNum
+    tmpVar = end.tmpVar
   }
 
   LowIrBridge seq(LowIrBridge next) {
@@ -56,7 +59,8 @@ class LowIrNode implements GraphNode{
 
 class LowIrCallOut extends LowIrNode {
   String name
-  int[] paramNums
+  // int[] paramNums
+  TempVar[] paramTmpVars
 }
 
 
@@ -66,7 +70,7 @@ class LowIrMethodCall extends LowIrNode {
 }
 
 class LowIrValueNode extends LowIrNode{
-  int tmpNum
+  TempVar tmpVar
 }
 
 class LowIrStringLiteral extends LowIrValueNode {
@@ -78,6 +82,7 @@ class LowIrIntLiteral extends LowIrValueNode {
 }
 
 class LowIrBinOp extends LowIrValueNode {
-  int leftTmpNum, rightTmpNum
+  //int leftTmpNum, rightTmpNum
+  TempVar leftTmpVar, rightTmpVar
   BinOpType op
 }

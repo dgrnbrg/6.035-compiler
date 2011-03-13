@@ -19,7 +19,7 @@ class LowIrGeneratorTest extends GroovyTestCase {
         }
       }
     }
-    gen.handleStatement(assignment)
+    gen.destruct(assignment)
   }
   void testIfElse() {
     def gen = new LowIrGenerator()
@@ -36,6 +36,6 @@ class LowIrGeneratorTest extends GroovyTestCase {
         }
       }
     }
-    gen.handleStatement(if1)
+    gen.destruct(if1)
   }
 }
