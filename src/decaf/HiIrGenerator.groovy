@@ -155,7 +155,7 @@ class HiIrGenerator {
 
     case BLOCK:
       parent.children << new Block(
-        symbolTable: symTable,
+        symTable: symTable,
         statements: children as List<Statement>,
         fileInfo: cur.fileInfo
       )
@@ -210,7 +210,7 @@ class HiIrGenerator {
         low: children[1],
         high: children[2],
         block: children[3],
-        symbolTable: symTable,
+        symTable: symTable,
         fileInfo: cur.fileInfo
       )
       break
