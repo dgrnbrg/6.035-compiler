@@ -391,6 +391,23 @@ class SemanticChecker {
     }
   }
 
+  def dontShadowMethodParams = { cur ->
+    if (cur instanceof Block && cur.parent == null) {
+      cur.symbolTable.@map.each { k, v ->
+        if (cur.symbolTable.parent.@map.containsKey(k)) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Local variable $k shouldn't shadow method parameter"
+        )
+        }
+      }
+    }
+
+    if (!hyperspeed) {
+      walk();
+    }
+  }
+
   def hyperblast = {cur ->
     hyperspeed = true
     checks.each {
@@ -412,6 +429,7 @@ class SemanticChecker {
       forLoopInitEndExprTypeInt,
       arrayIndicesAreInts,
       intLiteralsWithinRange,
+      dontShadowMethodParams,
       nonVoidMethodsMustReturnValue,
       methodDeclTypeMatchesTypeOfReturnExpr]}()
 }
