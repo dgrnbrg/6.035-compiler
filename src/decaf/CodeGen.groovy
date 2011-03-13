@@ -26,7 +26,7 @@ class CodeGenerator extends Traverser {
   //   return rbp(-8 * (tmpNum + method.params.size()))
   // }
   Operand getTmp(TempVar tmp){
-    return rbp(-8 * (tmp.getId() + method.params.size()))
+    return rbp(-8 * ((tmp.getId()+1) + method.params.size()))
   }
 
   void visitNode(GraphNode stmt) {
@@ -82,6 +82,9 @@ class CodeGenerator extends Traverser {
       // jne(getLabel(stmt.jmpTrueDest.uniqueLabel)
       // je(getLabel(stmt.jmpFalseDest.uniqueLabel)
       break;
+    case LowIrMethodCall:
+      call(stmt.descriptor.name)
+      break
     case LowIrBinOp:
       switch (stmt.op) {
       case ADD:

@@ -81,6 +81,12 @@ class LowIrCallOut extends LowIrNode {
   TempVar[] paramTmpVars
 }
 
+
+class LowIrMethodCall extends LowIrNode {
+  MethodDescriptor descriptor
+  TempVar[] tempVars //TODO: talk to Nathan -- change accordingly
+}
+
 class LowIrValueNode extends LowIrNode{
   TempVar tmpVar
 }

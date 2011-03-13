@@ -15,6 +15,39 @@ class Program {
    assertNotNull(gm.failException)
   }
 
+  void testMethodInArrayLocation() {
+    def gm = GroovyMain.runMain('inter','''
+class Program {
+  int a[100];
+  int foo(int x, int y) {
+    return x + y;
+  }
+  void main() {
+    int tmp;
+    a[foo(3,5)*3] += 8;
+  }
+}
+''')
+    assertEquals(0,gm.errors.size())
+    assertNull(gm.failException)
+  }
+
+  void testLegal15() {
+    def gm = GroovyMain.runMain('inter','''
+// 15. <location> += <expr> must have type int on both sides
+class Program {
+  void main() {
+    int x;
+    x = 0;
+    x += 3;
+    x += x*7;
+  }
+}
+''')
+    assertEquals(0,gm.errors.size())
+    assertNull(gm.failException)
+  }
+
   void testUndeclaredFunctions() {
     def gm = GroovyMain.runMain('inter','''
 class Program {
@@ -37,6 +70,26 @@ class Program {
 class Program {
   void foo(int x) {
     if (x != 0) {
+      foo(x-1);
+    }
+  }
+  void main() {
+    foo(10);
+  }
+}
+''')
+    assertEquals(0,gm.errors.size())
+    assertNull(gm.failException)
+  }
+
+  void testShadowVars() {
+    def gm = GroovyMain.runMain('inter','''
+class Program {
+  int x;
+  void foo(int x) {
+    {
+      int x;
+      x = 0;
       foo(x-1);
     }
   }

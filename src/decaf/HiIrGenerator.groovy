@@ -31,7 +31,12 @@ class HiIrGenerator {
       break
 
     case INT_LITERAL:
-      parent.children << new IntLiteral(value: cur.getText() as int, fileInfo: cur.fileInfo)
+      def intLiteralVal
+      if (cur.getText().startsWith('0x'))
+        intLiteralVal = Long.parseLong(cur.getText().substring(2), 16)
+      else
+        intLiteralVal = Long.parseLong(cur.getText())
+      parent.children << new IntLiteral(value: intLiteralVal, fileInfo: cur.fileInfo)
       break
 
     case CHAR_LITERAL:
@@ -92,8 +97,9 @@ class HiIrGenerator {
         parent.children << BinOpType.SUB
       } else {
         assert children.size() == 1
-	parent.children <<
-	  new BinOp(op:BinOpType.SUB, left:new IntLiteral(value:0, fileInfo: cur.fileInfo), right:children[0], fileInfo: cur.fileInfo)
+	def child = getBinOpOrConst(new IntLiteral(value:0, fileInfo: cur.fileInfo), BinOpType.SUB, children[0])
+        child.fileInfo = cur.fileInfo
+        parent.children << child
       }
       break
 
@@ -103,7 +109,9 @@ class HiIrGenerator {
         def left = children.remove(0)
         def op = children.remove(0)
         def right = children.remove(0)
-        children.add(0, new BinOp(op: op, left: left, right: right, fileInfo: cur.fileInfo))
+        def child = getBinOpOrConst(left, op, right)
+        child.fileInfo = cur.fileInfo
+        children.add(0, child)
       }
       parent.children << children[0]
       break
@@ -155,7 +163,7 @@ class HiIrGenerator {
 
     case BLOCK:
       parent.children << new Block(
-        symbolTable: symTable,
+        symTable: symTable,
         statements: children as List<Statement>,
         fileInfo: cur.fileInfo
       )
@@ -210,7 +218,7 @@ class HiIrGenerator {
         low: children[1],
         high: children[2],
         block: children[3],
-        symbolTable: symTable,
+        symTable: symTable,
         fileInfo: cur.fileInfo
       )
       break
@@ -250,6 +258,50 @@ class HiIrGenerator {
     default:
       assert false, "Missing handler for ${cur.getType()}"
       break
+    }
+  }
+
+  def getBinOpOrConst(left, op, right) {
+    if (left instanceof IntLiteral && right instanceof IntLiteral) {
+      switch (op) {
+      case BinOpType.ADD:
+        return new IntLiteral(value: left.value + right.value)
+      case BinOpType.SUB:
+        return new IntLiteral(value: left.value - right.value)
+      case BinOpType.MUL:
+        return new IntLiteral(value: left.value * right.value)
+      case BinOpType.DIV:
+        return new IntLiteral(value: left.value / right.value)
+      case BinOpType.MOD:
+        return new IntLiteral(value: left.value % right.value)
+      case BinOpType.LT:
+        return new BooleanLiteral(value: left.value < right.value)
+      case BinOpType.GT:
+        return new BooleanLiteral(value: left.value > right.value)
+      case BinOpType.LTE:
+        return new BooleanLiteral(value: left.value <= right.value)
+      case BinOpType.GTE:
+        return new BooleanLiteral(value: left.value >= right.value)
+      case BinOpType.EQ:
+        return new BooleanLiteral(value: left.value == right.value)
+      case BinOpType.NEQ:
+        return new BooleanLiteral(value: left.value != right.value)
+      }
+    } else if (left instanceof BooleanLiteral && right instanceof BooleanLiteral) {
+      switch (op) {
+      case BinOpType.EQ:
+        return new BooleanLiteral(value: left.value == right.value)
+      case BinOpType.NEQ:
+        return new BooleanLiteral(value: left.value != right.value)
+      case BinOpType.AND:
+        return new BooleanLiteral(value: left.value && right.value)
+      case BinOpType.OR:
+        return new BooleanLiteral(value: left.value || right.value)
+      }
+    } else if (left instanceof BooleanLiteral && op == BinOpType.NOT) {
+      return new BooleanLiteral(value: !left.value)
+    } else {
+      return new BinOp(op: op, left: left, right: right)
     }
   }
 }

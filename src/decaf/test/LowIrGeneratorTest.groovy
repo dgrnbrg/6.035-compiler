@@ -38,4 +38,20 @@ class LowIrGeneratorTest extends GroovyTestCase {
     }
     gen.destruct(if1)
   }
+
+  void testIfElse1() {
+    // No Else block
+    def gen = new LowIrGenerator()
+    def hb = new HiIrBuilder()
+    def if1 = hb.Block{
+      var(name:'a', type:Type.INT)
+      IfThenElse {
+        lit(true)
+        Block {
+          Assignment{ Location('a'); lit(2) }
+        }
+      }
+    }
+    gen.destruct(if1)
+  }
 }

@@ -30,6 +30,16 @@ class LowIrGenerator {
     return bridge.seq(new LowIrBridge(lowir))
   }
 
+  LowIrBridge destruct(MethodCall methodCall) {
+    def bridge = new LowIrBridge(new LowIrNode())
+    def params = methodCall.params.collect { destruct(it) }
+    params.each {
+      bridge = bridge.seq(it)
+    }
+    def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor)
+    return bridge.seq(new LowIrBridge(lowir))
+  }
+
   LowIrBridge destruct(StringLiteral lit) {
     //def strlit = new LowIrStringLiteral(value: lit.value, tmpNum: lit.tmpVar)
     //println "lit.tmpNum = $lit.tmpNum, strlit.tmpNum = $strlit.tmpNum"

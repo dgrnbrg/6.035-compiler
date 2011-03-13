@@ -39,7 +39,7 @@ class BinOp extends WalkableImpl implements Expr {
 }
 
 class IntLiteral extends WalkableImpl implements Expr {
-  int value
+  long value
 
   void howToWalk(Closure c) { }
   
@@ -101,7 +101,7 @@ class MethodCall extends WalkableImpl implements Expr, Statement {
 }
 
 class Block extends WalkableImpl implements Statement {
-  SymbolTable symbolTable
+  SymbolTable symTable
   List<Statement> statements = []
 
   void howToWalk(Closure c) {
@@ -203,7 +203,7 @@ class ForLoop extends WalkableImpl implements Statement {
   Expr low
   Expr high
   Block block
-  SymbolTable symbolTable
+  SymbolTable symTable
 
   void howToWalk(Closure c) {
     //prevent idiocy

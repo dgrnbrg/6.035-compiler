@@ -5,7 +5,7 @@ class InstructionTest extends GroovyTestCase {
 
   void testInstrCreation() {
     Instruction instr1 = new Instruction(InstrType.MOV, new Operand(3), new Operand(Reg.RAX))
-    assertEquals('mov $3, %rax',instr1.getOpCode())
+    assertEquals('movq $3, %rax',instr1.getOpCode())
 
     Instruction instr2 = new Instruction(InstrType.ENTER, new Operand(48), new Operand(0))
     assertEquals('enter $48, $0', instr2.getOpCode())
