@@ -26,7 +26,16 @@ class CodeGenerator extends Traverser {
   //   return rbp(-8 * (tmpNum + method.params.size()))
   // }
   Operand getTmp(TempVar tmp){
-    return rbp(-8 * ((tmp.getId()+1) + method.params.size()))
+    switch (tmp.type) {
+    case TempVarType.PARAM:
+      return rbp(8 * (tmp.getId()+2))
+    case TempVarType.LOCAL: 
+      return rbp(-8 * (tmp.getId()+1))
+    case TempVarType.GLOBAL:
+      //TODO: Nathan will finish this
+    default:
+      assert false
+    }
   }
 
   void visitNode(GraphNode stmt) {
@@ -54,9 +63,10 @@ class CodeGenerator extends Traverser {
       call(stmt.name)
       break
     case LowIrMethodCall:
-      // store parameters here
+      stmt.paramTmpVars.each { push(getTmp(it)) }
       call(stmt.descriptor.name)
       movq(rax,getTmp(stmt.tmpVar))
+      add(8*stmt.paramTmpVars.size(), rsp)
       break
     case LowIrReturn:
       if (stmt.tmpVar != null) {

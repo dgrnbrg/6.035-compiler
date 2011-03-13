@@ -24,7 +24,6 @@ class LowIrGenerator {
       bridge = bridge.seq(it)
     }
     //def paramNums = params.collect { it.tmpVar }
-    println params
     def paramTmpVars = params.collect { it.tmpVar }
     //def lowir = new LowIrCallOut(name: callout.name.value, paramNums: paramNums)
     def lowir = new LowIrCallOut(name: callout.name.value, paramTmpVars: paramTmpVars)
@@ -37,7 +36,8 @@ class LowIrGenerator {
     params.each {
       bridge = bridge.seq(it)
     }
-    def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor, tmpVars: params.collect { it.tmpVars })
+    def paramTmpVars = params.collect { it.tmpVar }
+    def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor, paramTmpVars: paramTmpVars)
     lowir.tmpVar = methodCall.tmpVar
     return bridge.seq(new LowIrValueBridge(lowir))
   }
@@ -82,5 +82,10 @@ class LowIrGenerator {
     def lowirBinop = new LowIrBinOp(leftTmpVar: leftBridge.tmpVar, rightTmpVar: rightBridge.tmpVar, tmpVar: binop.tmpVar, op: binop.op)
     leftBridge = leftBridge.seq(rightBridge)
     return leftBridge.seq(new LowIrValueBridge(lowirBinop))
+  }
+
+  LowIrBridge destruct(Location loc) {
+    //TODO: handle arrays
+    return new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.descriptor.tmpVar))
   }
 }

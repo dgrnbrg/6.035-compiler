@@ -297,8 +297,19 @@ public class GroovyMain {
     def lg = new LowIrGenerator()
     def cg = new CodeGenerator()
     hiirGenerator.methods.each { methodName, methodHiIr ->
-      cg.handleMethod(ast.methodSymTable[methodName], lg.destruct(methodHiIr).begin)
+      def methodDesc = ast.methodSymTable[methodName]
+      methodDesc.params.eachWithIndex {param, index ->
+        param.tmpVar = new TempVar(TempVarType.PARAM)
+        param.tmpVar.tempVarNumber = index
+      }
+      cg.handleMethod(methodDesc, lg.destruct(methodHiIr).begin)
     }
+/*
+    hiirGenerator.methods.each { it ->
+      it.descriptor.params.eachWithIndex {param, index ->
+        param.tmpVar = new TempVar(index,param)
+      }
+    }*/
     println cg.getAsm()
     new File('tmp.S').text = cg.getAsm()
   }

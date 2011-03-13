@@ -59,14 +59,13 @@ class LowIrNode implements GraphNode{
 
 class LowIrCallOut extends LowIrNode {
   String name
-  // int[] paramNums
   TempVar[] paramTmpVars
 }
 
 
 class LowIrMethodCall extends LowIrValueNode {
   MethodDescriptor descriptor
-  TempVar[] tmpVars
+  TempVar[] paramTmpVars
 }
 
 class LowIrReturn extends LowIrValueNode {
