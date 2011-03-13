@@ -113,6 +113,12 @@ class SemanticChecker {
       } else if([EQ, NEQ].contains(expr.op)) {
         // maybe someone can verify that I'm not making a mistake 
         // for not explicitly checking for boolean arrays and int arrays?
+        if (![INT, BOOLEAN].contains(leftType)) {
+          errors << new CompilerError(
+            fileInfo: expr.fileInfo,
+            message: msg('integer or boolean','left')
+          )
+        }
         if(leftType != rightType) {
           errors << new CompilerError(
             fileInfo: expr.fileInfo,
@@ -285,8 +291,17 @@ class SemanticChecker {
   // methods that don't have return type void do 
   // return a value (checks all paths through method).
   def nonVoidMethodsMustReturnValue = {cur ->
-    declVar('methodDesc',null)
-    declVar('returnCount', 0)
+    try {
+      declVar('methodDesc',null)
+      declVar('returnCount', 0)
+    } catch (MissingPropertyException e) {
+      //Note: we don't throw the exception here b/c a += or -= will cause the location
+      //and expression for the array index to be walked twice in 2 places, and we want
+      //to avoid a garbage exception
+      if (!(cur instanceof Expr)) {
+        throw e
+      }
+    }
 
     if(cur instanceof Block && cur.parent == null) {
       // this is the top level block, check symbol table to extract 
@@ -411,6 +426,37 @@ class SemanticChecker {
     }
   }
 
+  def intLiteralsWithinRange = { cur ->
+    if (cur instanceof IntLiteral) {
+      if (cur.value > 2147483647 || cur.value < -2147483648) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Encountered int literal out of range: $cur.value Note that this value could be computed by statically computing a constant expression, so it might not actually be in your source code written as it was computed."
+        )
+      }
+    }
+    if (!hyperspeed) {
+      walk();
+    }
+  }
+
+  def dontShadowMethodParams = { cur ->
+    if (cur instanceof Block && cur.parent == null) {
+      cur.symbolTable.@map.each { k, v ->
+        if (cur.symbolTable.parent.@map.containsKey(k)) {
+        errors << new CompilerError(
+          fileInfo: cur.fileInfo,
+          message: "Local variable $k shouldn't shadow method parameter"
+        )
+        }
+      }
+    }
+
+    if (!hyperspeed) {
+      walk();
+    }
+  }
+
   def hyperblast = {cur ->
     hyperspeed = true
     checks.each {
@@ -431,6 +477,8 @@ class SemanticChecker {
       binOpOperands, 
       forLoopInitEndExprTypeInt,
       arrayIndicesAreInts,
+      intLiteralsWithinRange,
+      dontShadowMethodParams,
       nonVoidMethodsMustReturnValue,
       // Old temporary variable annotation/allocation mechanism
       //computeTmpNums,

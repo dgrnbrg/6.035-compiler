@@ -39,7 +39,7 @@ class BinOp extends WalkableImpl implements Expr {
 }
 
 class IntLiteral extends WalkableImpl implements Expr {
-  int value
+  long value
 
   void howToWalk(Closure c) { }
   
