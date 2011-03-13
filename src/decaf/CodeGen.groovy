@@ -45,6 +45,9 @@ class CodeGenerator extends Traverser {
       }
       call(stmt.name)
       break
+    case LowIrMethodCall:
+      call(stmt.descriptor.name)
+      break
     case LowIrBinOp:
       switch (stmt.op) {
       case ADD:
