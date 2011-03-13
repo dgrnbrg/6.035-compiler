@@ -24,6 +24,7 @@ class LowIrGenerator {
       bridge = bridge.seq(it)
     }
     //def paramNums = params.collect { it.tmpVar }
+    println params
     def paramTmpVars = params.collect { it.tmpVar }
     //def lowir = new LowIrCallOut(name: callout.name.value, paramNums: paramNums)
     def lowir = new LowIrCallOut(name: callout.name.value, paramTmpVars: paramTmpVars)
@@ -31,12 +32,23 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(MethodCall methodCall) {
-    def bridge = new LowIrBridge(new LowIrNode())
+    def bridge = new LowIrValueBridge(new LowIrValueNode())
     def params = methodCall.params.collect { destruct(it) }
     params.each {
       bridge = bridge.seq(it)
     }
-    def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor)
+    def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor, tmpVars: params.collect { it.tmpVars })
+    lowir.tmpVar = methodCall.tmpVar
+    return bridge.seq(new LowIrValueBridge(lowir))
+  }
+
+  LowIrBridge destruct(Return ret) {
+    def bridge = new LowIrBridge(new LowIrNode())
+    def lowir = new LowIrReturn()
+    if (ret.expr != null) {
+      bridge = destruct(ret.expr)
+      lowir.tmpVar = bridge.tmpVar
+    }
     return bridge.seq(new LowIrBridge(lowir))
   }
 

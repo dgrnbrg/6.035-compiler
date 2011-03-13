@@ -54,7 +54,16 @@ class CodeGenerator extends Traverser {
       call(stmt.name)
       break
     case LowIrMethodCall:
+      // store parameters here
       call(stmt.descriptor.name)
+      movq(rax,getTmp(stmt.tmpVar))
+      break
+    case LowIrReturn:
+      if (stmt.tmpVar != null) {
+        movq(getTmp(stmt.tmpVar),rax)
+      }
+      leave()
+      ret()
       break
     case LowIrBinOp:
       switch (stmt.op) {
