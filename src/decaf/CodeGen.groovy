@@ -3,7 +3,7 @@ import decaf.graph.*
 import static decaf.BinOpType.*
 
 class CodeGenerator extends Traverser {
-  def asm = [text: ['.text'], strings: ['.data']]
+  def asm = [text: ['.text'], strings: ['.data'], bss: ['.bss']]
   def paramRegs = []
   MethodDescriptor method
 
@@ -42,7 +42,7 @@ class CodeGenerator extends Traverser {
     case TempVarType.LOCAL: 
       return rbp(-8 * (tmp.getId()+1))
     case TempVarType.GLOBAL:
-      //TODO: Nathan will finish this
+      return new Operand(tmp.globalName)
     default:
       assert false
     }

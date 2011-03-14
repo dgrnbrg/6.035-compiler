@@ -296,6 +296,14 @@ public class GroovyMain {
     depends(inter)
     def lg = new LowIrGenerator()
     def cg = new CodeGenerator()
+    ast.symTable.@map.each { name, desc ->
+      name += '_globalvar'
+      desc.tmpVar = new TempVar(TempVarType.GLOBAL)
+      desc.tmpVar.globalName = name
+      def s = desc.arraySize
+      if (s == null) s = 1
+      cg.emit('bss', ".comm $name ${8*s}")
+    }
     hiirGenerator.methods.each { methodName, methodHiIr ->
       def methodDesc = ast.methodSymTable[methodName]
       methodDesc.params.eachWithIndex {param, index ->

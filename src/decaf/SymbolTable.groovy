@@ -126,6 +126,7 @@ class TempVar {
   int tempVarNumber
   static tempVarCounter = 0
   TempVarType type = TempVarType.LOCAL
+  String globalName
 
   // Constructor
   // TempVar(number) {
