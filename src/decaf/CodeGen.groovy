@@ -15,7 +15,6 @@ class CodeGenerator extends Traverser {
     this.method = method
     asmMacro('.globl', method.name)
     emit(method.name + ':')
-    // enter(8*(method.params.size() + method.maxTmps),0)
     enter(8*(method.params.size() + method.maxTmpVars),0)
     traverse(start)
     if (method.returnType == Type.VOID) {
@@ -32,9 +31,6 @@ class CodeGenerator extends Traverser {
     }
   }
 
-  // Operand getTmp(int tmpNum) {
-  //   return rbp(-8 * (tmpNum + method.params.size()))
-  // }
   Operand getTmp(TempVar tmp){
     switch (tmp.type) {
     case TempVarType.PARAM:
@@ -226,17 +222,3 @@ class CodeGenerator extends Traverser {
     throw new MissingPropertyException(name, getClass())
   }
 }
-/*
-cg = new CodeGenerator()
-
-cg.sub(cg.rax, 8)
-cg.add(cg.rax(3), cg.r10)
-
-lowirgen = new LowIrGenerator()
-hb = new HiIrBuilder()
-prog = hb.Block{
-  CallOut('printf', 'hello world')
-}
-cg.traverse(gen.handleStatement(prog).begin)
-cg.asm.each {println it.getOpCode()}
-*/

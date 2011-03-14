@@ -111,8 +111,6 @@ class SemanticChecker {
           ) 
         }
       } else if([EQ, NEQ].contains(expr.op)) {
-        // maybe someone can verify that I'm not making a mistake 
-        // for not explicitly checking for boolean arrays and int arrays?
         if (![INT, BOOLEAN].contains(leftType)) {
           errors << new CompilerError(
             fileInfo: expr.fileInfo,
@@ -225,27 +223,11 @@ class SemanticChecker {
     }
   }
 
-  //this must be set to the number of params per function
-  // def tmpNum = 0
-  // def maxTmpNum = 0
-  // def computeTmpNums = { cur ->
-  //   if (cur.parent instanceof Block) {
-  //     tmpNum = 0
-  //   } else if (cur instanceof Expr || cur instanceof StringLiteral) {
-  //     declVar('tmpNum', tmpNum++)
-  //     if (tmpNum > maxTmpNum) maxTmpNum = tmpNum
-  //   }
-
-  //   if (!hyperspeed) {
-  //     walk()
-  //   }
-  // }
-
   // tmpNum = number of variables needed for a given function
   def tmpNum = 0 
   def computeTmps = { cur ->
     if(cur instanceof Expr ||
-	    cur instanceof StringLiteral){
+       cur instanceof StringLiteral){
       // Allocates TempVar()s for temporary nodes
       try {
         declVar('tmpVar', new TempVar())
@@ -255,8 +237,7 @@ class SemanticChecker {
     else if (cur instanceof Block || cur instanceof ForLoop) {
       // Allocates TempVar()s for all declared variables
       cur.symTable.@map.each { k, v ->
-	println "(computeTmps): hit function ${k}"
-	tmpNum++
+	    tmpNum++
         v.tmpVar = new TempVar()
       }
     }

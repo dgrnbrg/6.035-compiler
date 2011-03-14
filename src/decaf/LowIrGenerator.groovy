@@ -48,32 +48,20 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(StringLiteral lit) {
-    //def strlit = new LowIrStringLiteral(value: lit.value, tmpNum: lit.tmpVar)
-    //println "lit.tmpNum = $lit.tmpNum, strlit.tmpNum = $strlit.tmpNum"
     def strlit = new LowIrStringLiteral(value: lit.value, tmpVar: lit.tmpVar)
-    println "lit.tmpVar.getId() = ${lit.tmpVar.getId()}, strlit.tmpVar.getId() = ${strlit.tmpVar.getId()}"
-    
     def bridge = new LowIrValueBridge(strlit)
     return bridge
   }
 
   LowIrBridge destruct(IntLiteral lit) {
-    // def intlit = new LowIrIntLiteral(value: lit.value, tmpNum: lit.tmpNum)
-    // println "lit.tmpNum = $lit.tmpNum, intlit.tmpNum = $intlit.tmpNum"
     def intlit = new LowIrIntLiteral(value: lit.value, tmpVar: lit.tmpVar)
-    println "lit.tmpVar.getId() = ${lit.tmpVar.getId()}, intlit.tmpVar.getId() = ${intlit.tmpVar.getId()}"
-    
     def bridge = new LowIrValueBridge(intlit)
     return bridge
   }
 
-  // Nathan note:
-  // No LowIrBridge that accepts an Assignment!
-
   LowIrBridge destruct(BinOp binop) {
     def leftBridge = destruct(binop.left)
     def rightBridge = destruct(binop.right)
-    // def lowirBinop = new LowIrBinOp(leftTmpNum: leftBridge.tmpNum, rightTmpNum: rightBridge.tmpNum, tmpNum: binop.tmpNum, op: binop.op)
     def lowirBinop = new LowIrBinOp(leftTmpVar: leftBridge.tmpVar, rightTmpVar: rightBridge.tmpVar, tmpVar: binop.tmpVar, op: binop.op)
     leftBridge = leftBridge.seq(rightBridge)
     return leftBridge.seq(new LowIrValueBridge(lowirBinop))
