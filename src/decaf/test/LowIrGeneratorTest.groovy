@@ -19,6 +19,9 @@ class LowIrGeneratorTest extends GroovyTestCase {
         }
       }
     }
+    def semCheck = new SemanticChecker()
+    //semantic checker does the tempvar computations
+    assignment.inOrderWalk(semCheck.hyperblast)
     gen.destruct(assignment)
   }
   void testIfElse() {
