@@ -18,8 +18,18 @@ class CodeGenerator extends Traverser {
     // enter(8*(method.params.size() + method.maxTmps),0)
     enter(8*(method.params.size() + method.maxTmpVars),0)
     traverse(start)
-    leave()
-    ret()
+    if (method.returnType == Type.VOID) {
+      leave()
+      ret()
+    } else {
+      def strLitOperand = asmString("Control fell off end of non-void function $method.name\\n")
+      strLitOperand.type = OperType.IMM
+      movq(strLitOperand, rdi)
+      movq(0, rax)
+      call('printf')
+      movq(1,rdi)
+      call('exit')
+    }
   }
 
   // Operand getTmp(int tmpNum) {

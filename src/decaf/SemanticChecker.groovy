@@ -465,7 +465,7 @@ class SemanticChecker {
     }
     walk()
     breakContinueForPost(cur)
-    nonVoidMethodsMustReturnValuePost(cur)
+    //nonVoidMethodsMustReturnValuePost(cur)
   }
 
   //Put your checks here
@@ -479,7 +479,7 @@ class SemanticChecker {
       arrayIndicesAreInts,
       intLiteralsWithinRange,
       dontShadowMethodParams,
-      nonVoidMethodsMustReturnValue,
+      //nonVoidMethodsMustReturnValue,
       // Old temporary variable annotation/allocation mechanism
       //computeTmpNums,
       computeTmps,
