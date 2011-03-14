@@ -15,17 +15,11 @@ class LowIrGenerator {
 
   LowIrBridge destruct(CallOut callout) {
     def bridge = new LowIrBridge(new LowIrNode())
-    // BUG? Shouldn't these be written from right to left, not left
-    // to right? We have to follow the calling convention.
-
-    // params: List<LowIrValueBridge>
     def params = callout.params.collect { destruct(it) }
     params.each {
       bridge = bridge.seq(it)
     }
-    //def paramNums = params.collect { it.tmpVar }
     def paramTmpVars = params.collect { it.tmpVar }
-    //def lowir = new LowIrCallOut(name: callout.name.value, paramNums: paramNums)
     def lowir = new LowIrCallOut(name: callout.name.value, paramTmpVars: paramTmpVars)
     return bridge.seq(new LowIrBridge(lowir))
   }

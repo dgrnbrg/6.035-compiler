@@ -59,18 +59,21 @@ class CodeGenerator extends Traverser {
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
-      // stmt.paramNums.eachWithIndex {tmpVar, index ->
-      //   movq(getTmp(tmpVar), paramRegs[index])
-      // }
+      def paramsOnStack = stmt.paramTmpVars.size() - paramRegs.size()
+      sub(8*paramsOnStack, rsp)
       stmt.paramTmpVars.eachWithIndex {tmpVar, index ->
-        movq(getTmp(tmpVar), paramRegs[index])
+        if (index < paramRegs.size()) {
+          movq(getTmp(tmpVar), paramRegs[index])
+        } else {
+          movq(getTmp(tmpVar),r10)
+          movq(r10,rsp(8*(index - paramRegs.size())))
+        }
       }
-
       if (stmt.name == 'printf') {
-        //stmt.params.add(0,0) //must have 0 in rax
         movq(0,rax)
       }
       call(stmt.name)
+      add(8*paramsOnStack, rsp)
       break
     case LowIrMethodCall:
       stmt.paramTmpVars.each { push(getTmp(it)) }
