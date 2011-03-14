@@ -24,6 +24,7 @@ class LowIrGeneratorTest extends GroovyTestCase {
     assignment.inOrderWalk(semCheck.hyperblast)
     gen.destruct(assignment)
   }
+
   void testIfElse() {
     def gen = new LowIrGenerator()
     def hb = new HiIrBuilder()
@@ -51,7 +52,7 @@ class LowIrGeneratorTest extends GroovyTestCase {
       IfThenElse {
         lit(true)
         Block {
-          Assignment{ Location('a'); lit(2) }
+          Assignment { Location('a'); lit(2)}
         }
       }
     }
