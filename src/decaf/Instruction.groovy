@@ -87,6 +87,7 @@ class Operand {
   OperType type
   def val
   def offset
+  def stride
 
   Operand(int val) {
     this.type = OperType.IMM
@@ -101,6 +102,12 @@ class Operand {
   Operand(String val) {
     this.type = OperType.ADDR
     this.val = val
+  }
+
+  Operand(String offset, Reg val) {
+    this.type = OperType.MEM
+    this.val = val
+    this.offset = offset
   }
 
   Operand(int offset, Reg val) {
@@ -122,7 +129,11 @@ class Operand {
     case OperType.MEM:
       assert offset != null
       assert val instanceof Reg
-      return "${offset}(%${val.name})"
+      if (stride == null) {
+        return "${offset}(%${val.name})"
+      } else {
+        return "${offset}(,%${val.name},${stride})"
+      }
     }
   }
 }

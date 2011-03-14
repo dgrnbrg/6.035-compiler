@@ -15,7 +15,6 @@ class CodeGenerator extends Traverser {
     this.method = method
     asmMacro('.globl', method.name)
     emit(method.name + ':')
-    // enter(8*(method.params.size() + method.maxTmps),0)
     enter(8*(method.params.size() + method.maxTmpVars),0)
     traverse(start)
     if (method.returnType == Type.VOID) {
@@ -32,9 +31,6 @@ class CodeGenerator extends Traverser {
     }
   }
 
-  // Operand getTmp(int tmpNum) {
-  //   return rbp(-8 * (tmpNum + method.params.size()))
-  // }
   Operand getTmp(TempVar tmp){
     switch (tmp.type) {
     case TempVarType.PARAM:
@@ -119,8 +115,20 @@ class CodeGenerator extends Traverser {
       ret()
       break
     case LowIrMov:
-      movq(getTmp(stmt.src), r10)
-      movq(r10, getTmp(stmt.dst))
+      if (stmt.src.type != TempVarType.ARRAY) {
+        movq(getTmp(stmt.src), r10)
+      } else {
+        movq(getTmp(stmt.src.arrayIndexTmpVar), r11)
+        def arrOp = r11(stmt.src.globalName, 8)
+        movq(arrOp, r10)
+      }
+      if (stmt.dst.type != TempVarType.ARRAY) {
+        movq(r10, getTmp(stmt.dst))
+      } else {
+        movq(getTmp(stmt.dst.arrayIndexTmpVar), r11)
+        def arrOp = r11(stmt.dst.globalName, 8)
+        movq(r10, arrOp)
+      }
       break
     case LowIrBinOp:
       switch (stmt.op) {
@@ -212,8 +220,12 @@ class CodeGenerator extends Traverser {
 
   def methodMissing(String name, args) {
     if (nameToReg.containsKey(name)) {
-      assert args.size() == 1
-      return new Operand(args[0], nameToReg[name])
+      assert args.size() == 1 || args.size() == 2
+      def op = new Operand(args[0], nameToReg[name])
+      if (args.size() == 2) {
+        op.stride = args[1]
+      }
+      return op
     } else if (nameToInstrType.containsKey(name)) {
       def type = nameToInstrType[name]
       assert args.size() == type.numOperands
@@ -239,17 +251,3 @@ class CodeGenerator extends Traverser {
     throw new MissingPropertyException(name, getClass())
   }
 }
-/*
-cg = new CodeGenerator()
-
-cg.sub(cg.rax, 8)
-cg.add(cg.rax(3), cg.r10)
-
-lowirgen = new LowIrGenerator()
-hb = new HiIrBuilder()
-prog = hb.Block{
-  CallOut('printf', 'hello world')
-}
-cg.traverse(gen.handleStatement(prog).begin)
-cg.asm.each {println it.getOpCode()}
-*/

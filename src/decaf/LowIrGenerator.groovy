@@ -48,33 +48,20 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(StringLiteral lit) {
-    //def strlit = new LowIrStringLiteral(value: lit.value, tmpNum: lit.tmpVar)
-    //println "lit.tmpNum = $lit.tmpNum, strlit.tmpNum = $strlit.tmpNum"
     def strlit = new LowIrStringLiteral(value: lit.value, tmpVar: lit.tmpVar)
-    println "lit.tmpVar.getId() = ${lit.tmpVar.getId()}, strlit.tmpVar.getId() = ${strlit.tmpVar.getId()}"
-    
     def bridge = new LowIrValueBridge(strlit)
     return bridge
   }
 
   LowIrBridge destruct(IntLiteral lit) {
-    // def intlit = new LowIrIntLiteral(value: lit.value, tmpNum: lit.tmpNum)
-    // println "lit.tmpNum = $lit.tmpNum, intlit.tmpNum = $intlit.tmpNum"
     def intlit = new LowIrIntLiteral(value: lit.value, tmpVar: lit.tmpVar)
-    println "lit.tmpVar.getId() = ${lit.tmpVar.getId()}, intlit.tmpVar.getId() = ${intlit.tmpVar.getId()}"
-    
     def bridge = new LowIrValueBridge(intlit)
     return bridge
   }
 
-  // Nathan note:
-  // No LowIrBridge that accepts an Assignment!
-
   LowIrBridge destruct(BinOp binop) {
     def leftBridge = destruct(binop.left)
     def rightBridge = destruct(binop.right)
-
-    // def lowirBinop = new LowIrBinOp(leftTmpNum: leftBridge.tmpNum, rightTmpNum: rightBridge.tmpNum, tmpNum: binop.tmpNum, op: binop.op)
     def lowirBinop = new LowIrBinOp(leftTmpVar: leftBridge.tmpVar, rightTmpVar: rightBridge.tmpVar, tmpVar: binop.tmpVar, op: binop.op)
     leftBridge = leftBridge.seq(rightBridge)
     return leftBridge.seq(new LowIrValueBridge(lowirBinop))
@@ -152,11 +139,22 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(ForLoop forloop) {
-    
+
+  LowIrValueBridge destructLocation(Location loc) {
+    //2 cases: array and scalar
+    if (loc.indexExpr == null) {
+      return new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.descriptor.tmpVar))
+    } else {
+      def bridge = destruct(loc.indexExpr)
+      def arrTmpVar = new TempVar(TempVarType.ARRAY)
+      arrTmpVar.globalName = loc.descriptor.name + '_globalvar'
+      arrTmpVar.arrayIndexTmpVar = bridge.tmpVar
+      return bridge.seq(new LowIrValueBridge(new LowIrValueNode(tmpVar: arrTmpVar)))
+    }
   }
 
   LowIrBridge destruct(Assignment assignment) {
-    def dstBridge = destruct(assignment.loc)
+    def dstBridge = destructLocation(assignment.loc)
     def srcBridge = destruct(assignment.expr)
     def lowir = new LowIrMov(src: srcBridge.tmpVar, dst: dstBridge.tmpVar)
 //TODO: david--fix this
@@ -174,7 +172,9 @@ class Program {
   }
 
   LowIrBridge destruct(Location loc) {
-    //TODO: handle arrays
-    return new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.descriptor.tmpVar))
+    def bridge = destructLocation(loc)
+    def lowir = new LowIrMov(src: bridge.tmpVar, dst: loc.tmpVar)
+    def valBridge = new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.tmpVar))
+    return bridge.seq(new LowIrBridge(lowir)).seq(valBridge)
   }
 }

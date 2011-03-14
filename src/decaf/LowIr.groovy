@@ -18,7 +18,11 @@ class LowIrBridge {
 
   LowIrBridge seq(LowIrBridge next) {
     LowIrNode.link(this.end, next.begin)
-    return new LowIrBridge(this.begin, next.end)
+    if (next instanceof LowIrValueBridge) {
+      return new LowIrValueBridge(this.begin, next.end)
+    } else {
+      return new LowIrBridge(this.begin, next.end)
+    }
   }
 }
 
@@ -36,15 +40,6 @@ class LowIrValueBridge extends LowIrBridge {
     super(begin, end)
     // tmpNum = end.tmpNum
     tmpVar = end.tmpVar
-  }
-
-  LowIrBridge seq(LowIrBridge next) {
-    LowIrNode.link(this.end, next.begin)
-    if (next instanceof LowIrValueBridge) {
-      return new LowIrValueBridge(this.begin, next.end)
-    } else {
-      return new LowIrBridge(this.begin, next.end)
-    }
   }
 }
 
