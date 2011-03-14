@@ -14,14 +14,15 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(CallOut callout) {
-    def bridge = new LowIrBridge(new LowIrNode())
+    def bridge = new LowIrValueBridge(new LowIrValueNode())
     def params = callout.params.collect { destruct(it) }
     params.each {
       bridge = bridge.seq(it)
     }
     def paramTmpVars = params.collect { it.tmpVar }
     def lowir = new LowIrCallOut(name: callout.name.value, paramTmpVars: paramTmpVars)
-    return bridge.seq(new LowIrBridge(lowir))
+    lowir.tmpVar = callout.tmpVar
+    return bridge.seq(new LowIrValueBridge(lowir))
   }
 
   LowIrBridge destruct(MethodCall methodCall) {

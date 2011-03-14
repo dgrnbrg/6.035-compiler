@@ -57,7 +57,7 @@ class LowIrNode implements GraphNode{
   }
 }
 
-class LowIrCallOut extends LowIrNode {
+class LowIrCallOut extends LowIrValueNode {
   String name
   TempVar[] paramTmpVars
 }

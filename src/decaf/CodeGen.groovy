@@ -73,6 +73,7 @@ class CodeGenerator extends Traverser {
         movq(0,rax)
       }
       call(stmt.name)
+      movq(rax,getTmp(stmt.tmpVar))
       add(8*paramsOnStack, rsp)
       break
     case LowIrMethodCall:
