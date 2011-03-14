@@ -127,6 +127,7 @@ class TempVar {
   static tempVarCounter = 0
   TempVarType type = TempVarType.LOCAL
   String globalName
+  TempVar arrayIndexTmpVar
 
   // Constructor
   // TempVar(number) {
@@ -150,5 +151,6 @@ class TempVar {
 enum TempVarType {
   LOCAL,
   PARAM,
-  GLOBAL
+  GLOBAL,
+  ARRAY //always static
 }
