@@ -40,7 +40,11 @@ class LowIrValueBridge extends LowIrBridge {
 
   LowIrBridge seq(LowIrBridge next) {
     LowIrNode.link(this.end, next.begin)
-    return new LowIrValueBridge(this.begin, next.end)
+    if (next instanceof LowIrValueBridge) {
+      return new LowIrValueBridge(this.begin, next.end)
+    } else {
+      return new LowIrBridge(this.begin, next.end)
+    }
   }
 }
 
@@ -85,7 +89,10 @@ class LowIrIntLiteral extends LowIrValueNode {
 }
 
 class LowIrBinOp extends LowIrValueNode {
-  //int leftTmpNum, rightTmpNum
   TempVar leftTmpVar, rightTmpVar
   BinOpType op
+}
+
+class LowIrMov extends LowIrNode {
+  TempVar src, dst
 }

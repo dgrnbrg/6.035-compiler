@@ -79,6 +79,24 @@ class LowIrGenerator {
     return leftBridge.seq(new LowIrValueBridge(lowirBinop))
   }
 
+  LowIrBridge destruct(Assignment assignment) {
+    def dstBridge = destruct(assignment.loc)
+    def srcBridge = destruct(assignment.expr)
+    def lowir = new LowIrMov(src: srcBridge.tmpVar, dst: dstBridge.tmpVar)
+//TODO: david--fix this
+/*
+class Program {
+  int a[10], x;
+  int foo() {return x+=1;}
+  void main() {
+    a[x]+=foo();
+    a[foo()] = 1;
+  }
+}
+*/
+    return dstBridge.seq(srcBridge).seq(new LowIrBridge(lowir))
+  }
+
   LowIrBridge destruct(Location loc) {
     //TODO: handle arrays
     return new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.descriptor.tmpVar))

@@ -89,6 +89,10 @@ class CodeGenerator extends Traverser {
       leave()
       ret()
       break
+    case LowIrMov:
+      movq(getTmp(stmt.src), r10)
+      movq(r10, getTmp(stmt.dst))
+      break
     case LowIrBinOp:
       switch (stmt.op) {
       case ADD:
