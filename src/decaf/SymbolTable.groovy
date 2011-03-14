@@ -125,6 +125,8 @@ public class MethodDescriptor {
 class TempVar {
   int tempVarNumber
   static tempVarCounter = 0
+  TempVarType type = TempVarType.LOCAL
+  String globalName
 
   // Constructor
   // TempVar(number) {
@@ -134,10 +136,19 @@ class TempVar {
     tempVarNumber = TempVar.tempVarCounter
     tempVarCounter++
   }
+  TempVar(TempVarType type) {
+    this.type = type
+  }
   int getId(){
     return this.tempVarNumber
   }
   static exitFunction(){
     TempVar.tempVarCounter = 0
   }
+}
+
+enum TempVarType {
+  LOCAL,
+  PARAM,
+  GLOBAL
 }

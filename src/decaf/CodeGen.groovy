@@ -3,7 +3,7 @@ import decaf.graph.*
 import static decaf.BinOpType.*
 
 class CodeGenerator extends Traverser {
-  def asm = [text: ['.text'], strings: ['.data']]
+  def asm = [text: ['.text'], strings: ['.data'], bss: ['.bss']]
   def paramRegs = []
   MethodDescriptor method
 
@@ -18,15 +18,34 @@ class CodeGenerator extends Traverser {
     // enter(8*(method.params.size() + method.maxTmps),0)
     enter(8*(method.params.size() + method.maxTmpVars),0)
     traverse(start)
-    leave()
-    ret()
+    if (method.returnType == Type.VOID) {
+      leave()
+      ret()
+    } else {
+      def strLitOperand = asmString("Control fell off end of non-void function $method.name\\n")
+      strLitOperand.type = OperType.IMM
+      movq(strLitOperand, rdi)
+      movq(0, rax)
+      call('printf')
+      movq(1,rdi)
+      call('exit')
+    }
   }
 
   // Operand getTmp(int tmpNum) {
   //   return rbp(-8 * (tmpNum + method.params.size()))
   // }
   Operand getTmp(TempVar tmp){
-    return rbp(-8 * ((tmp.getId()+1) + method.params.size()))
+    switch (tmp.type) {
+    case TempVarType.PARAM:
+      return rbp(8 * (tmp.getId()+2))
+    case TempVarType.LOCAL: 
+      return rbp(-8 * (tmp.getId()+1))
+    case TempVarType.GLOBAL:
+      return new Operand(tmp.globalName)
+    default:
+      assert false
+    }
   }
 
   void visitNode(GraphNode stmt) {
@@ -60,18 +79,22 @@ class CodeGenerator extends Traverser {
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
-      // stmt.paramNums.eachWithIndex {tmpVar, index ->
-      //   movq(getTmp(tmpVar), paramRegs[index])
-      // }
+      def paramsOnStack = stmt.paramTmpVars.size() - paramRegs.size()
+      sub(8*paramsOnStack, rsp)
       stmt.paramTmpVars.eachWithIndex {tmpVar, index ->
-        movq(getTmp(tmpVar), paramRegs[index])
+        if (index < paramRegs.size()) {
+          movq(getTmp(tmpVar), paramRegs[index])
+        } else {
+          movq(getTmp(tmpVar),r10)
+          movq(r10,rsp(8*(index - paramRegs.size())))
+        }
       }
-
       if (stmt.name == 'printf') {
-        //stmt.params.add(0,0) //must have 0 in rax
         movq(0,rax)
       }
       call(stmt.name)
+      movq(rax,getTmp(stmt.tmpVar))
+      add(8*paramsOnStack, rsp)
       break
     case LowIrJump:
       // First make sure that both branches have unique labels.
@@ -83,7 +106,21 @@ class CodeGenerator extends Traverser {
       // je(getLabel(stmt.jmpFalseDest.uniqueLabel)
       break;
     case LowIrMethodCall:
+      stmt.paramTmpVars.each { push(getTmp(it)) }
       call(stmt.descriptor.name)
+      movq(rax,getTmp(stmt.tmpVar))
+      add(8*stmt.paramTmpVars.size(), rsp)
+      break
+    case LowIrReturn:
+      if (stmt.tmpVar != null) {
+        movq(getTmp(stmt.tmpVar),rax)
+      }
+      leave()
+      ret()
+      break
+    case LowIrMov:
+      movq(getTmp(stmt.src), r10)
+      movq(r10, getTmp(stmt.dst))
       break
     case LowIrBinOp:
       switch (stmt.op) {

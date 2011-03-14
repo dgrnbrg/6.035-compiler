@@ -533,7 +533,7 @@ class SemanticCheckTest extends GroovyTestCase {
     SemanticChecker checker = new SemanticChecker(errors:errors,methodSymTable: builder.methodSymTable)
     
     twoTempVarsNeeded.inOrderWalk(checker.computeTmps)
-    assertEquals(2, checker.tmpNum)
+    assertEquals(3, checker.tmpNum)
   }
   
   // void testTempAllocOneBinop(){

@@ -244,10 +244,8 @@ class SemanticChecker {
   // tmpNum = number of variables needed for a given function
   def tmpNum = 0 
   def computeTmps = { cur ->
-    if(cur instanceof BinOp ||
-	    cur instanceof StringLiteral ||
-	    cur instanceof IntLiteral ||
-	    cur instanceof BooleanLiteral){
+    if(cur instanceof Expr ||
+	    cur instanceof StringLiteral){
       // Allocates TempVar()s for temporary nodes
       try {
         declVar('tmpVar', new TempVar())
@@ -467,7 +465,7 @@ class SemanticChecker {
     }
     walk()
     breakContinueForPost(cur)
-    nonVoidMethodsMustReturnValuePost(cur)
+    //nonVoidMethodsMustReturnValuePost(cur)
   }
 
   //Put your checks here
@@ -481,7 +479,7 @@ class SemanticChecker {
       arrayIndicesAreInts,
       intLiteralsWithinRange,
       dontShadowMethodParams,
-      nonVoidMethodsMustReturnValue,
+      //nonVoidMethodsMustReturnValue,
       // Old temporary variable annotation/allocation mechanism
       //computeTmpNums,
       computeTmps,

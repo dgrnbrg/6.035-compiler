@@ -14,29 +14,36 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(CallOut callout) {
-    def bridge = new LowIrBridge(new LowIrNode())
-    // BUG? Shouldn't these be written from right to left, not left
-    // to right? We have to follow the calling convention.
-
-    // params: List<LowIrValueBridge>
+    def bridge = new LowIrValueBridge(new LowIrValueNode())
     def params = callout.params.collect { destruct(it) }
     params.each {
       bridge = bridge.seq(it)
     }
-    //def paramNums = params.collect { it.tmpVar }
     def paramTmpVars = params.collect { it.tmpVar }
-    //def lowir = new LowIrCallOut(name: callout.name.value, paramNums: paramNums)
     def lowir = new LowIrCallOut(name: callout.name.value, paramTmpVars: paramTmpVars)
-    return bridge.seq(new LowIrBridge(lowir))
+    lowir.tmpVar = callout.tmpVar
+    return bridge.seq(new LowIrValueBridge(lowir))
   }
 
   LowIrBridge destruct(MethodCall methodCall) {
-    def bridge = new LowIrBridge(new LowIrNode())
+    def bridge = new LowIrValueBridge(new LowIrValueNode())
     def params = methodCall.params.collect { destruct(it) }
     params.each {
       bridge = bridge.seq(it)
     }
-    def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor)
+    def paramTmpVars = params.collect { it.tmpVar }
+    def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor, paramTmpVars: paramTmpVars)
+    lowir.tmpVar = methodCall.tmpVar
+    return bridge.seq(new LowIrValueBridge(lowir))
+  }
+
+  LowIrBridge destruct(Return ret) {
+    def bridge = new LowIrBridge(new LowIrNode())
+    def lowir = new LowIrReturn()
+    if (ret.expr != null) {
+      bridge = destruct(ret.expr)
+      lowir.tmpVar = bridge.tmpVar
+    }
     return bridge.seq(new LowIrBridge(lowir))
   }
 
@@ -132,5 +139,28 @@ class LowIrGenerator {
 
     // should never reach here!
     assert(false);
+  }
+
+  LowIrBridge destruct(Assignment assignment) {
+    def dstBridge = destruct(assignment.loc)
+    def srcBridge = destruct(assignment.expr)
+    def lowir = new LowIrMov(src: srcBridge.tmpVar, dst: dstBridge.tmpVar)
+//TODO: david--fix this
+/*
+class Program {
+  int a[10], x;
+  int foo() {return x+=1;}
+  void main() {
+    a[x]+=foo();
+    a[foo()] = 1;
+  }
+}
+*/
+    return dstBridge.seq(srcBridge).seq(new LowIrBridge(lowir))
+  }
+
+  LowIrBridge destruct(Location loc) {
+    //TODO: handle arrays
+    return new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.descriptor.tmpVar))
   }
 }
