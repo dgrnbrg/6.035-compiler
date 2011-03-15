@@ -55,12 +55,14 @@ class LowIrGenerator {
 
   LowIrBridge destruct(IntLiteral lit) {
     def intlit = new LowIrIntLiteral(value: lit.value, tmpVar: lit.tmpVar)
+
     def bridge = new LowIrValueBridge(intlit)
     return bridge
   }
   
   LowIrBridge destruct(BooleanLiteral lit) {
     def boolLit = new LowIrIntLiteral(value: lit.value ? 1 : 0, tmpVar: lit.tmpVar)
+
     def bridge = new LowIrValueBridge(boolLit)
     return bridge
   }
@@ -69,6 +71,7 @@ class LowIrGenerator {
     def leftBridge = destruct(binop.left)
     def rightBridge = destruct(binop.right)
     def lowirBinop = new LowIrBinOp(leftTmpVar: leftBridge.tmpVar, rightTmpVar: rightBridge.tmpVar, tmpVar: binop.tmpVar, op: binop.op)
+
     leftBridge = leftBridge.seq(rightBridge)
     return leftBridge.seq(new LowIrValueBridge(lowirBinop))
   }
