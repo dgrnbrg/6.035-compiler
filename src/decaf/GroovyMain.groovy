@@ -80,7 +80,9 @@ public class GroovyMain {
     }
 
     try {
-      depends(this."${argparser['target']}")
+      def target = argparser['target']
+      if (target == null) target = 'assembly'
+      depends(this."$target")
     } catch (FatalException e) {
       println e
       exitCode = e.code
