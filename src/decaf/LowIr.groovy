@@ -57,45 +57,85 @@ class LowIrNode implements GraphNode{
     fst.successors << snd
     snd.predecessors << fst
   }
+
+  String toString() {
+    "LowIrNode"
+  }
 }
 
 class LowIrCondJump extends LowIrNode {
   TempVar condition
   LowIrNode trueDest, falseDest
+
+  String toString() {
+    "LowIrCondJump(condition: $condition)"
+  }
 }
 
 class LowIrCallOut extends LowIrValueNode {
   String name
   TempVar[] paramTmpVars
+
+  String toString() {
+    "LowIrMethodCall(method: $name, tmpVar: tmpVar, params: $paramTmpVars)"
+  }
 }
 
 
 class LowIrMethodCall extends LowIrValueNode {
   MethodDescriptor descriptor
   TempVar[] paramTmpVars
+
+  String toString() {
+    "LowIrMethodCall(method: $descriptor.name, tmpVar: tmpVar, params: $paramTmpVars)"
+  }
 }
 
 class LowIrReturn extends LowIrValueNode {
   TempVar tmpVar
+
+  String toString() {
+    "LowIrReturn(tmpVar: $tmpVar)"
+  }
 }
 
 class LowIrValueNode extends LowIrNode{
   TempVar tmpVar
+
+  String toString() {
+    "LowIrValueNode(tmpVar: $tmpVar)"
+  }
 }
 
 class LowIrStringLiteral extends LowIrValueNode {
   String value
+
+  String toString() {
+    "LowIrStringLiteral(value: $value, tmpVar: $tmpVar)"
+  }
 }
 
 class LowIrIntLiteral extends LowIrValueNode {
   int value
+
+  String toString() {
+    "LowIrIntLiteral(value: $value, tmpVar: $tmpVar)"
+  }
 }
 
 class LowIrBinOp extends LowIrValueNode {
   TempVar leftTmpVar, rightTmpVar
   BinOpType op
+
+  String toString() {
+    "LowIrBinOp(op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar, tmpVar: $tmpVar)"
+  }
 }
 
 class LowIrMov extends LowIrNode {
   TempVar src, dst
+
+  String toString() {
+    "LowIrMov(src: $src, dst: $dst)"
+  }
 }

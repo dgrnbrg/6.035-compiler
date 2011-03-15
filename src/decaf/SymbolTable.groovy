@@ -147,6 +147,10 @@ class TempVar {
   static exitFunction(){
     TempVar.tempVarCounter = 0
   }
+
+  String toString() {
+    "TempVar($tempVarNumber, $type, globalName: $globalName)"
+  }
 }
 
 enum TempVarType {
