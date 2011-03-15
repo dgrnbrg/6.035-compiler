@@ -17,6 +17,7 @@ class CodeGenerator extends Traverser {
     emit(method.name + ':')
     enter(8*(method.params.size() + method.maxTmpVars),0)
     traverse(start)
+    emit(method.name + '_end:')
     if (method.returnType == Type.VOID) {
       leave()
       ret()
@@ -45,6 +46,19 @@ class CodeGenerator extends Traverser {
   }
 
   void visitNode(GraphNode stmt) {
+    def predecessors = stmt.getPredecessors()
+    def successors = stmt.getSuccessors()
+
+    //assert no X nodes, only ^ or V nodes
+    if (predecessors.size() > 1) {
+      assert successors.size() <= 1
+    }
+    if (successors.size() > 1) {
+      assert predecessors.size() <= 1
+    }
+
+    emit(stmt.label + ':')
+
     switch (stmt) {
     case LowIrStringLiteral:
       def strLitOperand = asmString(stmt.value)
@@ -89,6 +103,12 @@ class CodeGenerator extends Traverser {
       }
       leave()
       ret()
+      break
+    case LowIrCondJump:
+      movq(getTmp(stmt.condition), r11)
+      cmp(1, r11)
+      je(stmt.trueDest.label)
+      jmp(stmt.falseDest.label)
       break
     case LowIrMov:
       if (stmt.src.type != TempVarType.ARRAY) {
@@ -141,9 +161,20 @@ class CodeGenerator extends Traverser {
         movq(rdx,getTmp(stmt.tmpVar))
         break
       default:
-        throw new RuntimeException("still haven't implemented that yet")
+        throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
       }
       break
+    case LowIrNode: //this is a noop
+      assert stmt.getClass() == LowIrNode.class || stmt.getClass() == LowIrValueNode.class
+      break
+    default:
+      assert false
+    }
+
+    if (successors.size() == 1) {
+      jmp(successors[0].label)
+    } else if (successors.size() == 0) {
+      jmp(method.name + '_end')
     }
   }
 
