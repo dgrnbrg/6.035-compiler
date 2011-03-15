@@ -69,10 +69,15 @@ class LowIrGenerator {
 
   LowIrBridge destruct(BinOp binop) {
     def leftBridge = destruct(binop.left)
-    def rightBridge = destruct(binop.right)
-    def lowirBinop = new LowIrBinOp(leftTmpVar: leftBridge.tmpVar, rightTmpVar: rightBridge.tmpVar, tmpVar: binop.tmpVar, op: binop.op)
 
-    leftBridge = leftBridge.seq(rightBridge)
+    def lowirBinop = new LowIrBinOp(leftTmpVar: leftBridge.tmpVar, tmpVar: binop.tmpVar, op: binop.op)
+    if (binop.op == BinOpType.NOT) {
+      // Do nothing..
+    } else { 
+      def rightBridge = destruct(binop.right)
+      lowirBinop.rightTmpVar = rightBridge.tmpVar
+      leftBridge = leftBridge.seq(rightBridge)
+    }
     return leftBridge.seq(new LowIrValueBridge(lowirBinop))
   }
 

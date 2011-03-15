@@ -182,6 +182,11 @@ class CodeGenerator extends Traverser {
 	cmovne(r10, r11)
 	movq(r11, getTmp(stmt.tmpVar))
 	break
+      case NOT:
+        movq(getTmp(stmt.leftTmpVar), r10)
+	xor(1, r10)
+	movq(r10, getTmp(stmt.tmpVar))
+	break
       case ADD:
         movq(getTmp(stmt.leftTmpVar),r10)
         movq(getTmp(stmt.rightTmpVar),r11)
