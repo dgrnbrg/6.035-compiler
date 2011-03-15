@@ -240,6 +240,11 @@ class SemanticChecker {
         tmpNum++
         v.tmpVar = new TempVar(desc: v)
       }
+      if (cur instanceof ForLoop) {
+        for (int i = 0; i < cur.extras.length; i++) {
+          cur.extras[i] = new TempVar()
+        }
+      }
     }
     if(!hyperspeed){
       walk()

@@ -1,8 +1,8 @@
 package decaf
 
 class FileInfo {
-  int line
-  int col
+  int line = -1
+  int col = -1
 
   String toString() { "FileInfo(line: $line, col: $col)" }
 }

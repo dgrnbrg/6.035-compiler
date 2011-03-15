@@ -129,12 +129,47 @@ class Program {
     return new LowIrBridge(shortcircuit(ifthenelse.condition, trueBridge.begin, falseBridge.begin), endNode)
   }
 
-  LowIrNode shortcircuit(conditionHiir, LowIrNode trueNode, LowIrNode falseNode) {
-    def condBridge = destruct(conditionHiir)
+  LowIrNode shortcircuit(condition, LowIrNode trueNode, LowIrNode falseNode) {
+    def condBridge = condition instanceof LowIrValueBridge ? condition : destruct(condition)
     def jumpNode = new LowIrCondJump(trueDest: trueNode, falseDest: falseNode, condition: condBridge.tmpVar)
     condBridge = condBridge.seq(new LowIrBridge(jumpNode))
     LowIrNode.link(condBridge.end, trueNode)
     LowIrNode.link(condBridge.end, falseNode)
     return condBridge.begin
+  }
+
+  LowIrBridge destruct(ForLoop forloop) {
+    def indexTmpVar = forloop.index.descriptor.tmpVar
+
+    def initBridge = destruct(forloop.low)
+    initBridge = initBridge.seq(new LowIrBridge(new LowIrMov(src: initBridge.tmpVar, dst: indexTmpVar)))
+    def finalValBridge = destruct(forloop.high)
+    initBridge = initBridge.seq(finalValBridge)
+
+    //make the inc bridge, uses forloop.extras[0] and forloop.extras[1]
+    def oneLiteral = new LowIrIntLiteral(value: 1, tmpVar: forloop.extras[0])
+    def sumBinOp = new LowIrBinOp(
+      leftTmpVar: indexTmpVar,
+      rightTmpVar: oneLiteral.tmpVar,
+      op: BinOpType.ADD,
+      tmpVar: forloop.extras[1]
+    )
+    def movOp = new LowIrMov(src: sumBinOp.tmpVar, dst: indexTmpVar)
+    def incBridge = new LowIrBridge(oneLiteral).seq(new LowIrBridge(sumBinOp)).seq(new LowIrBridge(movOp))
+
+    //make the cmp bridge, uses forloop.extras[2]
+    def cmpBridge = new LowIrBridge(new LowIrNode()).seq(new LowIrValueBridge(new LowIrBinOp(
+      op: BinOpType.LTE,
+      tmpVar: forloop.extras[2],
+      leftTmpVar: indexTmpVar,
+      rightTmpVar: finalValBridge.tmpVar
+    )))
+
+    def endNode = new LowIrNode()
+    def bodyBridge = destruct(forloop.block).seq(incBridge)
+    def cmpNode = shortcircuit(cmpBridge, bodyBridge.begin, endNode)
+    LowIrNode.link(incBridge.end, cmpNode)
+    LowIrNode.link(initBridge.end, cmpNode)
+    return new LowIrBridge(initBridge.begin, endNode)
   }
 }
