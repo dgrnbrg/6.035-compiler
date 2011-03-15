@@ -71,14 +71,34 @@ class LowIrGenerator {
     def leftBridge = destruct(binop.left)
 
     def lowirBinop = new LowIrBinOp(leftTmpVar: leftBridge.tmpVar, tmpVar: binop.tmpVar, op: binop.op)
-    if (binop.op == BinOpType.NOT) {
-      // Do nothing..
-    } else { 
+    
+    switch(binop.op){
+    case NOT:
+      return leftBridge.seq(new LowIrValueBridge(lowirBinop))
+    case AND:
+      def tNode = new LowIrIntLiteral(value: 1, tmpVar: binop.tmpVar)
+      def fNode = new LowIrIntLiteral(value: 0, tmpVar: binop.tmpVar)
+      def endNode = new LowIrValueNode(tmpVar: binop.tmpVar)
+      LowIrNode.link(tNode, endNode)
+      LowIrNode.link(fNode, endNode)
+      def b2Node = shortcircuit(binop.right, tNode, fNode)
+      def b1Node = shortcircuit(binop.left, b2Node, fNode)
+      return new LowIrValueBridge(b1Node, endNode)  
+    case OR:
+      def tNode = new LowIrIntLiteral(value: 1, tmpVar: binop.tmpVar)
+      def fNode = new LowIrIntLiteral(value: 0, tmpVar: binop.tmpVar)
+      def endNode = new LowIrValueNode(tmpVar: binop.tmpVar)
+      LowIrNode.link(tNode, endNode)
+      LowIrNode.link(fNode, endNode)
+      def b2Node = shortcircuit(binop.right, tNode, fNode) 
+      def b1Node = shortcircuit(binop.left, tNode, b2Node)
+      return new LowIrValueBridge(b1Node, endNode)
+    default:
       def rightBridge = destruct(binop.right)
       lowirBinop.rightTmpVar = rightBridge.tmpVar
       leftBridge = leftBridge.seq(rightBridge)
+      return leftBridge.seq(new LowIrValueBridge(lowirBinop))
     }
-    return leftBridge.seq(new LowIrValueBridge(lowirBinop))
   }
 
   LowIrValueBridge destructLocation(Location loc) {
@@ -122,7 +142,7 @@ class Program {
 
   LowIrBridge destruct(IfThenElse ifthenelse) {
     def trueBridge = destruct(ifthenelse.thenBlock)
-    def falseBridge = ifthenelse.elseBlock ? destruct(ifthenelse.elseBlock) : new LowIrBridge()
+    def falseBridge = ifthenelse.elseBlock ? destruct(ifthenelse.elseBlock) : new LowIrBridge(new LowIrNode())
     def endNode = new LowIrNode()
     LowIrNode.link(falseBridge.end, endNode)
     LowIrNode.link(trueBridge.end, endNode)

@@ -31,7 +31,7 @@ abstract class Traverser {
   void traverse(GraphNode start) {
     def cur = start
     def queue = []
-    while (cur != null) {
+    while (cur != null && !visited.contains(cur)) {
       visitNode(cur)
       visited.add(cur)
       def intermediate = (cur.successors - visited)
