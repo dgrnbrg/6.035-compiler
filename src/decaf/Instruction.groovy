@@ -50,6 +50,12 @@ class Instruction {
 enum InstrType {
 //copying values
   MOV('movq', 2),
+  CMOVE('cmove',2),
+  CMOVNE('cmovne',2),
+  CMOVG('cmovg',2),
+  CMOVL('cmovl',2),
+  CMOVGE('cmovge',2),
+  CMOGLE('cmovle',2),
 
 //Stack Management
   ENTER('enter',2),
