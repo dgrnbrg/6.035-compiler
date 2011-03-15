@@ -80,7 +80,8 @@ enum InstrType {
   SHR('shr',1),
   SHL('shl',1),
   ROR('ror',2),
-  CMP('cmp',2);
+  CMP('cmp',2),
+  XOR('xor',2);
 
   final String name
   final int numOperands
