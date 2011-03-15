@@ -47,6 +47,9 @@ class LowIrNode implements GraphNode{
   def predecessors = []
   def successors = []
 
+  static int labelNum = 0
+  def label = 'label'+(labelNum++)
+
   List getPredecessors() { predecessors }
   List getSuccessors() { successors }
 
@@ -54,6 +57,11 @@ class LowIrNode implements GraphNode{
     fst.successors << snd
     snd.predecessors << fst
   }
+}
+
+class LowIrCondJump extends LowIrNode {
+  TempVar condition
+  LowIrNode trueDest, falseDest
 }
 
 class LowIrCallOut extends LowIrValueNode {
