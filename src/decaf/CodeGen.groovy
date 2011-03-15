@@ -11,12 +11,12 @@ class CodeGenerator extends Traverser {
     paramRegs = [rdi, rsi, rdx, rcx, r8, r9]
   }
 
-  void handleMethod(MethodDescriptor method, LowIrNode start) {
+  void handleMethod(MethodDescriptor method) {
     this.method = method
     asmMacro('.globl', method.name)
     emit(method.name + ':')
     enter(8*(method.params.size() + method.maxTmpVars),0)
-    traverse(start)
+    traverse(method.lowir)
     emit(method.name + '_end:')
     if (method.returnType == Type.VOID) {
       leave()

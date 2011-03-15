@@ -101,6 +101,7 @@ public class MethodDescriptor {
   List<VariableDescriptor> params = []
   int maxTmpVars
   FileInfo fileInfo
+  LowIrNode lowir
 
   String toString() {
     "$returnType $name($params)"

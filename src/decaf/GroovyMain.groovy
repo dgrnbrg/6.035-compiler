@@ -211,10 +211,12 @@ public class GroovyMain {
   }
 
   def hiirGenerator = new HiIrGenerator(errors: errors)
+  def methodDescs
 
   def genHiIr = {->
     depends(genSymTable)
     ast.inOrderWalk(hiirGenerator.c)
+    methodDescs = ast.methodSymTable.values()
     if (errors != []) throw new FatalException(code: 1)
   }
 
@@ -232,7 +234,8 @@ public class GroovyMain {
   def inter = {->
     depends(genHiIr)
     def checker = new SemanticChecker(errors: errors, methodSymTable: ast.methodSymTable)
-    hiirGenerator.methods.each { methodName, methodHiIr ->
+    methodDescs.each { MethodDescriptor desc ->
+      def methodHiIr = desc.block
       assert methodHiIr != null
       //ensure that all HiIr nodes have their fileInfo
       methodHiIr.inOrderWalk{
@@ -245,10 +248,9 @@ public class GroovyMain {
         methodHiIr.inOrderWalk(check)
       }
 */
-      checker.tmpNum = ast.methodSymTable[methodName].params.size()
+      checker.tmpNum = desc.params.size()
       methodHiIr.inOrderWalk(checker.hyperblast)
-      // ast.methodSymTable[methodName].maxTmps = checker.maxTmpNum
-      ast.methodSymTable[methodName].maxTmpVars = checker.tmpNum
+      desc.maxTmpVars = checker.tmpNum
       TempVar.exitFunction()
     }
     
@@ -259,44 +261,31 @@ public class GroovyMain {
 
   def lowir = {->
     depends(setupDot)
-    depends(inter)
+    depends(genLowIr)
     def lidt = new LowIrDotTraverser(out: dotOut)
-    def lg = new LowIrGenerator()
-/*
-    def gen = new LowIrGenerator()
-    def hb = new HiIrBuilder()
-    def if1 = hb.Block{
-      var(name:'a', type:Type.INT)
-      ForLoop(index: 'i') {
-        lit(1); lit(10); Block {
-          Assignment{ Location('a'); lit(0) }
-          IfThenElse {
-            lit(true)
-            Block {
-              Assignment{ Location('a'); lit(2) }
-              Continue()
-            }
-            Block {
-              Assignment{ Location('a'); lit(4) }
-              Break()
-            }
-          }
-        }
-      }
-    }
-*/
     dotOut.println('digraph g {')
-    hiirGenerator.methods.values().each { methodHiIr ->
-      lidt.traverse(lg.destruct(methodHiIr).begin)
+    methodDescs.each { methodDesc ->
+      lidt.traverse(methodDesc.lowir)
     }
     dotOut.println '}'
   }
 
-  def codegen = {->
+  def lowirGen = new LowIrGenerator()
+
+  def genLowIr = {->
     depends(inter)
-    depends(setupDot)
-    def lg = new LowIrGenerator()
-    def cg = new CodeGenerator()
+    depends(genTmpVars)
+    methodDescs.each { MethodDescriptor methodDesc ->
+      methodDesc.lowir = lowirGen.destruct(methodDesc.block).begin
+    }
+  }
+
+  def codeGen = new CodeGenerator()
+
+  def genTmpVars = {->
+    depends(inter)
+    //TODO: move locals and temps here
+    //globals
     ast.symTable.@map.each { name, desc ->
       name += '_globalvar'
       desc.tmpVar = new TempVar(TempVarType.GLOBAL)
@@ -304,28 +293,28 @@ public class GroovyMain {
       desc.tmpVar.desc = desc
       def s = desc.arraySize
       if (s == null) s = 1
-      cg.emit('bss', ".comm $name ${8*s}")
+      codeGen.emit('bss', ".comm $name ${8*s}")
     }
-    dotOut.println('digraph g {')
-    hiirGenerator.methods.each { methodName, methodHiIr ->
-      def methodDesc = ast.methodSymTable[methodName]
+    //params
+    methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.params.eachWithIndex {param, index ->
         param.tmpVar = new TempVar(TempVarType.PARAM)
         param.tmpVar.tempVarNumber = index
       }
-      def lowir = lg.destruct(methodHiIr).begin
-      new LowIrDotTraverser(out: dotOut).traverse(lowir)
-      cg.handleMethod(methodDesc, lowir)
     }
-    dotOut.println '}'
-/*
-    hiirGenerator.methods.each { it ->
-      it.descriptor.params.eachWithIndex {param, index ->
-        param.tmpVar = new TempVar(index,param)
-      }
-    }*/
-    println cg.getAsm()
-    new File('tmp.S').text = cg.getAsm()
+  }
+
+  def genCode = {->
+    depends(genLowIr)
+    methodDescs.each { methodDesc ->
+      codeGen.handleMethod(methodDesc)
+    }
+    println codeGen.getAsm()
+  }
+
+  def assembly = {->
+    depends(genCode)
+    new File('tmp.S').text = codeGen.getAsm()
   }
 }
 
