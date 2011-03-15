@@ -80,7 +80,10 @@ class CodeGenerator extends Traverser {
       break
     case LowIrCallOut:
       def paramsOnStack = stmt.paramTmpVars.size() - paramRegs.size()
-      sub(8*paramsOnStack, rsp)
+      if (paramsOnStack > 0){
+        sub(8*paramsOnStack, rsp)
+      }
+
       stmt.paramTmpVars.eachWithIndex {tmpVar, index ->
         if (index < paramRegs.size()) {
           movq(getTmp(tmpVar), paramRegs[index])
@@ -94,7 +97,9 @@ class CodeGenerator extends Traverser {
       }
       call(stmt.name)
       movq(rax,getTmp(stmt.tmpVar))
-      add(8*paramsOnStack, rsp)
+      if (paramsOnStack > 0){
+	add(8*paramsOnStack, rsp)
+      }
       break
     case LowIrJump:
       // First make sure that both branches have unique labels.
