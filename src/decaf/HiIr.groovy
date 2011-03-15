@@ -205,6 +205,8 @@ class ForLoop extends WalkableImpl implements Statement {
   Block block
   SymbolTable symTable
 
+  TempVar[] extras = new TempVar[3]
+
   void howToWalk(Closure c) {
     //prevent idiocy
     assert index.indexExpr == null

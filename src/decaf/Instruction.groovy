@@ -55,7 +55,7 @@ enum InstrType {
   CMOVG('cmovg',2),
   CMOVL('cmovl',2),
   CMOVGE('cmovge',2),
-  CMOGLE('cmovle',2),
+  CMOVLE('cmovle',2),
 
 //Stack Management
   ENTER('enter',2),
