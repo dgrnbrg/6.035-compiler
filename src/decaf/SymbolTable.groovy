@@ -53,7 +53,7 @@ class SymbolTable extends WalkableImpl {
         return true
       }
     }
-  return false
+    return false
   }
 
   int hashCode() {
@@ -128,6 +128,7 @@ class TempVar {
   TempVarType type = TempVarType.LOCAL
   String globalName
   TempVar arrayIndexTmpVar
+  VariableDescriptor desc
 
   // Constructor
   // TempVar(number) {

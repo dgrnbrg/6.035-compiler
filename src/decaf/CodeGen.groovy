@@ -22,13 +22,7 @@ class CodeGenerator extends Traverser {
       leave()
       ret()
     } else {
-      def strLitOperand = asmString("Control fell off end of non-void function $method.name\\n")
-      strLitOperand.type = OperType.IMM
-      movq(strLitOperand, rdi)
-      movq(0, rax)
-      call('printf')
-      movq(1,rdi)
-      call('exit')
+      dieWithMessage("Control fell off end of non-void function $method.name\\n")
     }
   }
 
@@ -115,6 +109,7 @@ class CodeGenerator extends Traverser {
         movq(getTmp(stmt.src), r10)
       } else {
         movq(getTmp(stmt.src.arrayIndexTmpVar), r11)
+        doArrayBoundsCheck(stmt.src.desc, r11)
         def arrOp = r11(stmt.src.globalName, 8)
         movq(arrOp, r10)
       }
@@ -122,6 +117,7 @@ class CodeGenerator extends Traverser {
         movq(r10, getTmp(stmt.dst))
       } else {
         movq(getTmp(stmt.dst.arrayIndexTmpVar), r11)
+        doArrayBoundsCheck(stmt.dst.desc, r11)
         def arrOp = r11(stmt.dst.globalName, 8)
         movq(r10, arrOp)
       }
@@ -211,6 +207,40 @@ class CodeGenerator extends Traverser {
      }
     }
     return code.toString()
+  }
+
+  static int arrayBoundsLabelCounter = 0
+  def genArrayBoundsLabel() {
+    return "array_bounds_check_${arrayBoundsLabelCounter++}".toString()
+  }
+
+  //the access is in the inRegister, the desc is the array's descriptor
+  def doArrayBoundsCheck(VariableDescriptor desc, inRegister) {
+    def arrayBoundsLabel = genArrayBoundsLabel()
+    def arrayBoundsLabelPost = genArrayBoundsLabel()
+
+    cmp(desc.arraySize, inRegister)
+    jae(arrayBoundsLabel)
+
+    cmp(0, inRegister)
+    jb(arrayBoundsLabel)
+
+    jmp(arrayBoundsLabelPost)
+
+    emit(arrayBoundsLabel + ':')
+    dieWithMessage("Array out of bounds\\n");
+
+    emit(arrayBoundsLabelPost + ':')
+  }
+
+  def dieWithMessage(String msg) {
+    def strLitOperand = asmString(msg)
+    strLitOperand.type = OperType.IMM
+    movq(strLitOperand, rdi)
+    movq(0, rax)
+    call('printf')
+    movq(1,rdi)
+    call('exit')
   }
 
   static Map nameToInstrType = {

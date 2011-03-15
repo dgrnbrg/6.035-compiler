@@ -237,8 +237,8 @@ class SemanticChecker {
     else if (cur instanceof Block || cur instanceof ForLoop) {
       // Allocates TempVar()s for all declared variables
       cur.symTable.@map.each { k, v ->
-	    tmpNum++
-        v.tmpVar = new TempVar()
+        tmpNum++
+        v.tmpVar = new TempVar(desc: v)
       }
     }
     if(!hyperspeed){

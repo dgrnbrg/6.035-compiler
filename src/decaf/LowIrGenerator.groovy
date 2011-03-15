@@ -82,6 +82,7 @@ class LowIrGenerator {
       def arrTmpVar = new TempVar(TempVarType.ARRAY)
       arrTmpVar.globalName = loc.descriptor.name + '_globalvar'
       arrTmpVar.arrayIndexTmpVar = bridge.tmpVar
+      arrTmpVar.desc = loc.descriptor
       return bridge.seq(new LowIrValueBridge(new LowIrValueNode(tmpVar: arrTmpVar)))
     }
   }

@@ -69,6 +69,8 @@ enum InstrType {
   JMP('jmp',1),
   JE('je',1),
   JNE('jne',1),
+  JAE('jae',1), //jump if above or equal
+  JB('jb',1), //jump if below
 
 //ARITHMETIC AND LOGIC
   ADD('add',2),

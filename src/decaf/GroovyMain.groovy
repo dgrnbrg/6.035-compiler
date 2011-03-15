@@ -301,6 +301,7 @@ public class GroovyMain {
       name += '_globalvar'
       desc.tmpVar = new TempVar(TempVarType.GLOBAL)
       desc.tmpVar.globalName = name
+      desc.tmpVar.desc = desc
       def s = desc.arraySize
       if (s == null) s = 1
       cg.emit('bss', ".comm $name ${8*s}")
