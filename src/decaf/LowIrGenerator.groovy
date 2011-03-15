@@ -84,7 +84,9 @@ class LowIrGenerator {
 
     // But the cond bridge doesn't handle jumping if no short-circuiting happened 
     // (the tail of the returned bridge)
-    def jmpNode = new LowIrJump(jmpTrueDest: thenBridge.begin, jmpFalseDest: elseBridge.begin)
+    println "thenBridge.begin = ${thenBridge.begin}"
+    println "elseBridge.begin = ${elseBridge.begin}"
+    def jmpNode = new LowIrJump(tmpVar:condBridge.end.tmpVar, jmpTrueDest: thenBridge.begin, jmpFalseDest: elseBridge.begin)
 
     // Glue the end of the condBridge to the final jmpNode
     LowIrNode.link(condBridge.end, jmpNode)
@@ -99,6 +101,18 @@ class LowIrGenerator {
     LowIrNode.link(elseBridge.end, exitNode)
 
     return new LowIrBridge(condBridge.begin, exitNode);
+  }
+
+  LowIrBridge destructShortCircuit(BooleanLiteral bool, LowIrNode thenBlockEntry, LowIrNode elseBlockEntry){
+    if(bool.value == true){
+      def trueNode = new LowIrValueNode(tmpVar:bool.tmpVar)
+      def trueBridge = new LowIrValueBridge(trueNode)
+      return trueBridge
+    } else {
+      def falseNode = new LowIrValueNode(tmpVar:bool.tmpVar)
+      def falseBridge = new LowIrValueBridge(falseNode)
+      return falseBridge
+    }
   }
 
   LowIrBridge destructShortCircuit(BinOp binop, LowIrNode thenBlockEntry, LowIrNode elseBlockEntry) {
@@ -139,6 +153,7 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(ForLoop forloop) {
+  }
 
   LowIrValueBridge destructLocation(Location loc) {
     //2 cases: array and scalar

@@ -48,9 +48,12 @@ class CodeGenerator extends Traverser {
 
     // Code for making sure all nodes that can be jumped to 
     // have a unique label.
-    stmt.getPredecessors().each { p -> 
+    println "visitNode:"
+    println "$stmt"
+    
+    stmt.getPredecessors().each { p ->
       if(p instanceof LowIrJump) {
-        if(p.jumpTrueDest.is(stmt) || p.jumpFalseDest.is(stmt)) {
+        if(p.jmpTrueDest.is(stmt) || p.jmpFalseDest.is(stmt)) {
           // Somenode can jump to this node!
           stmt.TryAssignUniqueLabel()
         }
@@ -61,6 +64,7 @@ class CodeGenerator extends Traverser {
     // label in the assembler.
     if(stmt.HasUniqueAssignedLabel()) {
       // print out a label...
+      emit(stmt.uniqueLabel+":")
     }
 
     // The rest of the code...
@@ -97,9 +101,12 @@ class CodeGenerator extends Traverser {
       stmt.jmpTrueDest.TryAssignUniqueLabel()
       stmt.jmpFalseDest.TryAssignUniqueLabel()
 
-      // cmp(getTmp(stmt.tmpVar), 0)
-      // jne(getLabel(stmt.jmpTrueDest.uniqueLabel)
-      // je(getLabel(stmt.jmpFalseDest.uniqueLabel)
+      //cmp(getTmp(stmt.tmpVar), 0)
+      cmp(0, getTmp(stmt.tmpVar))
+      // jne(getLabel(stmt.jmpTrueDest.uniqueLabel))
+      // je(getLabel(stmt.jmpFalseDest.uniqueLabel))
+      jne(stmt.jmpTrueDest.uniqueLabel)
+      je(stmt.jmpFalseDest.uniqueLabel)
       break;
     case LowIrMethodCall:
       stmt.paramTmpVars.each { push(getTmp(it)) }
@@ -190,6 +197,8 @@ class CodeGenerator extends Traverser {
   }
 
   def emit(region = 'text', s) {
+    println "hit emit!:"
+    println "$s"
     asm[region] << s
   }
 

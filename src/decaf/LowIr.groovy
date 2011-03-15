@@ -43,9 +43,9 @@ class LowIrValueBridge extends LowIrBridge {
   }
 }
 
-class LowIrJumpBridge extends LowIrValueBridge {
-  // Just type renaming, useful for debugging
-}
+// class LowIrJumpBridge extends LowIrValueBridge {
+//   // Just type renaming, useful for debugging
+// }
 
 class LowIrNode implements GraphNode{
   def predecessors = []
