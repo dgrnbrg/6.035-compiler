@@ -113,4 +113,22 @@ class Program {
     def valBridge = new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.tmpVar))
     return bridge.seq(new LowIrBridge(lowir)).seq(valBridge)
   }
+
+  LowIrBridge destruct(IfThenElse ifthenelse) {
+    def trueBridge = destruct(ifthenelse.thenBlock)
+    def falseBridge = ifthenelse.elseBlock ? destruct(ifthenelse.elseBlock) : new LowIrBridge()
+    def endNode = new LowIrNode()
+    LowIrNode.link(falseBridge.end, endNode)
+    LowIrNode.link(trueBridge.end, endNode)
+    return new LowIrBridge(shortcircuit(ifthenelse.condition, trueBridge.begin, falseBridge.begin), endNode)
+  }
+
+  LowIrNode shortcircuit(conditionHiir, LowIrNode trueNode, LowIrNode falseNode) {
+    def condBridge = destruct(conditionHiir)
+    def jumpNode = new LowIrCondJump(trueDest: trueNode, falseDest: falseNode, condition: condBridge.tmpVar)
+    condBridge = condBridge.seq(new LowIrBridge(jumpNode))
+    LowIrNode.link(condBridge.end, trueNode)
+    LowIrNode.link(condBridge.end, falseNode)
+    return condBridge.begin
+  }
 }

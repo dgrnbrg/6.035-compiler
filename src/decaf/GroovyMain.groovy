@@ -294,6 +294,7 @@ public class GroovyMain {
 
   def codegen = {->
     depends(inter)
+    depends(setupDot)
     def lg = new LowIrGenerator()
     def cg = new CodeGenerator()
     ast.symTable.@map.each { name, desc ->
@@ -304,14 +305,18 @@ public class GroovyMain {
       if (s == null) s = 1
       cg.emit('bss', ".comm $name ${8*s}")
     }
+    dotOut.println('digraph g {')
     hiirGenerator.methods.each { methodName, methodHiIr ->
       def methodDesc = ast.methodSymTable[methodName]
       methodDesc.params.eachWithIndex {param, index ->
         param.tmpVar = new TempVar(TempVarType.PARAM)
         param.tmpVar.tempVarNumber = index
       }
-      cg.handleMethod(methodDesc, lg.destruct(methodHiIr).begin)
+      def lowir = lg.destruct(methodHiIr).begin
+      new LowIrDotTraverser(out: dotOut).traverse(lowir)
+      cg.handleMethod(methodDesc, lowir)
     }
+    dotOut.println '}'
 /*
     hiirGenerator.methods.each { it ->
       it.descriptor.params.eachWithIndex {param, index ->
