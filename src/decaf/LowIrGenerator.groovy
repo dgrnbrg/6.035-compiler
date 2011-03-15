@@ -76,10 +76,23 @@ class LowIrGenerator {
     case NOT:
       return leftBridge.seq(new LowIrValueBridge(lowirBinop))
     case AND:
-      def rightBridge = destruct(binop.right)
-      
-      
+      def tNode = new LowIrIntLiteral(value: 1, tmpVar: binop.tmpVar)
+      def fNode = new LowIrIntLiteral(value: 0, tmpVar: binop.tmpVar)
+      def endNode = new LowIrValueNode(tmpVar: binop.tmpVar)
+      LowIrNode.link(tNode, endNode)
+      LowIrNode.link(fNode, endNode)
+      def b2Node = shortcircuit(binop.right, tNode, fNode)
+      def b1Node = shortcircuit(binop.left, b2Node, fNode)
+      return new LowIrValueBridge(b1Node, endNode)  
     case OR:
+      def tNode = new LowIrIntLiteral(value: 1, tmpVar: binop.tmpVar)
+      def fNode = new LowIrIntLiteral(value: 0, tmpVar: binop.tmpVar)
+      def endNode = new LowIrValueNode(tmpVar: binop.tmpVar)
+      LowIrNode.link(tNode, endNode)
+      LowIrNode.link(fNode, endNode)
+      def b2Node = shortcircuit(binop.right, tNode, fNode) 
+      def b1Node = shortcircuit(binop.left, tNode, b2Node)
+      return new LowIrValueBridge(b1Node, endNode)
     default:
       def rightBridge = destruct(binop.right)
       lowirBinop.rightTmpVar = rightBridge.tmpVar
@@ -129,7 +142,7 @@ class Program {
 
   LowIrBridge destruct(IfThenElse ifthenelse) {
     def trueBridge = destruct(ifthenelse.thenBlock)
-    def falseBridge = ifthenelse.elseBlock ? destruct(ifthenelse.elseBlock) : new LowIrBridge()
+    def falseBridge = ifthenelse.elseBlock ? destruct(ifthenelse.elseBlock) : new LowIrBridge(new LowIrNode())
     def endNode = new LowIrNode()
     LowIrNode.link(falseBridge.end, endNode)
     LowIrNode.link(trueBridge.end, endNode)
