@@ -87,7 +87,11 @@ class CodeGenerator extends Traverser {
       }
       break
     case LowIrMethodCall:
-      stmt.paramTmpVars.each { push(getTmp(it)) }
+      sub(8*stmt.paramTmpVars.size(), rsp)
+      stmt.paramTmpVars.eachWithIndex { it, index ->
+        movq(getTmp(it), r10)
+        movq(r10, rsp(8*index))
+      }
       call(stmt.descriptor.name)
       movq(rax,getTmp(stmt.tmpVar))
       add(8*stmt.paramTmpVars.size(), rsp)
@@ -193,8 +197,8 @@ class CodeGenerator extends Traverser {
       case SUB:
         movq(getTmp(stmt.leftTmpVar),r10)
         movq(getTmp(stmt.rightTmpVar),r11)
-        sub(r10,r11)
-        movq(r11,getTmp(stmt.tmpVar))
+        sub(r11,r10)
+        movq(r10,getTmp(stmt.tmpVar))
         break
       case MUL:
         movq(getTmp(stmt.leftTmpVar),r10)
