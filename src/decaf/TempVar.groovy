@@ -55,6 +55,7 @@ class TempVarGenerator {
         if (cur instanceof ForLoop) {
           for (int i = 0; i < cur.extras.length; i++) {
             cur.extras[i] = new TempVar()
+            tmpNum++
           }
         }
       }

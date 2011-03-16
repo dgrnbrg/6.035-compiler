@@ -186,6 +186,7 @@ class Program {
       leftTmpVar: indexTmpVar,
       rightTmpVar: finalValBridge.tmpVar
     )))
+    assert cmpBridge.tmpVar == forloop.extras[2]
 
     def endNode = new LowIrNode(metaText: 'for loop end')
 
