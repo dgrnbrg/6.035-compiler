@@ -27,18 +27,15 @@ class LowIrBridge {
 }
 
 class LowIrValueBridge extends LowIrBridge {
-  // int tmpNum
   TempVar tmpVar
 
   LowIrValueBridge(LowIrValueNode node) {
     super(node)
-    // tmpNum = node.tmpNum
     tmpVar = node.tmpVar
   }
 
   LowIrValueBridge(LowIrNode begin, LowIrValueNode end) {
     super(begin, end)
-    // tmpNum = end.tmpNum
     tmpVar = end.tmpVar
   }
 }
@@ -46,6 +43,8 @@ class LowIrValueBridge extends LowIrBridge {
 class LowIrNode implements GraphNode{
   def predecessors = []
   def successors = []
+
+  def metaText = ''
 
   static int labelNum = 0
   def label = 'label'+(labelNum++)
@@ -59,7 +58,7 @@ class LowIrNode implements GraphNode{
   }
 
   String toString() {
-    "LowIrNode"
+    "LowIrNode($metaText)"
   }
 }
 
@@ -77,7 +76,7 @@ class LowIrCallOut extends LowIrValueNode {
   TempVar[] paramTmpVars
 
   String toString() {
-    "LowIrMethodCall(method: $name, tmpVar: tmpVar, params: $paramTmpVars)"
+    "LowIrMethodCall(method: $name, tmpVar: $tmpVar, params: $paramTmpVars)"
   }
 }
 
@@ -87,7 +86,7 @@ class LowIrMethodCall extends LowIrValueNode {
   TempVar[] paramTmpVars
 
   String toString() {
-    "LowIrMethodCall(method: $descriptor.name, tmpVar: tmpVar, params: $paramTmpVars)"
+    "LowIrMethodCall(method: $descriptor.name, tmpVar: $tmpVar, params: $paramTmpVars)"
   }
 }
 
@@ -103,7 +102,7 @@ class LowIrValueNode extends LowIrNode{
   TempVar tmpVar
 
   String toString() {
-    "LowIrValueNode(tmpVar: $tmpVar)"
+    "LowIrValueNode($metaText, tmpVar: $tmpVar)"
   }
 }
 

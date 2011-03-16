@@ -6,7 +6,7 @@ class LowIrGenerator {
 
   LowIrBridge destruct(Block block) {
     def internals = block.statements.collect { destruct(it) }
-    def bridge = new LowIrBridge(new LowIrNode())
+    def bridge = new LowIrBridge(new LowIrNode(metaText:'begin block'))
     internals.each {
       bridge = bridge.seq(it)
     }
@@ -14,7 +14,7 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(CallOut callout) {
-    def bridge = new LowIrValueBridge(new LowIrValueNode())
+    def bridge = new LowIrBridge(new LowIrNode(metaText: 'begin callout params'))
     def params = callout.params.collect { destruct(it) }
     params.each {
       bridge = bridge.seq(it)
@@ -26,7 +26,7 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(MethodCall methodCall) {
-    def bridge = new LowIrValueBridge(new LowIrValueNode())
+    def bridge = new LowIrBridge(new LowIrNode(metaText: 'begin methodcall params'))
     def params = methodCall.params.collect { destruct(it) }
     params.each {
       bridge = bridge.seq(it)
@@ -38,7 +38,7 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(Return ret) {
-    def bridge = new LowIrBridge(new LowIrNode())
+    def bridge = new LowIrBridge(new LowIrNode(metaText: 'begin ret'))
     def lowir = new LowIrReturn()
     if (ret.expr != null) {
       bridge = destruct(ret.expr)
@@ -78,7 +78,7 @@ class LowIrGenerator {
     case AND:
       def tNode = new LowIrIntLiteral(value: 1, tmpVar: binop.tmpVar)
       def fNode = new LowIrIntLiteral(value: 0, tmpVar: binop.tmpVar)
-      def endNode = new LowIrValueNode(tmpVar: binop.tmpVar)
+      def endNode = new LowIrValueNode(metaText: '&& endnode', tmpVar: binop.tmpVar)
       LowIrNode.link(tNode, endNode)
       LowIrNode.link(fNode, endNode)
       def b2Node = shortcircuit(binop.right, tNode, fNode)
@@ -87,7 +87,7 @@ class LowIrGenerator {
     case OR:
       def tNode = new LowIrIntLiteral(value: 1, tmpVar: binop.tmpVar)
       def fNode = new LowIrIntLiteral(value: 0, tmpVar: binop.tmpVar)
-      def endNode = new LowIrValueNode(tmpVar: binop.tmpVar)
+      def endNode = new LowIrValueNode(metaText: '|| endnode', tmpVar: binop.tmpVar)
       LowIrNode.link(tNode, endNode)
       LowIrNode.link(fNode, endNode)
       def b2Node = shortcircuit(binop.right, tNode, fNode) 
@@ -104,14 +104,14 @@ class LowIrGenerator {
   LowIrValueBridge destructLocation(Location loc) {
     //2 cases: array and scalar
     if (loc.indexExpr == null) {
-      return new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.descriptor.tmpVar))
+      return new LowIrValueBridge(new LowIrValueNode(metaText: 'scalar location', tmpVar: loc.descriptor.tmpVar))
     } else {
       def bridge = destruct(loc.indexExpr)
       def arrTmpVar = new TempVar(TempVarType.ARRAY)
       arrTmpVar.globalName = loc.descriptor.name + '_globalvar'
       arrTmpVar.arrayIndexTmpVar = bridge.tmpVar
       arrTmpVar.desc = loc.descriptor
-      return bridge.seq(new LowIrValueBridge(new LowIrValueNode(tmpVar: arrTmpVar)))
+      return bridge.seq(new LowIrValueBridge(new LowIrValueNode(metaText: 'array location', tmpVar: arrTmpVar)))
     }
   }
 
@@ -136,14 +136,14 @@ class Program {
   LowIrBridge destruct(Location loc) {
     def bridge = destructLocation(loc)
     def lowir = new LowIrMov(src: bridge.tmpVar, dst: loc.tmpVar)
-    def valBridge = new LowIrValueBridge(new LowIrValueNode(tmpVar: loc.tmpVar))
+    def valBridge = new LowIrValueBridge(new LowIrValueNode(metaText: 'location value',tmpVar: loc.tmpVar))
     return bridge.seq(new LowIrBridge(lowir)).seq(valBridge)
   }
 
   LowIrBridge destruct(IfThenElse ifthenelse) {
     def trueBridge = destruct(ifthenelse.thenBlock)
-    def falseBridge = ifthenelse.elseBlock ? destruct(ifthenelse.elseBlock) : new LowIrBridge(new LowIrNode())
-    def endNode = new LowIrNode()
+    def falseBridge = ifthenelse.elseBlock ? destruct(ifthenelse.elseBlock) : new LowIrBridge(new LowIrNode(metaText: 'empty else'))
+    def endNode = new LowIrNode(metaText: 'end if')
     LowIrNode.link(falseBridge.end, endNode)
     LowIrNode.link(trueBridge.end, endNode)
     return new LowIrBridge(shortcircuit(ifthenelse.condition, trueBridge.begin, falseBridge.begin), endNode)
@@ -157,6 +157,8 @@ class Program {
     LowIrNode.link(condBridge.end, falseNode)
     return condBridge.begin
   }
+
+  def forLoopBreakContinueStack = []
 
   LowIrBridge destruct(ForLoop forloop) {
     def indexTmpVar = forloop.index.descriptor.tmpVar
@@ -178,18 +180,34 @@ class Program {
     def incBridge = new LowIrBridge(oneLiteral).seq(new LowIrBridge(sumBinOp)).seq(new LowIrBridge(movOp))
 
     //make the cmp bridge, uses forloop.extras[2]
-    def cmpBridge = new LowIrBridge(new LowIrNode()).seq(new LowIrValueBridge(new LowIrBinOp(
+    def cmpBridge = new LowIrBridge(new LowIrNode(metaText: 'for loop cmp')).seq(new LowIrValueBridge(new LowIrBinOp(
       op: BinOpType.LTE,
       tmpVar: forloop.extras[2],
       leftTmpVar: indexTmpVar,
       rightTmpVar: finalValBridge.tmpVar
     )))
 
-    def endNode = new LowIrNode()
+    def endNode = new LowIrNode(metaText: 'for loop end')
+
+    forLoopBreakContinueStack << [endNode, incBridge.begin]
     def bodyBridge = destruct(forloop.block).seq(incBridge)
+    forLoopBreakContinueStack.pop()
+
     def cmpNode = shortcircuit(cmpBridge, bodyBridge.begin, endNode)
     LowIrNode.link(incBridge.end, cmpNode)
     LowIrNode.link(initBridge.end, cmpNode)
     return new LowIrBridge(initBridge.begin, endNode)
+  }
+
+  LowIrBridge destruct(Continue continueHiir) {
+    def continueNode = new LowIrNode(metaText: 'continue')
+    LowIrNode.link(continueNode, forLoopBreakContinueStack[-1][1])
+    return new LowIrBridge(continueNode, new LowIrNode(metaText: 'continue spurious node'))
+  }
+
+  LowIrBridge destruct(Break breakHiir) {
+    def breakNode = new LowIrNode(metaText: 'break')
+    LowIrNode.link(breakNode, forLoopBreakContinueStack[-1][0])
+    return new LowIrBridge(breakNode, new LowIrNode(metaText: 'break spurious node'))
   }
 }
