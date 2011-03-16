@@ -181,7 +181,7 @@ class Program {
 
     //make the cmp bridge, uses forloop.extras[2]
     def cmpBridge = new LowIrBridge(new LowIrNode(metaText: 'for loop cmp')).seq(new LowIrValueBridge(new LowIrBinOp(
-      op: BinOpType.LTE,
+      op: BinOpType.LT,
       tmpVar: forloop.extras[2],
       leftTmpVar: indexTmpVar,
       rightTmpVar: finalValBridge.tmpVar
