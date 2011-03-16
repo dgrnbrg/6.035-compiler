@@ -45,6 +45,7 @@ class LowIrNode implements GraphNode{
   def successors = []
 
   def metaText = ''
+  def frak = false
 
   static int labelNum = 0
   def label = 'label'+(labelNum++)

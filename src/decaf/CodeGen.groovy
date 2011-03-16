@@ -41,6 +41,11 @@ class CodeGenerator extends Traverser {
   }
 
   void visitNode(GraphNode stmt) {
+    if (!stmt.frak) {
+      stmt.frak = true
+    } else {
+      return
+    }
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
@@ -298,7 +303,7 @@ class CodeGenerator extends Traverser {
   }
 
   def dieWithMessage(String msg) {
-    def strLitOperand = asmString(msg)
+    def strLitOperand = asmString('RUNTIME ERROR: '+msg)
     strLitOperand.type = OperType.IMM
     movq(strLitOperand, rdi)
     movq(0, rax)
