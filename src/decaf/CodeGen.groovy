@@ -19,6 +19,7 @@ class CodeGenerator extends Traverser {
     traverse(method.lowir)
     emit(method.name + '_end:')
     if (method.returnType == Type.VOID) {
+      mov(0,rax) //void fxns return 0
       leave()
       ret()
     } else {
