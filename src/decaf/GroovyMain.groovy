@@ -81,7 +81,7 @@ public class GroovyMain {
 
     try {
       def target = argparser['target']
-      if (target == null) target = 'assembly'
+      if (target == null) target = 'codegen'
       depends(this."$target")
     } catch (FatalException e) {
       println e
@@ -304,12 +304,11 @@ public class GroovyMain {
     methodDescs.each { methodDesc ->
       codeGen.handleMethod(methodDesc)
     }
-    println codeGen.getAsm()
   }
 
-  def assembly = {->
+  def codegen = {->
     depends(genCode)
-    new File('tmp.S').text = codeGen.getAsm()
+    new File(file + '.s').text = codeGen.getAsm()
   }
 }
 
