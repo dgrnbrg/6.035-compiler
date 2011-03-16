@@ -223,34 +223,6 @@ class SemanticChecker {
     }
   }
 
-  // tmpNum = number of variables needed for a given function
-  def tmpNum = 0 
-  def computeTmps = { cur ->
-    if(cur instanceof Expr ||
-       cur instanceof StringLiteral){
-      // Allocates TempVar()s for temporary nodes
-      try {
-        declVar('tmpVar', new TempVar())
-        tmpNum++
-      } catch (MissingPropertyException e) {}
-    }
-    else if (cur instanceof Block || cur instanceof ForLoop) {
-      // Allocates TempVar()s for all declared variables
-      cur.symTable.@map.each { k, v ->
-        tmpNum++
-        v.tmpVar = new TempVar(desc: v)
-      }
-      if (cur instanceof ForLoop) {
-        for (int i = 0; i < cur.extras.length; i++) {
-          cur.extras[i] = new TempVar()
-        }
-      }
-    }
-    if(!hyperspeed){
-      walk()
-    }
-  }
-
   def forLoopInitEndExprTypeInt = {cur -> 
     if(cur instanceof ForLoop) {
       if(getExprType(cur.low) != INT) {
@@ -466,8 +438,5 @@ class SemanticChecker {
       intLiteralsWithinRange,
       dontShadowMethodParams,
       //nonVoidMethodsMustReturnValue,
-      // Old temporary variable annotation/allocation mechanism
-      //computeTmpNums,
-      computeTmps,
       methodDeclTypeMatchesTypeOfReturnExpr]}()
 }

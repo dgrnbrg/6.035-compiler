@@ -250,10 +250,7 @@ public class GroovyMain {
         methodHiIr.inOrderWalk(check)
       }
 */
-      checker.tmpNum = desc.params.size()
       methodHiIr.inOrderWalk(checker.hyperblast)
-      desc.maxTmpVars = checker.tmpNum
-      TempVar.exitFunction()
     }
     
     checker.mainMethodCorrect()
@@ -286,7 +283,10 @@ public class GroovyMain {
 
   def genTmpVars = {->
     depends(inter)
-    //TODO: move locals and temps here
+    //locals, temps, and params
+    methodDescs.each { MethodDescriptor methodDesc ->
+      TempVarGenerator.generateForMethod(methodDesc)
+    }
     //globals
     ast.symTable.@map.each { name, desc ->
       name += '_globalvar'
@@ -296,13 +296,6 @@ public class GroovyMain {
       def s = desc.arraySize
       if (s == null) s = 1
       codeGen.emit('bss', ".comm $name ${8*s}")
-    }
-    //params
-    methodDescs.each { MethodDescriptor methodDesc ->
-      methodDesc.params.eachWithIndex {param, index ->
-        param.tmpVar = new TempVar(TempVarType.PARAM)
-        param.tmpVar.tempVarNumber = index
-      }
     }
   }
 
