@@ -69,8 +69,8 @@ enum InstrType {
   JMP('jmp',1),
   JE('je',1),
   JNE('jne',1),
-  JAE('jae',1), //jump if above or equal
-  JB('jb',1), //jump if below
+  JGE('jge',1),
+  JL('jl',1),
 
 //ARITHMETIC AND LOGIC
   ADD('add',2),
@@ -81,7 +81,10 @@ enum InstrType {
   SHL('shl',1),
   ROR('ror',2),
   CMP('cmp',2),
-  XOR('xor',2);
+  XOR('xor',2),
+
+//DEBUG
+  INT3('int3',0);
 
   final String name
   final int numOperands

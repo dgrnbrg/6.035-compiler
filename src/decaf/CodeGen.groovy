@@ -289,10 +289,10 @@ class CodeGenerator extends Traverser {
     def arrayBoundsLabelPost = genArrayBoundsLabel()
 
     cmp(desc.arraySize, inRegister)
-    jae(arrayBoundsLabel)
+    jge(arrayBoundsLabel)
 
     cmp(0, inRegister)
-    jb(arrayBoundsLabel)
+    jl(arrayBoundsLabel)
 
     jmp(arrayBoundsLabelPost)
 
