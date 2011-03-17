@@ -519,37 +519,4 @@ class SemanticCheckTest extends GroovyTestCase {
     hiir.inOrderWalk(semCheck.arrayIndicesAreInts)
     assertEquals(2,errors.size())
   }
-
-  void testTempAllocOne(){
-    HiIrBuilder builder = new HiIrBuilder()
-    def errors = []
-    Block twoTempVarsNeeded = builder.Block(){
-      method(name:"assignConstant", returns:Type.VOID)
-      var(name:'a', type:INT)
-      Assignment(line: 0) { Location('a'); lit(3) }
-    }
-    //println twoTempVarsNeeded
-    builder.methodSymTable['assignConstant'].block = twoTempVarsNeeded
-    SemanticChecker checker = new SemanticChecker(errors:errors,methodSymTable: builder.methodSymTable)
-    
-    twoTempVarsNeeded.inOrderWalk(checker.computeTmps)
-    assertEquals(3, checker.tmpNum)
-  }
-  
-  // void testTempAllocOneBinop(){
-  //   HiIrBuilder builder = new HiIrBuilder()
-  //   def errors = []
-  //   Block twoTempVarsNeeded = builder.Block(){
-  //     method(name:"assignConstant", returns:Type.VOID)
-  //     var(name:'a', type:INT)
-  //     Assignment(line: 0) { Location('a'); lit(3) }
-  //   }
-  //   //println twoTempVarsNeeded
-  //   builder.methodSymTable['assignConstant'].block = twoTempVarsNeeded
-  //   SemanticChecker checker = new SemanticChecker(errors:errors,methodSymTable: builder.methodSymTable)
-    
-  //   twoTempVarsNeeded.inOrderWalk(checker.computeTmps)
-  //   assertEquals(2, checker.tempsPerFunction)
-  // }
-
 }
