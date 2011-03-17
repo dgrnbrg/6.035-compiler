@@ -1,30 +1,14 @@
 package decaf
 
 class TempVar {
-  int tempVarNumber
-  static tempVarCounter = 0
-  TempVarType type = TempVarType.LOCAL
-  String globalName
-  TempVar arrayIndexTmpVar
-  VariableDescriptor desc
-
-  // Constructor
-  TempVar(){
-    tempVarNumber = TempVar.tempVarCounter
-    tempVarCounter++
-  }
-  TempVar(TempVarType type) {
-    this.type = type
-  }
-  int getId(){
-    return this.tempVarNumber
-  }
-  static exitFunction(){
-    TempVar.tempVarCounter = 0
-  }
+  int id //unique per temp var within a method
+  TempVarType type //LOCAL, GLOBAL, etc
+  String globalName //if it's a global, this will have the string of the global it had space allocated in
+  TempVar arrayIndexTmpVar //if it's an ARRAY type, this is the tempvar that contains its index
+  VariableDescriptor desc //if it's tied to a variable, this is the descriptor for that variable
 
   String toString() {
-    "TempVar($tempVarNumber, $type, globalName: $globalName)"
+    "TempVar($id, $type)"
   }
 }
 
@@ -35,38 +19,45 @@ enum TempVarType {
   ARRAY //always static
 }
 
-class TempVarGenerator {
-  static void generateForMethod(MethodDescriptor methodDesc) {
-    def tmpNum = methodDesc.params.size()
+//Within a methoddesc, tracks temp var usage and contains the code to allocate tempvars on the hiir and symboltables
+class TempVarFactory {
+  def MethodDescriptor methodDesc // this is the methodDesciptor for the program fragment we're making temps for
+
+  def tmpVarId = 0  //how many tempvars have been allocated locally?
+
+  int nextId() {
+    return tmpVarId++
+  }
+
+  TempVarFactory(MethodDescriptor desc) {
+    methodDesc = desc
+  }
+
+  //put tmpVar on every hiir node and params
+  void decorateMethodDesc() {
     methodDesc.block.inOrderWalk { cur ->
       if(cur instanceof Expr ||
         cur instanceof StringLiteral){
         // Allocates TempVar()s for temporary nodes
         try {
-          declVar('tmpVar', new TempVar())
-          tmpNum++
+          declVar('tmpVar', createLocalTemp())
         } catch (MissingPropertyException e) {}
       } else if (cur instanceof Block || cur instanceof ForLoop) {
         // Allocates TempVar()s for all declared variables
         cur.symTable.@map.each { k, v ->
-          tmpNum++
-          v.tmpVar = new TempVar(desc: v)
-        }
-        if (cur instanceof ForLoop) {
-          for (int i = 0; i < cur.extras.length; i++) {
-            cur.extras[i] = new TempVar()
-            tmpNum++
-          }
+          v.tmpVar = createLocalTemp()
+          v.tmpVar.desc = v
         }
       }
       walk()
     }
-    methodDesc.maxTmpVars = tmpNum
-    TempVar.exitFunction()
     methodDesc.params.eachWithIndex {param, index ->
-      param.tmpVar = new TempVar(TempVarType.PARAM)
-      param.tmpVar.tempVarNumber = index
+      param.tmpVar = new TempVar(id: index, type: TempVarType.PARAM)
     }
+  }
+
+  TempVar createLocalTemp() {
+    return new TempVar(id: nextId(), type: TempVarType.LOCAL)
   }
 
   //TODO: get this working (it's broken now)

@@ -15,7 +15,7 @@ class CodeGenerator extends Traverser {
     this.method = method
     asmMacro('.globl', method.name)
     emit(method.name + ':')
-    enter(8*(method.params.size() + method.maxTmpVars),0)
+    enter(8*(method.params.size() + method.tempFactory.tmpVarId),0)
     traverse(method.lowir)
     emit(method.name + '_end:')
     if (method.returnType == Type.VOID) {
@@ -30,9 +30,9 @@ class CodeGenerator extends Traverser {
   Operand getTmp(TempVar tmp){
     switch (tmp.type) {
     case TempVarType.PARAM:
-      return rbp(8 * (tmp.getId()+2))
+      return rbp(8 * (tmp.id+2))
     case TempVarType.LOCAL: 
-      return rbp(-8 * (tmp.getId()+1))
+      return rbp(-8 * (tmp.id+1))
     case TempVarType.GLOBAL:
       return new Operand(tmp.globalName)
     default:

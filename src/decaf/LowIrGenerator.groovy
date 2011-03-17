@@ -4,6 +4,13 @@ import static decaf.LowIrNode.link
 
 class LowIrGenerator {
 
+  MethodDescriptor desc //keep a descriptor around to generate new temps or inspect other properties
+
+  LowIrBridge destruct(MethodDescriptor desc) {
+    this.desc = desc
+    return destruct(desc.block)
+  }
+
   LowIrBridge destruct(Block block) {
     def internals = block.statements.collect { destruct(it) }
     def bridge = new LowIrBridge(new LowIrNode(metaText:'begin block'))
@@ -107,7 +114,7 @@ class LowIrGenerator {
       return new LowIrValueBridge(new LowIrValueNode(metaText: 'scalar location', tmpVar: loc.descriptor.tmpVar))
     } else {
       def bridge = destruct(loc.indexExpr)
-      def arrTmpVar = new TempVar(TempVarType.ARRAY)
+      def arrTmpVar = new TempVar(type: TempVarType.ARRAY)
       arrTmpVar.globalName = loc.descriptor.name + '_globalvar'
       arrTmpVar.arrayIndexTmpVar = bridge.tmpVar
       arrTmpVar.desc = loc.descriptor
@@ -168,25 +175,24 @@ class Program {
     def finalValBridge = destruct(forloop.high)
     initBridge = initBridge.seq(finalValBridge)
 
-    //make the inc bridge, uses forloop.extras[0] and forloop.extras[1]
-    def oneLiteral = new LowIrIntLiteral(value: 1, tmpVar: forloop.extras[0])
+    //make the inc bridge
+    def oneLiteral = new LowIrIntLiteral(value: 1, tmpVar: desc.tempFactory.createLocalTemp())
     def sumBinOp = new LowIrBinOp(
       leftTmpVar: indexTmpVar,
       rightTmpVar: oneLiteral.tmpVar,
       op: BinOpType.ADD,
-      tmpVar: forloop.extras[1]
+      tmpVar: desc.tempFactory.createLocalTemp()
     )
     def movOp = new LowIrMov(src: sumBinOp.tmpVar, dst: indexTmpVar)
     def incBridge = new LowIrBridge(oneLiteral).seq(new LowIrBridge(sumBinOp)).seq(new LowIrBridge(movOp))
 
-    //make the cmp bridge, uses forloop.extras[2]
+    //make the cmp bridge
     def cmpBridge = new LowIrBridge(new LowIrNode(metaText: 'for loop cmp')).seq(new LowIrValueBridge(new LowIrBinOp(
       op: BinOpType.LT,
-      tmpVar: forloop.extras[2],
+      tmpVar: desc.tempFactory.createLocalTemp(),
       leftTmpVar: indexTmpVar,
       rightTmpVar: finalValBridge.tmpVar
     )))
-    assert cmpBridge.tmpVar == forloop.extras[2]
 
     def endNode = new LowIrNode(metaText: 'for loop end')
 

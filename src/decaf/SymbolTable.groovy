@@ -99,9 +99,9 @@ public class MethodDescriptor {
   Type returnType
   Block block
   List<VariableDescriptor> params = []
-  int maxTmpVars
   FileInfo fileInfo
   LowIrNode lowir
+  TempVarFactory tempFactory = new TempVarFactory(this)
 
   String toString() {
     "$returnType $name($params)"

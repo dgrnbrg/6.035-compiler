@@ -275,7 +275,7 @@ public class GroovyMain {
     depends(inter)
     depends(genTmpVars)
     methodDescs.each { MethodDescriptor methodDesc ->
-      methodDesc.lowir = lowirGen.destruct(methodDesc.block).begin
+      methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
   }
 
@@ -285,12 +285,12 @@ public class GroovyMain {
     depends(inter)
     //locals, temps, and params
     methodDescs.each { MethodDescriptor methodDesc ->
-      TempVarGenerator.generateForMethod(methodDesc)
+      methodDesc.tempFactory.decorateMethodDesc()
     }
     //globals
     ast.symTable.@map.each { name, desc ->
       name += '_globalvar'
-      desc.tmpVar = new TempVar(TempVarType.GLOBAL)
+      desc.tmpVar = new TempVar(type: TempVarType.GLOBAL)
       desc.tmpVar.globalName = name
       desc.tmpVar.desc = desc
       def s = desc.arraySize
@@ -308,7 +308,8 @@ public class GroovyMain {
 
   def codegen = {->
     depends(genCode)
-    new File(file + '.s').text = codeGen.getAsm()
+    def file = argparser['o'] ?: this.file + '.s'
+    new File(file).text = codeGen.getAsm()
   }
 }
 
