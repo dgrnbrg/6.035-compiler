@@ -7,6 +7,7 @@ class LowIrGeneratorTest extends GroovyTestCase {
     def gen = new LowIrGenerator()
     def hb = new HiIrBuilder()
     def assignment = hb.Block{
+      method(name: 'foo', returns: Type.VOID)
       var(name:'a', type:Type.INT)
       Assignment {
         Location('a')
@@ -19,15 +20,16 @@ class LowIrGeneratorTest extends GroovyTestCase {
         }
       }
     }
-    def semCheck = new SemanticChecker()
-    //semantic checker does the tempvar computations
-    assignment.inOrderWalk(semCheck.hyperblast)
-    gen.destruct(assignment)
+    def methodDesc = hb.methodSymTable['foo']
+    methodDesc.block = assignment
+    methodDesc.tempFactory.decorateMethodDesc()
+    gen.destruct(methodDesc)
   }
   void testIfElse() {
     def gen = new LowIrGenerator()
     def hb = new HiIrBuilder()
     def if1 = hb.Block{
+      method(name: 'foo', returns: Type.VOID)
       var(name:'a', type:Type.INT)
       IfThenElse {
         lit(true)
@@ -39,6 +41,9 @@ class LowIrGeneratorTest extends GroovyTestCase {
         }
       }
     }
-    gen.destruct(if1)
+    def methodDesc = hb.methodSymTable['foo']
+    methodDesc.block = if1
+    methodDesc.tempFactory.decorateMethodDesc()
+    gen.destruct(methodDesc)
   }
 }
