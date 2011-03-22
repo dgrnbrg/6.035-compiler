@@ -304,12 +304,9 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.tempFactory.decorateMethodDesc()
     }
-    //globals
+    //make space for globals
     ast.symTable.@map.each { name, desc ->
       name += '_globalvar'
-      desc.tmpVar = new TempVar(type: TempVarType.GLOBAL)
-      desc.tmpVar.globalName = name
-      desc.tmpVar.desc = desc
       def s = desc.arraySize
       if (s == null) s = 1
       codeGen.emit('bss', ".comm $name ${8*s}")

@@ -108,43 +108,46 @@ class LowIrGenerator {
     }
   }
 
-  LowIrValueBridge destructLocation(Location loc) {
-    //2 cases: array and scalar
-    if (loc.indexExpr == null) {
-      return new LowIrValueBridge(new LowIrValueNode(metaText: 'scalar location', tmpVar: loc.descriptor.tmpVar))
+  //2 cases, local scalars (param/local) and global scalars (global/array)
+  LowIrBridge destruct(Assignment assignment) {
+    def srcBridge = destruct(assignment.expr)
+    if (assignment.loc.descriptor.tmpVar == null) {
+      def bridge = new LowIrBridge(new LowIrNode(metaText: 'global index placeholder (st)'))
+      if (assignment.loc.indexExpr != null) {
+        bridge = destruct(assignment.loc.indexExpr)
+      }
+      def storeBridge = new LowIrBridge(new LowIrStore(desc: assignment.loc.descriptor, value: srcBridge.tmpVar))
+      //it is an array, so we need to link the index to it
+      if (bridge instanceof LowIrValueBridge) {
+        storeBridge.end.index = bridge.tmpVar
+      }
+      return srcBridge.seq(bridge).seq(storeBridge)
     } else {
-      def bridge = destruct(loc.indexExpr)
-      def arrTmpVar = new TempVar(type: TempVarType.ARRAY)
-      arrTmpVar.globalName = loc.descriptor.name + '_globalvar'
-      arrTmpVar.arrayIndexTmpVar = bridge.tmpVar
-      arrTmpVar.desc = loc.descriptor
-      return bridge.seq(new LowIrValueBridge(new LowIrValueNode(metaText: 'array location', tmpVar: arrTmpVar)))
+      //local scalar
+      def lowir = new LowIrMov(src: srcBridge.tmpVar, dst: assignment.loc.descriptor.tmpVar)
+      return srcBridge.seq(new LowIrBridge(lowir))
     }
   }
 
-  LowIrBridge destruct(Assignment assignment) {
-    def dstBridge = destructLocation(assignment.loc)
-    def srcBridge = destruct(assignment.expr)
-    def lowir = new LowIrMov(src: srcBridge.tmpVar, dst: dstBridge.tmpVar)
-//TODO: david--fix this
-/*
-class Program {
-  int a[10], x;
-  int foo() {return x+=1;}
-  void main() {
-    a[x]+=foo();
-    a[foo()] = 1;
-  }
-}
-*/
-    return dstBridge.seq(srcBridge).seq(new LowIrBridge(lowir))
-  }
-
+  //2 cases, local scalars (param/local) and global scalars (global/array)
+  //this is always loads; stores take place in assignments
   LowIrBridge destruct(Location loc) {
-    def bridge = destructLocation(loc)
-    def lowir = new LowIrMov(src: bridge.tmpVar, dst: loc.tmpVar)
-    def valBridge = new LowIrValueBridge(new LowIrValueNode(metaText: 'location value',tmpVar: loc.tmpVar))
-    return bridge.seq(new LowIrBridge(lowir)).seq(valBridge)
+    //global variable
+    if (loc.descriptor.tmpVar == null) {
+      def bridge = new LowIrBridge(new LowIrNode(metaText: 'global index placeholder (ld)'))
+      if (loc.indexExpr != null) {
+        bridge = destruct(loc.indexExpr)
+      }
+      def valBridge = new LowIrValueBridge(new LowIrLoad(tmpVar: loc.tmpVar, desc: loc.descriptor))
+      //it is an array, so we need to link the index to it
+      if (bridge instanceof LowIrValueBridge) {
+        valBridge.end.index = bridge.tmpVar
+      }
+      return bridge.seq(valBridge)
+    } else {
+      //it's a local/param
+      return new LowIrValueBridge(new LowIrValueNode(metaText: 'location value',tmpVar: loc.descriptor.tmpVar))
+    }
   }
 
   LowIrBridge destruct(IfThenElse ifthenelse) {
@@ -187,7 +190,7 @@ class Program {
     def incBridge = new LowIrBridge(oneLiteral).seq(new LowIrBridge(sumBinOp)).seq(new LowIrBridge(movOp))
 
     //make the cmp bridge
-    def cmpBridge = new LowIrBridge(new LowIrNode(metaText: 'for loop cmp')).seq(new LowIrValueBridge(new LowIrBinOp(
+    def cmpBridge = new LowIrBridge(new LowIrNode(metaText: "for loop cmp (index is ${indexTmpVar})")).seq(new LowIrValueBridge(new LowIrBinOp(
       op: BinOpType.LT,
       tmpVar: desc.tempFactory.createLocalTemp(),
       leftTmpVar: indexTmpVar,
