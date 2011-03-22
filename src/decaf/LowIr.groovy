@@ -139,3 +139,22 @@ class LowIrMov extends LowIrNode {
     "LowIrMov(src: $src, dst: $dst)"
   }
 }
+
+class LowIrStore extends LowIrNode {
+  VariableDescriptor desc
+  TempVar index
+  TempVar value //this is what gets stored
+
+  String toString() {
+    "LowIrStore(dest: $desc, index: $index)"
+  }
+}
+
+class LowIrLoad extends LowIrValueNode {
+  VariableDescriptor desc
+  TempVar index
+
+  String toString() {
+    "LowIrLoad(dest: $desc, index: $index)"
+  }
+}

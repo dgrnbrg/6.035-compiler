@@ -114,23 +114,31 @@ class CodeGenerator extends Traverser {
       je(stmt.trueDest.label)
       jmp(stmt.falseDest.label)
       break
-    case LowIrMov:
-      if (stmt.src.type != TempVarType.ARRAY) {
-        movq(getTmp(stmt.src), r10)
-      } else {
-        movq(getTmp(stmt.src.arrayIndexTmpVar), r11)
-        doArrayBoundsCheck(stmt.src.desc, r11)
-        def arrOp = r11(stmt.src.globalName, 8)
+    case LowIrLoad:
+      if (stmt.index != null) {
+        movq(getTmp(stmt.index), r11)
+        doArrayBoundsCheck(stmt.desc, r11)
+        def arrOp = r11(stmt.desc.name + '_globalvar', 8)
         movq(arrOp, r10)
-      }
-      if (stmt.dst.type != TempVarType.ARRAY) {
-        movq(r10, getTmp(stmt.dst))
       } else {
-        movq(getTmp(stmt.dst.arrayIndexTmpVar), r11)
-        doArrayBoundsCheck(stmt.dst.desc, r11)
-        def arrOp = r11(stmt.dst.globalName, 8)
-        movq(r10, arrOp)
+        movq(new Operand(stmt.desc.name + '_globalvar'), r10)
       }
+      movq(r10, getTmp(stmt.tmpVar))
+      break
+    case LowIrStore:
+      movq(getTmp(stmt.value), r10)
+      if (stmt.index != null) {
+        movq(getTmp(stmt.index), r11)
+        doArrayBoundsCheck(stmt.desc, r11)
+        def arrOp = r11(stmt.desc.name + '_globalvar', 8)
+        movq(r10, arrOp)
+      } else {
+        movq(r10, new Operand(stmt.desc.name + '_globalvar'))
+      }
+      break
+    case LowIrMov:
+      movq(getTmp(stmt.src), r10)
+      movq(r10, getTmp(stmt.dst))
       break
     case LowIrBinOp:
       switch (stmt.op) {
