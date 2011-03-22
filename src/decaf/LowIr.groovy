@@ -77,7 +77,7 @@ class LowIrCallOut extends LowIrValueNode {
   TempVar[] paramTmpVars
 
   String toString() {
-    "LowIrMethodCall(method: $name, tmpVar: $tmpVar, params: $paramTmpVars)"
+    "LowIrCallOut(method: $name, tmpVar: $tmpVar, params: $paramTmpVars)"
   }
 }
 
