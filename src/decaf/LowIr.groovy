@@ -41,6 +41,8 @@ class LowIrValueBridge extends LowIrBridge {
 }
 
 class LowIrNode implements GraphNode{
+  def anno = [:]
+
   def predecessors = []
   def successors = []
 

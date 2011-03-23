@@ -218,6 +218,9 @@ public class GroovyMain {
   def genHiIr = {->
     depends(genSymTable)
     ast.inOrderWalk(hiirGenerator.c)
+    // Here is where the assert function should be added to the 
+    // method symbol table.
+    //
     methodDescs = ast.methodSymTable.values()
     if (errors != []) throw new FatalException(code: 1)
   }
