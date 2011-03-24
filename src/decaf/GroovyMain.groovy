@@ -11,7 +11,10 @@ class LowIrDotTraverser extends Traverser {
   def out
 
   void visitNode(GraphNode cur) {
-    out.println("${cur.hashCode()} [label=\"$cur\"]")
+    // set nodeColor to "" if you don't want to render colors
+    def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
+    println(nodeColor);
+    out.println("${cur.hashCode()} [label=\"$cur \\nTrc = ${cur.anno}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -278,7 +281,9 @@ public class GroovyMain {
     depends(inter)
     depends(genTmpVars)
     methodDescs.each { MethodDescriptor methodDesc ->
-      methodDesc.lowir = lowirGen.destruct(methodDesc).begin
+      methodDesc.lowir = lowirGen.destruct(methodDesc).begin 
+      // Calculate traces for each method
+      TraceGraph.calculateTraces(methodDesc.lowir);
     }
   }
 
