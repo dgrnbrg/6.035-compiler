@@ -49,7 +49,7 @@ class CodeGenerator extends Traverser {
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
-    //assert no X nodes, only ^ or V nodes
+    //assert no X nodes, only ^ (branch) or V nodes (join) 
     if (predecessors.size() > 1) {
       assert successors.size() <= 1
     }
