@@ -58,14 +58,12 @@ abstract class Traverser {
 
       while(curNode != null) {
         visitNode(curNode);
-        println(curNode.class)
-        println("Just visited ${curNode.label} in codegen.");
 
         switch(curNode.getSuccessors().size()) {
         case(0):
           // terminal node
           curNode = null;
-          println("Stopping tracing here for traceMarker = $curTraceMarker");
+          //println("Stopping tracing here for traceMarker = $curTraceMarker");
           break;
         case(1): 
           def nextNode = curNode.getSuccessors().first()
@@ -73,7 +71,7 @@ abstract class Traverser {
           if(curNode.anno["trace"]["JmpSrc"]) {
             // Stop the tracing here.
             curNode = null
-            println("Stopping tracing here for traceMarker = $curTraceMarker");
+            //println("Stopping tracing here for traceMarker = $curTraceMarker");
           } else {
             curNode = nextNode;
           }
@@ -87,7 +85,7 @@ abstract class Traverser {
           if(curNode.anno["trace"]["FalseJmpSrc"]) {
             // Stop the tracing here.
             curNode = null
-            println("Stopping tracing here for traceMarker = $curTraceMarker");
+            //println("Stopping tracing here for traceMarker = $curTraceMarker");
           } else {
             curNode = curNode.falseDest;
           }

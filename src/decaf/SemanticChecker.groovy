@@ -1,5 +1,5 @@
 package decaf
-
+import decaf.*
 import static decaf.Type.*
 import static decaf.BinOpType.*
 
@@ -415,6 +415,23 @@ class SemanticChecker {
     }
   }
 
+  def modifyDebugAssertCalls = { cur -> 
+    // Need some kind of debug switch to turn this off.
+    if(cur instanceof MethodCall) {
+      if(cur.descriptor.name == "assert") {
+        println("Found a call to assert!");
+        cur.params = cur.params + [new IntLiteral(value: cur.fileInfo.line)]
+        cur.params.each { it ->
+          println(it)
+        }
+      }
+    }
+
+    if (!hyperspeed) {
+      walk();
+    }
+  }
+
   def hyperblast = {cur ->
     hyperspeed = true
     checks.each {
@@ -428,7 +445,8 @@ class SemanticChecker {
 
   //Put your checks here
   @Lazy def checks = {-> 
-    [breakContinueFor,
+    [modifyDebugAssertCalls,
+      breakContinueFor,
       assignmentTypesAreCorrect,
       methodCallArguments, 
       ifThenElseConditionCheck, 

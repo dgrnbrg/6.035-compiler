@@ -13,7 +13,6 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-    println(nodeColor);
     out.println("${cur.hashCode()} [label=\"$cur \\nTrc = ${cur.anno}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
@@ -220,10 +219,11 @@ public class GroovyMain {
 
   def genHiIr = {->
     depends(genSymTable)
+
+    // Need a debug switch to turn off the following line.
+    ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
+
     ast.inOrderWalk(hiirGenerator.c)
-    // Here is where the assert function should be added to the 
-    // method symbol table.
-    //
     methodDescs = ast.methodSymTable.values()
     if (errors != []) throw new FatalException(code: 1)
   }
