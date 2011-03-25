@@ -1,4 +1,5 @@
 package decaf;
+import decaf.graph.*;
 import java.util.*;
 import org.apache.commons.collections.iterators.IteratorChain;
 
@@ -50,6 +51,10 @@ class DataFlowAnalysis{
     private JoinOperator join;
     private TransferFunction transfer;
     private LowIrNode start;
+
+    // Graph traversal bookkeeping
+    private Set<LowIrNode> nodesVisited;
+    private Set<TraverserEdge> edgesVisited;
     
     DataFlowAnalysis(JoinOperator join, TransferFunction transfer){
 	this.join = join;
@@ -60,9 +65,28 @@ class DataFlowAnalysis{
 	this.join = null;
 	this.transfer = null;
     }
+
+    public void traverse(GraphNode begin){
+	this.nodesVisited = new HashSet<LowIrNode>();
+	this.edgesVisited = new HashSet<TraverserEdge>();
+
+	Queue<GraphNode> workQueue = new LinkedList<GraphNode>();
+	workQueue.offer(begin);
+
+	while(workQueue.peek() != null){
+	    GraphNode current = workQueue.poll();
+	    
+	    for(GraphNode successor : current.getSuccessors()){
+		workQueue.offer(successor);
+	    }
+	    
+	    System.out.print(">> visited:");
+	    System.out.println(current);
+	}
+    }
     
     public void run(LowIrNode start){
 	this.start = start;
-	
+	this.traverse((GraphNode)start);
     }
 }
