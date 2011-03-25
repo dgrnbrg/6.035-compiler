@@ -47,6 +47,7 @@ abstract class Traverser {
   // NOTE: This function assumes that calculateTraces was run on the 
   // lowir that is being traversed.
   void traverseWithTraces(GraphNode start) {
+    def num50 = 0;
     assert(start.anno["trace"]["start"]);
 
     def newTraceStarts = [start]
@@ -79,8 +80,10 @@ abstract class Traverser {
         case(2):
           //assert(curNode instanceof LowIrCondJump);
 
-          // add the true branch to newTraceStarts
-          newTraceStarts = newTraceStarts + [curNode.trueDest];
+          // add the true branch to newTraceStarts if it isn't already there.
+          if(newTraceStarts.count(curNode.trueDest) == 0) {
+            newTraceStarts = newTraceStarts + [curNode.trueDest];
+          }
 
           if(curNode.anno["trace"]["FalseJmpSrc"]) {
             // Stop the tracing here.

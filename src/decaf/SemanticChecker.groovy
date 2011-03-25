@@ -419,11 +419,7 @@ class SemanticChecker {
     // Need some kind of debug switch to turn this off.
     if(cur instanceof MethodCall) {
       if(cur.descriptor.name == "assert") {
-        println("Found a call to assert!");
         cur.params = cur.params + [new IntLiteral(value: cur.fileInfo.line)]
-        cur.params.each { it ->
-          println(it)
-        }
       }
     }
 
