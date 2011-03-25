@@ -41,4 +41,64 @@ abstract class Traverser {
     }
     edges.each{ link(it.src, it.dst) }
   }
+
+  // The structure of this function is very similar to the structure of 
+  // the calculateTraces function in Trace.groovy. 
+  // NOTE: This function assumes that calculateTraces was run on the 
+  // lowir that is being traversed.
+  void traverseWithTraces(GraphNode start) {
+    assert(start.anno["trace"]["start"]);
+
+    def newTraceStarts = [start]
+    
+    while(newTraceStarts.size() > 0) {
+      def curNode = newTraceStarts.first()
+      assert(curNode.anno["traceMarker"])
+      def curTraceMarker = curNode.anno["traceMarker"]
+
+      while(curNode != null) {
+        visitNode(curNode);
+        println(curNode.class)
+        println("Just visited ${curNode.label} in codegen.");
+
+        switch(curNode.getSuccessors().size()) {
+        case(0):
+          // terminal node
+          curNode = null;
+          println("Stopping tracing here for traceMarker = $curTraceMarker");
+          break;
+        case(1): 
+          def nextNode = curNode.getSuccessors().first()
+
+          if(curNode.anno["trace"]["JmpSrc"]) {
+            // Stop the tracing here.
+            curNode = null
+            println("Stopping tracing here for traceMarker = $curTraceMarker");
+          } else {
+            curNode = nextNode;
+          }
+          break; 
+        case(2):
+          //assert(curNode instanceof LowIrCondJump);
+
+          // add the true branch to newTraceStarts
+          newTraceStarts = newTraceStarts + [curNode.trueDest];
+
+          if(curNode.anno["trace"]["FalseJmpSrc"]) {
+            // Stop the tracing here.
+            curNode = null
+            println("Stopping tracing here for traceMarker = $curTraceMarker");
+          } else {
+            curNode = curNode.falseDest;
+          }
+          break;
+        default:
+          assert(false);
+        }
+      }
+      // Now we are done with this trace, so get rid of it.
+      newTraceStarts = newTraceStarts.tail()
+    }
+
+  }
 }
