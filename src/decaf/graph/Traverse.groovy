@@ -28,6 +28,25 @@ abstract class Traverser {
     edges.clear()
   }
 
+  // Specifically for passes ran by dataflow analyses
+  void analyze(TransferFunction trans){
+    def cur = start
+    def queue = []
+    while (cur != null) {
+      //trans.transfer(cur)
+      println ">> analyze:${cur}"
+      visited.add(cur)
+      def intermediate = (cur.successors - visited)
+      queue += intermediate
+      edges.addAll(cur.successors.collect{new TraverserEdge(src:cur, dst:it)})
+      cur = queue ? queue.pop() : null
+    }
+    edges.each{ link(it.src, it.dst) }
+  }
+
+  // traverse() isn't sufficient for dataflow analysis due to the lack
+  // of ability for the programmer to define which analysis method to
+  // run against the node.
   void traverse(GraphNode start) {
     def cur = start
     def queue = []
