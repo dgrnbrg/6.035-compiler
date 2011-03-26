@@ -133,7 +133,7 @@ class LowIrBinOp extends LowIrValueNode {
 }
 
 class LowIrMov extends LowIrNode {
-  TempVar src, dst
+  public TempVar src, dst
 
   String toString() {
     "LowIrMov(src: $src, dst: $dst)"

@@ -277,6 +277,13 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
+
+    // Run dataflow analysis (for testing)
+    def reaching = new ReachingDefinitions()
+    def dataflow = new DataFlowAnalysis<Map<TempVar,TreeSet<Definition>>>(reaching)
+    methodDescs.each { MethodDescriptor methodDesc ->
+       dataflow.run(methodDesc.lowir)
+    }
   }
 
   def codeGen = new CodeGenerator()

@@ -1,6 +1,6 @@
 package decaf
 
-class TempVar {
+class TempVar implements Comparable{
   int id //unique per temp var within a method
   TempVarType type //LOCAL, GLOBAL, etc
   String globalName //if it's a global, this will have the string of the global it had space allocated in
@@ -9,6 +9,21 @@ class TempVar {
 
   String toString() {
     "TempVar($id, $type)"
+  }
+  public int compareTo(Object o){
+    if(o instanceof TempVar){
+      if(o.id > this.id){
+	return -1
+      }
+      else if(o.id == this.id){
+	return 0
+      }
+      else{
+	return 1
+      }
+    } else {
+      return -1
+  }
   }
 }
 
