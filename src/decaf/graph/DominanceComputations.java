@@ -1,6 +1,5 @@
 package decaf.graph;
 import java.util.*;
-import org.apache.commons.collections.iterators.IteratorChain;
 
 public class DominanceComputations {
   private Map<GraphNode, Set<GraphNode>> domFrontier;
