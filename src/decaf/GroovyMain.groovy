@@ -264,9 +264,12 @@ public class GroovyMain {
   def lowir = {->
     depends(setupDot)
     depends(genLowIr)
+
+
     def lidt = new LowIrDotTraverser(out: dotOut)
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
+      new SSAComputer().placePhiFunctions(methodDesc.lowir)
       lidt.traverse(methodDesc.lowir)
     }
     dotOut.println '}'
