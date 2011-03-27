@@ -33,13 +33,26 @@ class LowIrBridge {
     if (before instanceof LowIrCondJump) {
       if (before.trueDest == after) {
         before.trueDest = begin
-      } else of (before.falseDest == after) {
+      } else if (before.falseDest == after) {
         before.falseDest = begin
-      } else assert false
+      } else {
+        assert false
+      }
     }
   }
 
+  void insertBefore(LowIrNode node) {
+    def noop = new LowIrNode(metaText: 'insertBefore cruft')
+    node.predecessors.clone().each {
+      LowIrNode.unlink(it, node)
+      LowIrNode.link(it, noop)
+    }
+    LowIrNode.link(noop, node)
+    insertBetween(noop, node)
+  }
+
   //removes this bridge from the lowir
+/*
   void excise() {
     assert end.successors.size() <= 1
     def successors = end.successors.clone()
@@ -50,6 +63,7 @@ class LowIrBridge {
     }
     LowIrNode.
   }
+*/
 }
 
 class LowIrValueBridge extends LowIrBridge {
@@ -191,5 +205,13 @@ class LowIrLoad extends LowIrValueNode {
 
   String toString() {
     "LowIrLoad(dest: $desc, index: $index)"
+  }
+}
+
+class LowIrPhi extends LowIrValueNode {
+  TempVar[] args
+
+  String toString() {
+    "LowIrPhi(tmpVar: $tmpVar, args: $args)"
   }
 }
