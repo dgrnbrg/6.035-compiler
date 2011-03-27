@@ -24,6 +24,32 @@ class LowIrBridge {
       return new LowIrBridge(this.begin, next.end)
     }
   }
+
+  void insertBetween(LowIrNode before, LowIrNode after) {
+    LowIrNode.unlink(before, after)
+    LowIrNode.link(before, begin)
+    LowIrNode.link(end, after)
+    //fix the explicit links in Cond Jumps
+    if (before instanceof LowIrCondJump) {
+      if (before.trueDest == after) {
+        before.trueDest = begin
+      } else of (before.falseDest == after) {
+        before.falseDest = begin
+      } else assert false
+    }
+  }
+
+  //removes this bridge from the lowir
+  void excise() {
+    assert end.successors.size() <= 1
+    def successors = end.successors.clone()
+    def predecessors = begin.predecessors.clone()
+    predecessors.each {
+      LowIrNode.unlink(it, begin)
+      LowIrNode.link(it, )//here
+    }
+    LowIrNode.
+  }
 }
 
 class LowIrValueBridge extends LowIrBridge {
@@ -56,6 +82,13 @@ class LowIrNode implements GraphNode{
   static void link(LowIrNode fst, LowIrNode snd) {
     fst.successors << snd
     snd.predecessors << fst
+  }
+
+  static void unlink(LowIrNode fst, LowIrNode snd) {
+    assert fst.successors.contains(snd)
+    assert snd.predecessors.contains(fst)
+    fst.successors.remove(snd)
+    snd.predecessors.remove(fst)
   }
 
   String toString() {
