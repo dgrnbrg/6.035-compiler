@@ -5,9 +5,8 @@ class SSAComputer {
 
   /**
   This implements Place-\Phi-Functions on page 407 of modern compiler impl. in java
-  Phi functions may be produced for variables that don't seem to need them, because
-  all variables are implicitly defined to something unknown, so temporaries whose lifetime
-  is just the if statement seem to to be included in phi functions below.
+  We only place phi functions for variables that are defined more than once,
+  even if it's on the same path (so that phi function would be spurious).
   */
   def placePhiFunctions(LowIrNode startNode) {
     //A_orig is just the tmpVar of a LowIrValueNode, or empty
@@ -59,12 +58,12 @@ class SSAComputer {
 
     // a is a TempVar (variable in book)
     for (a in defsites.keySet()) {
-      def worklist = defsites[a] ?: []
+      def worklist = defsites[a].clone() ?: []
       while (worklist.size() > 0) {
         def n = worklist.pop()
         for (y in domComps.domFrontier[n]) {
-          if (a_phi[y] == null || !a_phi[y].contains(a)) {
-            if (y.predecessors.size() > 0) {
+          if (!(a_phi[y]?.contains(a))) { //if a_phi[y] is null or doesn't contain a
+            if (defsites[a].size() > 1) { //if not already static single assignment
               def phi = new LowIrPhi(tmpVar: a, args: [a] * y.predecessors.size())
               if (insertBeforeMap[y]) {
                 insertBeforeMap[y] << phi
@@ -90,6 +89,4 @@ class SSAComputer {
       new LowIrBridge(phis[0], phis[-1]).insertBefore(node)
     }
   }
-
-  
 }
