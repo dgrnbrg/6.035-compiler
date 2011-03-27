@@ -11,7 +11,7 @@ public class DominanceComputations {
   private Map<GraphNode, Integer> dfNum;
   private Map<Integer, GraphNode> vertex;
   private Map<GraphNode, GraphNode> parent, semi, idom, samedom, ancestor;
-  private Map<GraphNode, Set<GraphNode>> bucket;
+  private Map<GraphNode, Set<GraphNode>> bucket, idomReverse;
   private int N;
 
   private void init() {
@@ -24,7 +24,9 @@ public class DominanceComputations {
     vertex = new HashMap<Integer, GraphNode>();
     dfNum = new HashMap<GraphNode, Integer>();
     bucket = new HashMap<GraphNode, Set<GraphNode>>();
+    idomReverse = new HashMap<GraphNode, Set<GraphNode>>();
     domTree = new HashMap<GraphNode, Set<GraphNode>>();
+    domFrontier = new HashMap<GraphNode, Set<GraphNode>>();
   }
 
   private final boolean doesDominate(GraphNode dom, GraphNode child) {
@@ -35,16 +37,25 @@ public class DominanceComputations {
 
   //see page 406 of modern compiler implementation in Java for this algorithm
   //immediate dominators are on page 380
-  //untested
   private void computeDominanceFrontier(GraphNode n) {
+    if (domFrontier.get(n) != null) { return; }
     Set<GraphNode> s = new HashSet<GraphNode>();
     for (GraphNode y : n.getSuccessors()) {
       if (idom.get(y) != n) {
         s.add(y);
       }
     }
-    for (Iterator iter = getDomTreeChildrenOf(n); iter.hasNext(); ) {
-      GraphNode c = (GraphNode) iter.next();
+    Queue<GraphNode> children;
+    if (domTree.containsKey(n)) {
+      children = new LinkedList<GraphNode>(domTree.get(n));
+    } else {
+      children = new LinkedList<GraphNode>();
+    }
+    while (!children.isEmpty()) {
+      GraphNode c = children.remove();
+      if (domTree.containsKey(c)) {
+        children.addAll(domTree.get(c));
+      }
       computeDominanceFrontier(c);
       for (GraphNode w : domFrontier.get(c)) {
         if (!doesDominate(n, w) || n == w) {
@@ -98,6 +109,7 @@ public class DominanceComputations {
         GraphNode y = getAncestorWithLowestSemi(v);
         if (semi.get(y) == semi.get(v)) {
           idom.put(v,p);
+          getHashSet_lazyInit(idomReverse, v).add(p);
         } else {
           samedom.put(v,y);
         }
@@ -108,6 +120,7 @@ public class DominanceComputations {
       GraphNode n = vertex.get(i);
       if (samedom.get(n) != null) {
         idom.put(n, idom.get(samedom.get(n)));
+        getHashSet_lazyInit(idomReverse, n).add(idom.get(samedom.get(n)));
       }
     }
   }
@@ -139,17 +152,5 @@ public class DominanceComputations {
       map.put(key, set);
       return set;
     }
-  }
-
-  private Iterator<GraphNode> getDomTreeChildrenOf(GraphNode n) {
-    IteratorChain toReturn = new IteratorChain();
-    Set<GraphNode> childrenSet = domTree.get(n);
-    if (childrenSet != null && childrenSet.size() > 0) {
-      toReturn.addIterator(childrenSet.iterator());
-      for (GraphNode child : childrenSet) {
-        toReturn.addIterator(getDomTreeChildrenOf(child));
-      }
-    }
-    return toReturn;
   }
 }
