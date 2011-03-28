@@ -10,6 +10,7 @@ public class ArgParser {
     argStruct = nb.options {
       o(count: 1)
       target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly','hiir','antlrast','symtable','inter', 'lowir', 'codegen'])
+      assertEnabled(count: 1, restrict: ['true', 'false'])
       opt(count: -1, restrict: ['-?unroll'])
       debug(count: 0)
     }

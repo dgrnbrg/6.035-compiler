@@ -1,5 +1,5 @@
 package decaf
-
+import decaf.*
 import static decaf.Type.*
 import static decaf.BinOpType.*
 
@@ -415,6 +415,20 @@ class SemanticChecker {
     }
   }
 
+  def modifyDebugAssertCalls = { cur -> 
+    if(AssertFn.AssertFunctionEnabled) {
+      if(cur instanceof MethodCall) {
+        if(cur.descriptor.name == "assert") {
+          cur.params = cur.params + [new IntLiteral(value: cur.fileInfo.line)]
+        }
+      }
+
+      if (!hyperspeed) {
+        walk();
+      }
+    }
+  }
+
   def hyperblast = {cur ->
     hyperspeed = true
     checks.each {
@@ -428,7 +442,8 @@ class SemanticChecker {
 
   //Put your checks here
   @Lazy def checks = {-> 
-    [breakContinueFor,
+    [modifyDebugAssertCalls,
+      breakContinueFor,
       assignmentTypesAreCorrect,
       methodCallArguments, 
       ifThenElseConditionCheck, 
