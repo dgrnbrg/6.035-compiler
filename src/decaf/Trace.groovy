@@ -6,30 +6,32 @@ class TraceGraph {
   static String getColor(GraphNode n) {
     if(n.anno["traceMarker"] == null) {
       // default is white
-      return "1.0 1.0 1.0"
+      return "ghostwhite"
     }
 
     // These are pastel-ish colors for readability.
-    switch(n.anno["traceMarker"]) {
-    case 1: 
-      return "0.94 0.90 0.54" // khaki
-    case 2:
-      return "0.87 0.72 0.53" // burlywood
-    case 3:
-      return "0.82 0.41 0.12" // tan
-    case 4: 
-      return "1.0 0.65 0.0" // orange
-    case 5:
-      return "1.0 0.41 0.71" // hot pink
-    case 6:
-      return "0.93 0.51 0.93" // violet
-    case 7: 
-      return "0.0 1.0 0.50" // spring green
-    case 8: 
-      return "0.50 1.0 0.83" // aquamarine
-    default:
-      return "1.0 1.0 1.0" // white
-    }
+    // This is the X11 color-scheme, for more colors see:
+    // http://www.graphviz.org/doc/info/colors.html
+    // Yes I know it should just be an array and index into it.
+    def traceColors = 
+      ["aquamarine",
+        "azure3",
+        "bisque3",
+        "brown1",
+        "burlywood1",
+        "lightblue",
+        "chartreuse",
+        "darkseagreen2",
+        "deeppink",
+        "deepskyblue1",
+        "firebrick1",
+        "gray62",
+        "orange",
+        "navajowhite2"]
+
+    if(n.anno["traceMarker"] < traceColors.size())
+      return traceColors[n.anno["traceMarker"]];
+    return "ghostwhite"
   }
 
   // This function traverses a lowir and marks the anno of each 
