@@ -89,6 +89,10 @@ public class DominanceComputations {
       //compute semidominator
       for (GraphNode v : n.getPredecessors()) {
         GraphNode s_prime;
+        if (!dfNum.containsKey(v)) {
+          //conceptually, this is a piece of dead code
+          continue;
+        }
         if (dfNum.get(v) <= dfNum.get(n)) {
           s_prime = v;
         } else {

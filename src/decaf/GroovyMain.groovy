@@ -269,7 +269,6 @@ public class GroovyMain {
     def lidt = new LowIrDotTraverser(out: dotOut)
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-      new SSAComputer().placePhiFunctions(methodDesc.lowir)
       lidt.traverse(methodDesc.lowir)
     }
     dotOut.println '}'
@@ -282,6 +281,8 @@ public class GroovyMain {
     depends(genTmpVars)
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
+      new SSAComputer().compute(methodDesc)
+//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
     }
   }
 
@@ -305,6 +306,7 @@ public class GroovyMain {
   def genCode = {->
     depends(genLowIr)
     methodDescs.each { methodDesc ->
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       codeGen.handleMethod(methodDesc)
     }
   }

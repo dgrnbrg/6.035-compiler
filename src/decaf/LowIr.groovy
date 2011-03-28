@@ -46,6 +46,15 @@ class LowIrBridge {
     node.predecessors.clone().each {
       LowIrNode.unlink(it, node)
       LowIrNode.link(it, noop)
+      if (it instanceof LowIrCondJump) {
+        if (it.trueDest == node) {
+          it.trueDest = noop
+        } else if (it.falseDest == node) {
+          it.falseDest = noop
+        } else {
+          assert false
+        }
+      }
     }
     LowIrNode.link(noop, node)
     insertBetween(noop, node)
@@ -140,7 +149,7 @@ class LowIrMethodCall extends LowIrValueNode {
   }
 }
 
-class LowIrReturn extends LowIrValueNode {
+class LowIrReturn extends LowIrNode {
   TempVar tmpVar
 
   String toString() {
