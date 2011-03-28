@@ -77,13 +77,11 @@ class SSAComputer {
         def n = worklist.pop()
         for (y in domComps.domFrontier[n]) {
           if (!(a_phi[y]?.contains(a))) { //if a_phi[y] is null or doesn't contain a
-            if (defsites[a].size() > 0) { //if not already static single assignment
-              def phi = new LowIrPhi(tmpVar: a, args: [a] * y.predecessors.size())
-              if (insertBeforeMap[y]) {
-                insertBeforeMap[y] << phi
-              } else {
-                insertBeforeMap[y] = [phi]
-              }
+            def phi = new LowIrPhi(tmpVar: a, args: [a] * y.predecessors.size())
+            if (insertBeforeMap[y]) {
+              insertBeforeMap[y] << phi
+            } else {
+              insertBeforeMap[y] = [phi]
             }
             if (a_phi[y] == null) {
               a_phi[y] = [a]

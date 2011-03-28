@@ -31,27 +31,20 @@ public class DominanceComputations {
   //see page 406 of modern compiler implementation in Java for this algorithm
   //immediate dominators are on page 380
   private void computeDominanceFrontier(GraphNode n) {
-    if (domFrontier.get(n) != null) { return; }
     Set<GraphNode> s = new HashSet<GraphNode>();
     for (GraphNode y : n.getSuccessors()) {
       if (idom.get(y) != n) {
         s.add(y);
       }
     }
-    Queue<GraphNode> children;
-    if (domTree.containsKey(n)) {
-      children = new LinkedList<GraphNode>(domTree.get(n));
-    } else {
-      children = new LinkedList<GraphNode>();
-    }
-    while (!children.isEmpty()) {
-      GraphNode c = children.remove();
-      if (domTree.containsKey(c)) {
-        children.addAll(domTree.get(c));
-      }
+    for (GraphNode c : getHashSet_lazyInit(domTree, n)) {
       computeDominanceFrontier(c);
       for (GraphNode w : domFrontier.get(c)) {
-        if (!(idom.get(w) == n) || n == w) {
+        //muchnick says you only need the first clause
+        //but modern compiler impl in java says you also need n == y
+        //it seems not to matter, but i'll be safe since the rest of
+        //the algorithms are from modern compiler impl
+        if (idom.get(w) != n || n == w) {
           s.add(w);
         }
       }
