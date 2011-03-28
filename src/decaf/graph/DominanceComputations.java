@@ -57,7 +57,7 @@ public class DominanceComputations {
       }
       computeDominanceFrontier(c);
       for (GraphNode w : domFrontier.get(c)) {
-        if (!doesDominate(n, w) || n == w) {
+        if (!(idom.get(w) == n) || n == w) {
           s.add(w);
         }
       }
