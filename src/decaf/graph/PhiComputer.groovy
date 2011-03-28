@@ -21,8 +21,6 @@ class SSAComputer {
 
   /**
   This implements Place-\Phi-Functions on page 407 of modern compiler impl. in java
-  We only place phi functions for variables that are defined more than once,
-  even if it's on the same path (so that phi function would be spurious).
   */
   def placePhiFunctions(LowIrNode startNode) {
     //A_orig is just the tmpVar of a LowIrValueNode, or empty
