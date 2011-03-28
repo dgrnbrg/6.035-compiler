@@ -41,6 +41,8 @@ class LowIrValueBridge extends LowIrBridge {
 }
 
 class LowIrNode implements GraphNode{
+  def anno = [:]
+
   def predecessors = []
   def successors = []
 
@@ -77,7 +79,7 @@ class LowIrCallOut extends LowIrValueNode {
   TempVar[] paramTmpVars
 
   String toString() {
-    "LowIrMethodCall(method: $name, tmpVar: $tmpVar, params: $paramTmpVars)"
+    "LowIrCallOut(method: $name, tmpVar: $tmpVar, params: $paramTmpVars)"
   }
 }
 
@@ -137,5 +139,24 @@ class LowIrMov extends LowIrNode {
 
   String toString() {
     "LowIrMov(src: $src, dst: $dst)"
+  }
+}
+
+class LowIrStore extends LowIrNode {
+  VariableDescriptor desc
+  TempVar index
+  TempVar value //this is what gets stored
+
+  String toString() {
+    "LowIrStore(dest: $desc, index: $index)"
+  }
+}
+
+class LowIrLoad extends LowIrValueNode {
+  VariableDescriptor desc
+  TempVar index
+
+  String toString() {
+    "LowIrLoad(dest: $desc, index: $index)"
   }
 }

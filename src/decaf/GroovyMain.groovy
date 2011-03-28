@@ -11,7 +11,9 @@ class LowIrDotTraverser extends Traverser {
   def out
 
   void visitNode(GraphNode cur) {
-    out.println("${cur.hashCode()} [label=\"$cur\"]")
+    // set nodeColor to "" if you don't want to render colors
+    def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
+    out.println("${cur.hashCode()} [label=\"$cur Label=${cur.label} \\nTrc = ${cur.anno}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -72,6 +74,14 @@ public class GroovyMain {
     }
     file = argparser['other'][0]
     inputStream = new File(file).newDataInputStream()
+
+    // Here we decide whether to enable the Assert Function
+    if(argparser['assertEnabled'] == 'true') {
+      AssertFn.AssertFunctionEnabled = true
+      //println('assert function enabled.')
+    } else {
+      //println('assert function not enabled.')
+    }
 
     int exitCode = 0
     exitHooks << { ->
@@ -217,6 +227,11 @@ public class GroovyMain {
 
   def genHiIr = {->
     depends(genSymTable)
+
+    if(AssertFn.AssertFunctionEnabled) {
+      ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
+    }
+
     ast.inOrderWalk(hiirGenerator.c)
     methodDescs = ast.methodSymTable.values()
     if (errors != []) throw new FatalException(code: 1)
@@ -275,7 +290,9 @@ public class GroovyMain {
     depends(inter)
     depends(genTmpVars)
     methodDescs.each { MethodDescriptor methodDesc ->
-      methodDesc.lowir = lowirGen.destruct(methodDesc).begin
+      methodDesc.lowir = lowirGen.destruct(methodDesc).begin 
+      // Calculate traces for each method
+      TraceGraph.calculateTraces(methodDesc.lowir);
     }
 
     // Run dataflow analysis (for testing)
@@ -294,12 +311,9 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.tempFactory.decorateMethodDesc()
     }
-    //globals
+    //make space for globals
     ast.symTable.@map.each { name, desc ->
       name += '_globalvar'
-      desc.tmpVar = new TempVar(type: TempVarType.GLOBAL)
-      desc.tmpVar.globalName = name
-      desc.tmpVar.desc = desc
       def s = desc.arraySize
       if (s == null) s = 1
       codeGen.emit('bss', ".comm $name ${8*s}")

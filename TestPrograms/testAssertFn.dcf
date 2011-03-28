@@ -1,0 +1,6 @@
+// This function tests the assert function.
+class Program {
+  void main() {
+    assert(false);
+  }
+}

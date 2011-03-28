@@ -1,0 +1,23 @@
+// Test basic if/else functionality.
+class Program {
+  void main() {
+    int a, b;
+    a = 4;
+
+    if(a == 4) {
+      b = 5;
+    } else {
+      b = 6;
+    }
+
+    assert(b == 5);
+
+    if(b == 5) {
+      a = 1;
+    } else {
+      a = 2;
+    }
+
+    assert(a == 1);
+  }
+}

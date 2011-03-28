@@ -1,0 +1,15 @@
+// Test a basic function call.
+class Program {
+  boolean foo(int a, int b) {
+    if(a == b) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  void main() {
+    assert(foo(3, 3));
+    assert(!foo(3, 2));
+  }
+}

@@ -74,19 +74,4 @@ class TempVarFactory {
   TempVar createLocalTemp() {
     return new TempVar(id: nextId(), type: TempVarType.LOCAL)
   }
-
-  //TODO: get this working (it's broken now)
-  static List generateForGlobals(SymbolTable globalSymbolTable) {
-    assert globalSymbolTable.parent == null
-    def bssList = []
-    globalSymbolTable.@map.each { name, desc ->
-      name += '_globalvar'
-      desc.tmpVar = new TempVar(TempVarType.GLOBAL)
-      desc.tmpVar.globalName = name
-      desc.tmpVar.desc = desc
-      def s = desc.arraySize
-      if (s == null) s = 1
-      bssList << ".comm $name ${8*s}"
-    }
-  }
 }
