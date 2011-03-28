@@ -28,12 +28,6 @@ public class DominanceComputations {
     domFrontier = new HashMap<GraphNode, Set<GraphNode>>();
   }
 
-  private final boolean doesDominate(GraphNode dom, GraphNode child) {
-    while (dom != child && (child = ancestor.get(child)) != null);
-    //terminates when dom == child or we hit the root
-    return dom == child;
-  }
-
   //see page 406 of modern compiler implementation in Java for this algorithm
   //immediate dominators are on page 380
   private void computeDominanceFrontier(GraphNode n) {
