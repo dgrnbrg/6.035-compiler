@@ -20,8 +20,8 @@ leave
 ret
 .globl assert
 assert:
-enter $48, $0
-label20:
+enter $64, $0
+label23:
 movq 16(%rbp), %r10
 movq %r10, -8(%rbp)
 movq -8(%rbp), %r11
@@ -35,12 +35,16 @@ movq -32(%rbp), %rsi
 movq $0, %rax
 call printf
 movq %rax, -16(%rbp)
-label15:
+movq $1, -48(%rbp)
+movq -48(%rbp), %rdi
+call exit
+movq %rax, -40(%rbp)
+label18:
 jmp assert_end
 label7:
 leave
 ret
-jmp label15
+jmp label18
 assert_end:
 movq $0, %rax
 leave

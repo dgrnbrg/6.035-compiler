@@ -13,7 +13,7 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-    out.println("${cur.hashCode()} [label=\"$cur \\nTrc = ${cur.anno}\"$nodeColor]")
+    out.println("${cur.hashCode()} [label=\"$cur Label=${cur.label} \\nTrc = ${cur.anno}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -74,6 +74,14 @@ public class GroovyMain {
     }
     file = argparser['other'][0]
     inputStream = new File(file).newDataInputStream()
+
+    // Here we decide whether to enable the Assert Function
+    if(argparser['assertEnabled'] == 'true') {
+      AssertFn.AssertFunctionEnabled = true
+      //println('assert function enabled.')
+    } else {
+      //println('assert function not enabled.')
+    }
 
     int exitCode = 0
     exitHooks << { ->
@@ -220,8 +228,9 @@ public class GroovyMain {
   def genHiIr = {->
     depends(genSymTable)
 
-    // Need a debug switch to turn off the following line.
-    ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
+    if(AssertFn.AssertFunctionEnabled) {
+      ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
+    }
 
     ast.inOrderWalk(hiirGenerator.c)
     methodDescs = ast.methodSymTable.values()

@@ -5,6 +5,7 @@ import static decaf.Type.*
 
 class AssertFn {
 
+  def static AssertFunctionEnabled = false
   def static MethodDescriptor getAssertMethodDesc() {
 
     FileInfo nullFI = new FileInfo(line: -1, col: -1)
@@ -34,6 +35,9 @@ class AssertFn {
             lit("DECAF ASSERT FAILED on LINE NUMBER: %d\\n")
             lit(2)
           }
+          CallOut("exit") {
+            lit(-1)
+          }
         }
       }
     }
@@ -57,6 +61,12 @@ class AssertFn {
     Location locLineNum = new Location(descriptor: varLineNum)
     locLineNum.fileInfo = nullFI
     assertBlock.statements.first().elseBlock.statements.first().params[1] = locLineNum
+
+    // This line is also a hack to get the exit function working.
+    assertBlock.statements.first().elseBlock.statements[1].name = new StringLiteral(value: "exit")
+    IntLiteral negOne = new IntLiteral(value: 1)
+    negOne.fileInfo = nullFI
+    assertBlock.statements.first().elseBlock.statements[1].params[0] = negOne
 
     def assertMD = new MethodDescriptor( 
       name: "assert",

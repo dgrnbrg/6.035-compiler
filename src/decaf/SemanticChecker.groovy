@@ -416,15 +416,16 @@ class SemanticChecker {
   }
 
   def modifyDebugAssertCalls = { cur -> 
-    // Need some kind of debug switch to turn this off.
-    if(cur instanceof MethodCall) {
-      if(cur.descriptor.name == "assert") {
-        cur.params = cur.params + [new IntLiteral(value: cur.fileInfo.line)]
+    if(AssertFn.AssertFunctionEnabled) {
+      if(cur instanceof MethodCall) {
+        if(cur.descriptor.name == "assert") {
+          cur.params = cur.params + [new IntLiteral(value: cur.fileInfo.line)]
+        }
       }
-    }
 
-    if (!hyperspeed) {
-      walk();
+      if (!hyperspeed) {
+        walk();
+      }
     }
   }
 
