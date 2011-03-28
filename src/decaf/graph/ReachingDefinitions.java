@@ -88,6 +88,7 @@ class ReachingDefinitions extends Analysis<TreeMap<TempVar,TreeSet<Definition>>>
 	}
 	return definitions;
     }
+    
     private TreeMap<TempVar,TreeSet<Definition>> generate(TreeMap<TempVar,TreeSet<Definition>> definitions, TempVar variable, Definition definition){
 	assert(!definitions.containsKey(variable));
 	TreeSet<Definition> singleton = new TreeSet<Definition>();

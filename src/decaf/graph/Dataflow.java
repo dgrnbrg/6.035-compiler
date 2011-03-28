@@ -13,6 +13,7 @@ abstract class Analysis<D>{
     public D transfer(LowIrNode node, D input){
 	return input;
     }
+    
     public D transfer(LowIrValueNode node, D input){
 	return input;
     }
@@ -55,17 +56,18 @@ abstract class Analysis<D>{
 
 class DataFlowAnalysis<D>{
     private Analysis analysis;
-    private LowIrNode start;
+    // private LowIrNode start;
 
     // Graph traversal bookkeeping
-    private Set<LowIrNode> nodesVisited;
-    private Set<TraverserEdge> edgesVisited;
-
+    // private Set<LowIrNode> nodesVisited;
+    // private Set<TraverserEdge> edgesVisited;
     private Map<GraphNode,D> input;
+
+    private boolean analysisTerminated;
     
     DataFlowAnalysis(Analysis<D> analysis){
-	this.input = new HashMap<GraphNode,D>();
 	this.analysis = analysis;
+	this.analysisTerminated = false;
     }
 
     // DataFlowAnalysis(){
@@ -81,11 +83,15 @@ class DataFlowAnalysis<D>{
 	    this.input.put(node, inputState);
 	}
     }
-
+    
     private D getNodeInput(GraphNode node){
+	assert(this.analysisTerminated == true);
         D inputState = (D)this.input.get(node);
-	
 	return inputState;
+    }
+
+    public D getNodeResult(GraphNode node){
+	return this.getNodeInput(node);
     }
 
     private D dispatchTransfer(GraphNode node){
@@ -156,6 +162,8 @@ class DataFlowAnalysis<D>{
 	return nodes;
     }
 
+    
+
     public void traverse(GraphNode begin){
 	// traverse() actually runs the dataflow functions against
 	// every node in the graph, repeatedly, until no new information
@@ -203,7 +211,11 @@ class DataFlowAnalysis<D>{
     }
 
     public void run(LowIrNode start){
-	this.start = start;
+	// this.start = start;
+	this.input = new HashMap<GraphNode,D>();
+
+	this.analysisTerminated = false;
 	this.traverse((GraphNode)start);
+	this.analysisTerminated = true;
     }
 }
