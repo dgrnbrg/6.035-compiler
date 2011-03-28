@@ -1,0 +1,13 @@
+// Test a basic for loop.
+class Program {
+  void main() {
+    int a, b;
+    b = 0;
+
+    for a=1,10 {
+      b += a;
+    }
+
+    assert(b == 45);
+  }
+}

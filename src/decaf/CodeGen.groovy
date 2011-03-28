@@ -16,7 +16,11 @@ class CodeGenerator extends Traverser {
     asmMacro('.globl', method.name)
     emit(method.name + ':')
     enter(8*(method.params.size() + method.tempFactory.tmpVarId),0)
-    traverse(method.lowir)
+    // Part of pre-trace codegen
+    // traverse(method.lowir)
+    traverseWithTraces(method.lowir)
+    // Remove following line when done with codegen
+    //assert(false);
     emit(method.name + '_end:')
     if (method.returnType == Type.VOID) {
       movq(0,rax) //void fxns return 0
@@ -41,15 +45,17 @@ class CodeGenerator extends Traverser {
   }
 
   void visitNode(GraphNode stmt) {
-    if (!stmt.frak) {
+    // Part of pre-trace codegen.
+    /*if (!stmt.frak) {
       stmt.frak = true
     } else {
       return
-    }
+    }*/
+
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
-    //assert no X nodes, only ^ or V nodes
+    //assert no X nodes, only ^ (branch) or V nodes (join) 
     if (predecessors.size() > 1) {
       assert successors.size() <= 1
     }
@@ -57,7 +63,13 @@ class CodeGenerator extends Traverser {
       assert predecessors.size() <= 1
     }
 
-    emit(stmt.label + ':')
+    // Part of pre-trace codegen.
+    //emit(stmt.label + ':')
+
+    // Print label if:
+    if(stmt.anno["trace"]["start"] || stmt.anno["trace"]["JmpDest"]) {
+      emit(stmt.label + ':')
+    }
 
     switch (stmt) {
     case LowIrStringLiteral:
@@ -112,7 +124,8 @@ class CodeGenerator extends Traverser {
       movq(getTmp(stmt.condition), r11)
       cmp(1, r11)
       je(stmt.trueDest.label)
-      jmp(stmt.falseDest.label)
+      // Part of pre-tracer codegen.      
+      //jmp(stmt.falseDest.label)
       break
     case LowIrMov:
       if (stmt.src.type != TempVarType.ARRAY) {
@@ -236,10 +249,19 @@ class CodeGenerator extends Traverser {
       assert false
     }
 
-    if (successors.size() == 1) {
+    // Part of pre-trace CodeGen.
+    /*if (successors.size() == 1) {
       jmp(successors[0].label)
     } else if (successors.size() == 0) {
       jmp(method.name + '_end')
+    }*/
+
+    if(stmt.anno["trace"]["terminal"]) {
+      jmp(method.name + '_end')
+    } else if(stmt.anno["trace"]["FalseJmpSrc"]) {
+      jmp(stmt.falseDest.label)
+    } else if(stmt.anno["trace"]["JmpSrc"]) {
+      jmp(stmt.anno["trace"]["JmpSrc"])
     }
   }
 

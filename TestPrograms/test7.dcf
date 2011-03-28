@@ -1,0 +1,21 @@
+// Test short-circuiting. (should more thouroughly do this...)
+class Program {
+  int c;
+
+  boolean foo() {
+    c = 1;
+    return true;
+  }
+
+  void main() {
+    boolean a;
+
+    c = 0;
+    a = (false && foo());
+    assert(!a && c == 0);
+
+    c = 0;
+    a = (true || foo());
+    assert(a && c == 0);
+  }
+}
