@@ -6,6 +6,7 @@ import decaf.graph.*
 import static decaf.DecafScannerTokenTypes.*
 import antlr.collections.AST as AntlrAST
 import decaf.test.HiIrBuilder
+import decaf.optimizations.*
 
 class LowIrDotTraverser extends Traverser {
   def out
@@ -298,6 +299,7 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
       new SSAComputer().compute(methodDesc)
+      new CopyPropagation().propagate(methodDesc.lowir)
 //      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
     }
   }
