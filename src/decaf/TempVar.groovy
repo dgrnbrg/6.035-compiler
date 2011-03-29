@@ -2,10 +2,13 @@ package decaf
 
 class TempVar {
   int id //unique per temp var within a method
-  TempVarType type //LOCAL, GLOBAL, etc
-  String globalName //if it's a global, this will have the string of the global it had space allocated in
-  TempVar arrayIndexTmpVar //if it's an ARRAY type, this is the tempvar that contains its index
+  TempVarType type //LOCAL or PARAM
   VariableDescriptor desc //if it's tied to a variable, this is the descriptor for that variable
+
+  //these are filled in during ssa-ification
+  LowIrNode defSite
+  //if a site uses a variable n times, it will appear n times in useSites
+  Collection<LowIrNode> useSites = []
 
   String toString() {
     "TempVar($id, $type)"
@@ -14,9 +17,7 @@ class TempVar {
 
 enum TempVarType {
   LOCAL,
-  PARAM,
-  GLOBAL,
-  ARRAY //always static
+  PARAM
 }
 
 //Within a methoddesc, tracks temp var usage and contains the code to allocate tempvars on the hiir and symboltables

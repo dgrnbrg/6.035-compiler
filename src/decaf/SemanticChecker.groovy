@@ -416,10 +416,10 @@ class SemanticChecker {
   }
 
   def modifyDebugAssertCalls = { cur -> 
-    if(AssertFn.AssertFunctionEnabled) {
+    if(methodSymTable.containsKey('assert')) {
       if(cur instanceof MethodCall) {
-        if(cur.descriptor.name == "assert") {
-          cur.params = cur.params + [new IntLiteral(value: cur.fileInfo.line)]
+        if(cur.descriptor.name == 'assert') {
+          cur.params << new IntLiteral(value: cur.fileInfo.line)
         }
       }
 

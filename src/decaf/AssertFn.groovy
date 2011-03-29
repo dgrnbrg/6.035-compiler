@@ -5,7 +5,6 @@ import static decaf.Type.*
 
 class AssertFn {
 
-  def static AssertFunctionEnabled = false
   def static MethodDescriptor getAssertMethodDesc() {
 
     FileInfo nullFI = new FileInfo(line: -1, col: -1)

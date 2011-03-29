@@ -1,3 +1,5 @@
+// The following line is a directive to the testrunner to expect a specific exitcode
+// EXITCODE 1
 // This function tests the assert function.
 class Program {
   void main() {

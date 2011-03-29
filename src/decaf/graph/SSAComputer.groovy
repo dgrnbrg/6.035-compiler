@@ -134,56 +134,16 @@ class SSAComputer {
     //only one statement per "block"
     if (!(n instanceof LowIrPhi)) {
       //replace uses
-      switch (n) {
-      case LowIrCondJump:
-        n.condition = mostRecentDefOf(n.condition)
-        break
-      case LowIrCallOut:
-      case LowIrMethodCall:
-        for (int i = 0; i < n.paramTmpVars.size(); i++) {
-          n.paramTmpVars[i] = mostRecentDefOf(n.paramTmpVars[i])
-        }
-        break
-      case LowIrReturn:
-        if (n.tmpVar) n.tmpVar = mostRecentDefOf(n.tmpVar)
-        break
-      case LowIrBinOp:
-        n.leftTmpVar = mostRecentDefOf(n.leftTmpVar)
-        if (n.rightTmpVar) n.rightTmpVar = mostRecentDefOf(n.rightTmpVar)
-        break
-      case LowIrMov:
-        n.src = mostRecentDefOf(n.src)
-        break
-      case LowIrStore: //continues into LowIrLoad for the index
-        n.value = mostRecentDefOf(n.value)
-      case LowIrLoad:
-        n.index = mostRecentDefOf(n.index)
-        break
-      case LowIrIntLiteral:
-      case LowIrStringLiteral:
-        break
-      default:
-        if (n.getClass() == LowIrNode.class || n.getClass() == LowIrValueNode.class) break
-        assert false
+      for (var in n.getUses()) {
+        n.replaceUse(var, mostRecentDefOf(var))
       }
     }
     //replace defs
-    switch (n) {
-      case LowIrValueNode:
-        if (n.getClass() == LowIrValueNode.class) {
-          //this is a noop, we should ignore it
-          break
-        }
-        pushedDefs << n.tmpVar
-        n.tmpVar = pushNewDefOf(n.tmpVar)
-        break
-      case LowIrMov:
-        pushedDefs << n.dst
-        n.dst = pushNewDefOf(n.dst)
-        break
-      default:
-        break
+    if (n.getDef()) {
+      pushedDefs << n.getDef()
+      n.replaceDef(n.getDef(), pushNewDefOf(n.getDef()))
     }
+
     //now, we're on "for each successor Y of block n"
     n.successors.each { y ->
       def j = y.predecessors.indexOf(n)

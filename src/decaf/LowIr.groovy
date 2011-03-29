@@ -119,11 +119,45 @@ class LowIrNode implements GraphNode{
   String toString() {
     "LowIrNode($metaText)"
   }
+
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    return 0
+  }
+
+  //returns true if a definition was replaced
+  boolean replaceDef(TempVar oldVar, TempVar newVar) {
+    return false
+  }
+
+  TempVar getDef() {
+    return null
+  }
+
+  Collection<TempVar> getUses() {
+    return []
+  }
 }
 
 class LowIrCondJump extends LowIrNode {
   TempVar condition
   LowIrNode trueDest, falseDest
+
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    if (condition == oldVar) {
+      condition = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+
+  Collection<TempVar> getUses() {
+    return [condition]
+  }
 
   String toString() {
     "LowIrCondJump(condition: $condition)"
@@ -133,6 +167,24 @@ class LowIrCondJump extends LowIrNode {
 class LowIrCallOut extends LowIrValueNode {
   String name
   TempVar[] paramTmpVars
+
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    paramTmpVars.eachWithIndex { var, index ->
+      if (var == oldVar) {
+        paramTmpVars[index] = newVar
+        oldVar.useSites.remove(this)
+        newVar.useSites << this
+        x++
+      }
+    }
+    return x
+  }
+
+  Collection<TempVar> getUses() {
+    return paramTmpVars.clone()
+  }
 
   String toString() {
     "LowIrCallOut(method: $name, tmpVar: $tmpVar, params: $paramTmpVars)"
@@ -144,6 +196,24 @@ class LowIrMethodCall extends LowIrValueNode {
   MethodDescriptor descriptor
   TempVar[] paramTmpVars
 
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    paramTmpVars.eachWithIndex { var, index ->
+      if (var == oldVar) {
+        paramTmpVars[index] = newVar
+        oldVar.useSites.remove(this)
+        newVar.useSites << this
+        x++
+      }
+    }
+    return x
+  }
+
+  Collection<TempVar> getUses() {
+    return paramTmpVars.clone()
+  }
+
   String toString() {
     "LowIrMethodCall(method: $descriptor.name, tmpVar: $tmpVar, params: $paramTmpVars)"
   }
@@ -152,6 +222,27 @@ class LowIrMethodCall extends LowIrValueNode {
 class LowIrReturn extends LowIrNode {
   TempVar tmpVar
 
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    if (tmpVar == oldVar) {
+      tmpVar = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+
+  //returns true if a definition was replaced
+  boolean replaceDef(TempVar oldVar, TempVar newVar) {
+    return false
+  }
+
+  Collection<TempVar> getUses() {
+    return tmpVar ? [tmpVar] : []
+  }
+
   String toString() {
     "LowIrReturn(tmpVar: $tmpVar)"
   }
@@ -159,6 +250,24 @@ class LowIrReturn extends LowIrNode {
 
 class LowIrValueNode extends LowIrNode{
   TempVar tmpVar
+
+  //returns true if a definition was replaced
+  boolean replaceDef(TempVar oldVar, TempVar newVar) {
+    if (tmpVar == oldVar) {
+      tmpVar = newVar
+      oldVar.defSite = null
+      newVar.defSite = this
+      return true
+    }
+    return false
+  }
+
+  TempVar getDef() {
+    if (this.getClass() != LowIrValueNode.class) {
+      return tmpVar
+    }
+    return null
+  }
 
   String toString() {
     "LowIrValueNode($metaText, tmpVar: $tmpVar)"
@@ -185,6 +294,29 @@ class LowIrBinOp extends LowIrValueNode {
   TempVar leftTmpVar, rightTmpVar
   BinOpType op
 
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    assert oldVar != null
+    int x = 0
+    if (leftTmpVar == oldVar) {
+      leftTmpVar = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    if (rightTmpVar == oldVar) {
+      rightTmpVar = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+  
+  Collection<TempVar> getUses() {
+    return rightTmpVar ? [leftTmpVar, rightTmpVar] : [leftTmpVar]
+  }
+
   String toString() {
     "LowIrBinOp(op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar, tmpVar: $tmpVar)"
   }
@@ -192,6 +324,36 @@ class LowIrBinOp extends LowIrValueNode {
 
 class LowIrMov extends LowIrNode {
   TempVar src, dst
+
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    if (src == oldVar) {
+      src = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+
+  //returns true if a definition was replaced
+  boolean replaceDef(TempVar oldVar, TempVar newVar) {
+    if (dst == oldVar) {
+      dst = newVar
+      oldVar.defSite = null
+      newVar.defSite = this
+      return true
+    }
+    return false
+  }
+
+  Collection<TempVar> getUses() {
+    return [src]
+  }
+
+  TempVar getDef() {
+    return dst
+  }
 
   String toString() {
     "LowIrMov(src: $src, dst: $dst)"
@@ -203,6 +365,27 @@ class LowIrStore extends LowIrNode {
   TempVar index
   TempVar value //this is what gets stored
 
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    if (index == oldVar) {
+      index = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    if (value == oldVar) {
+      value = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+
+  Collection<TempVar> getUses() {
+    return index ? [index, value] : [value]
+  }
+
   String toString() {
     "LowIrStore(dest: $desc, index: $index)"
   }
@@ -212,6 +395,21 @@ class LowIrLoad extends LowIrValueNode {
   VariableDescriptor desc
   TempVar index
 
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    if (index == oldVar) {
+      index = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+
+  Collection<TempVar> getUses() {
+    return index ? [index] : []
+  }
+
   String toString() {
     "LowIrLoad(dest: $desc, index: $index)"
   }
@@ -219,6 +417,24 @@ class LowIrLoad extends LowIrValueNode {
 
 class LowIrPhi extends LowIrValueNode {
   TempVar[] args
+
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    args.eachWithIndex { var, index ->
+      if (var == oldVar) {
+        args[index] = newVar
+        oldVar.useSites.remove(this)
+        newVar.useSites << this
+        x++
+      }
+    }
+    return x
+  }
+
+  Collection<TempVar> getUses() {
+    return args.clone()
+  }
 
   String toString() {
     "LowIrPhi(tmpVar: $tmpVar, args: $args)"

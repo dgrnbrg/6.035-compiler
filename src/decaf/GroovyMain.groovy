@@ -6,6 +6,7 @@ import decaf.graph.*
 import static decaf.DecafScannerTokenTypes.*
 import antlr.collections.AST as AntlrAST
 import decaf.test.HiIrBuilder
+import decaf.optimizations.*
 
 class LowIrDotTraverser extends Traverser {
   def out
@@ -45,10 +46,11 @@ public class GroovyMain {
   //used for storing a failure exception when called from code
   def failException
 
-  static GroovyMain runMain(String target, String decafProgram) {
+  static GroovyMain runMain(String target, String decafProgram, args = [:]) {
     def bytes = decafProgram.getBytes()
     def is = new ByteArrayInputStream(bytes)
     def main = new GroovyMain(is)
+    main.argparser = args
     try {
       main."$target"()
     } catch (Exception e) {
@@ -75,14 +77,6 @@ public class GroovyMain {
     }
     file = argparser['other'][0]
     inputStream = new File(file).newDataInputStream()
-
-    // Here we decide whether to enable the Assert Function
-    if(argparser['assertEnabled'] == 'true') {
-      AssertFn.AssertFunctionEnabled = true
-      //println('assert function enabled.')
-    } else {
-      //println('assert function not enabled.')
-    }
 
     int exitCode = 0
     exitHooks << { ->
@@ -229,7 +223,7 @@ public class GroovyMain {
   def genHiIr = {->
     depends(genSymTable)
 
-    if(AssertFn.AssertFunctionEnabled) {
+    if(argparser['assertEnabled']) {
       ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
     }
 
@@ -298,6 +292,7 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
       new SSAComputer().compute(methodDesc)
+      new CopyPropagation().propagate(methodDesc.lowir)
 //      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
     }
   }
