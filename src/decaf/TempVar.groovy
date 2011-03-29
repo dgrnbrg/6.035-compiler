@@ -5,6 +5,10 @@ class TempVar {
   TempVarType type //LOCAL or PARAM
   VariableDescriptor desc //if it's tied to a variable, this is the descriptor for that variable
 
+  //these are filled in during ssa-ification
+  LowIrNode defSite
+  LowIrNode useSites = []
+
   String toString() {
     "TempVar($id, $type)"
   }

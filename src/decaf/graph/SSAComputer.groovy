@@ -132,32 +132,53 @@ class SSAComputer {
     n.anno['phi-functions-to-visit']?.each{ pushedDefs += rename(it, true) }
 
     //only one statement per "block"
+    def tmpVar
     if (!(n instanceof LowIrPhi)) {
       //replace uses
       switch (n) {
       case LowIrCondJump:
-        n.condition = mostRecentDefOf(n.condition)
+        tmpVar = mostRecentDefOf(n.condition)
+        n.condition = tmpVar
+        tmpVar.useSites << n
         break
       case LowIrCallOut:
       case LowIrMethodCall:
         for (int i = 0; i < n.paramTmpVars.size(); i++) {
-          n.paramTmpVars[i] = mostRecentDefOf(n.paramTmpVars[i])
+           tmpVar = mostRecentDefOf(n.paramTmpVars[i])
+           n.paramTmpVars[i] = tmpVar
+           tmpVar.useSites << n
         }
         break
       case LowIrReturn:
-        if (n.tmpVar) n.tmpVar = mostRecentDefOf(n.tmpVar)
+        if (n.tmpVar) {
+          tmpVar = mostRecentDefOf(n.tmpVar)
+          n.tmpVar = tmpVar
+          tmpVar.useSites << n
+        }
         break
       case LowIrBinOp:
-        n.leftTmpVar = mostRecentDefOf(n.leftTmpVar)
-        if (n.rightTmpVar) n.rightTmpVar = mostRecentDefOf(n.rightTmpVar)
+        tmpVar = mostRecentDefOf(n.leftTmpVar)
+        n.leftTmpVar = tmpVar
+        tmpVar.useSites << n
+        if (n.rightTmpVar) {
+          tmpVar = mostRecentDefOf(n.rightTmpVar)
+          n.rightTmpVar = tmpVar
+          tmpVar.useSites << n
+        }
         break
       case LowIrMov:
-        n.src = mostRecentDefOf(n.src)
+        tmpVar = mostRecentDefOf(n.src)
+        n.src = tmpVar
+        tmpVar.useSites << n
         break
       case LowIrStore: //continues into LowIrLoad for the index
-        n.value = mostRecentDefOf(n.value)
+        tmpVar = mostRecentDefOf(n.value)
+        n.value = tmpVar
+        tmpVar.useSites << n
       case LowIrLoad:
-        n.index = mostRecentDefOf(n.index)
+        tmpVar = mostRecentDefOf(n.index)
+        n.index = tmpVar
+        tmpVar.useSites << n
         break
       case LowIrIntLiteral:
       case LowIrStringLiteral:
@@ -175,11 +196,15 @@ class SSAComputer {
           break
         }
         pushedDefs << n.tmpVar
-        n.tmpVar = pushNewDefOf(n.tmpVar)
+        tmpVar = pushNewDefOf(n.tmpVar)
+        n.tmpVar = tmpVar
+        tmpVar.defSite = n
         break
       case LowIrMov:
         pushedDefs << n.dst
-        n.dst = pushNewDefOf(n.dst)
+        tmpVar = pushNewDefOf(n.dst)
+        n.dst = tmpVar
+        tmpVar.defSite = n
         break
       default:
         break
