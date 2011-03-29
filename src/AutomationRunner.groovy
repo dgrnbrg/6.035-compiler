@@ -1,5 +1,17 @@
 import decaf.GroovyMain
 
+/*
+The automation runner supports 2 cool things: you can expect a particular exit code, and
+you can embed into the decaf file what you want the output to be, and to fail if the output
+doesn't match. For the former, add a comment anywhere on a line by itself with no indenting
+in the following form:
+// EXITCODE 3
+where 3 is the exitcode you want to occur.
+For the latter, add one comment per line with the same structure, but use this form:
+// EXPECTS Then you can put any text here which will be diffed with the output
+// EXPECTS multiline expectations work too :)
+*/
+
 def attempted = 0
 def succeeded = 0
 new File('TestPrograms').eachFile { file ->
@@ -44,17 +56,22 @@ new File('TestPrograms').eachFile { file ->
   def apperr = new StringBuffer()
   app.consumeProcessOutput(appout, apperr)
   def expectedExitCode = 0
+  def expectedOutput = null
   file.eachLine {
     if (it.startsWith('// EXITCODE ')) {
       expectedExitCode = (it =~ '// EXITCODE (\\d*)')[0][1] as int
+    } else if (it.startsWith('// EXPECTS ')) {
+      if (!expectedOutput) expectedOutput = ''
+      expectedOutput += (it =~ '// EXPECTS (.*)')[0][1] + '\n'
     }
   }
   app.waitFor()
-  if (app.exitValue() == expectedExitCode) {
+  if (app.exitValue() == expectedExitCode && (expectedOutput == null || expectedOutput == appout.toString())) {
     println "$file.name succeeded!"
     succeeded++
   } else {
-    println "$file.name failed. stdout:\n$appout\nstderr:\n$apperr"
+    println "$file.name failed.\nstdout:\n$appout"
+    if (expectedOutput) println "Expected output:\n$expectedOutput"
   }
 }
 

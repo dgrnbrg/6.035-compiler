@@ -1,0 +1,44 @@
+// EXPECTS a=1, b=2
+// EXPECTS c=3, a=1
+// EXPECTS correct
+// EXPECTS sum of 1 - 8 is 36 (36)
+class Program
+{
+    int add(int a, int b)
+    {
+        callout("printf", "a=%d, b=%d\n",a,b);
+        return (a + b);
+    }
+
+    int sub(int a, int b)
+    {
+        return (a - b);
+    }
+
+    int sum(int a, int b, int c, int d,
+            int e, int f, int g, int h)
+    {
+        return (a + b + c + d + e + f + g + h);
+    }
+
+    void main()
+    {
+        int a, b, c, d;
+
+        a = 1;
+        b = 2;
+
+        c = add(a, b);
+        d = sub(c, b);
+        callout("printf", "c=%d, a=%d\n",c,a);
+
+        if (d == a) {
+            callout("printf", "correct\n");
+        } else {
+            callout("printf", "INCORRECT\n");
+        }
+
+        callout("printf", "sum of 1 - 8 is %d (36)\n",
+                sum(1,2,3,4,5,6,7,8));
+    }
+}

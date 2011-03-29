@@ -1,0 +1,76 @@
+// test as many operators as we can
+// EXPECTS 10 + 20 is 30 (30)
+// EXPECTS 10 - 20 is -10 (-10)
+// EXPECTS 10 * 20 is 200 (200)
+// EXPECTS a < b is correct
+// EXPECTS a <= b is correct
+// EXPECTS c <= b is correct
+// EXPECTS c >= b is correct
+// EXPECTS a == a is correct
+// EXPECTS a != b is correct
+// EXPECTS true and true is correct
+// EXPECTS true or true is correct
+// EXPECTS false or true is correct
+// EXPECTS true or false is correct
+
+class Program
+{
+    void main () 
+    {
+        int a, b, c;
+        
+        a = 10 + 20;
+        callout("printf", "10 + 20 is %d (30)\n", a);
+
+        a = 10 - 20;
+        callout("printf", "10 - 20 is %d (-10)\n", a);
+
+        a = 10 * 20;
+        callout("printf", "10 * 20 is %d (200)\n", a);
+
+        a = 1;
+        b = 2;
+        c = 2;
+
+        if (a < b) { callout("printf", "a < b is correct\n"); }
+        if (a <= b) { callout("printf", "a <= b is correct\n"); }
+        if (a > b) { callout("printf", "a > b is incorrect\n"); }
+        if (a >= b) { callout("printf", "a >= b is incorrect\n"); }
+
+        if (c < b) { callout("printf", "c < b is incorrect\n"); }
+        if (c <= b) { callout("printf", "c <= b is correct\n"); }
+        if (c > b) { callout("printf", "c > b is incorrect\n"); }
+        if (c >= b) { callout("printf", "c >= b is correct\n"); }
+
+        if (a == a) { callout("printf", "a == a is correct\n"); }
+        if (a != a) { callout("printf", "a != a is incorrect\n"); }
+
+        if (a == b) { callout("printf", "a == b is incorrect\n"); }
+        if (a != b) { callout("printf", "a != b is correct\n"); }
+
+        if ((a == a) && (b == c))
+            { callout("printf", "true and true is correct\n"); }
+        
+        if ((a != a) && (b == c))
+            { callout("printf", "false and true is incorrect\n"); }
+        
+        if ((a == a) && (b != c))
+            { callout("printf", "true and false is incorrect\n"); }
+        
+        if ((a != a) && (b != c))
+            { callout("printf", "false and false is incorrect\n"); }
+        
+        if ((a == a) || (b == c))
+            { callout("printf", "true or true is correct\n"); }
+        
+        if ((a != a) || (b == c))
+            { callout("printf", "false or true is correct\n"); }
+        
+        if ((a == a) || (b != c))
+            { callout("printf", "true or false is correct\n"); }
+        
+        if ((a != a) || (b != c))
+            { callout("printf", "false or false is incorrect\n"); }
+    }
+}
+

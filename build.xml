@@ -136,7 +136,6 @@
       <arg value="-target" />
       <arg value="${Compiler.target}"/>
       <arg value="-assertEnabled"/>
-      <arg value="${Compiler.assertEnabled}"/>
     </java>
   </target>
 
@@ -207,6 +206,15 @@
         Thread.start { -> p.errorStream.eachLine{ println it}; p.errorStream.close() }
         p.waitFor()
       }
+    </groovy>
+  </target>
+
+  <target name="automation" depends="compile">
+    <groovy src="src/AutomationRunner.groovy">
+      <classpath>
+        <pathelement path="${classes}"/>
+        <fileset dir="${lib}" includes="**/*.jar" />
+      </classpath>
     </groovy>
   </target>
 
