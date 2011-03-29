@@ -132,83 +132,18 @@ class SSAComputer {
     n.anno['phi-functions-to-visit']?.each{ pushedDefs += rename(it, true) }
 
     //only one statement per "block"
-    def tmpVar
     if (!(n instanceof LowIrPhi)) {
       //replace uses
-      switch (n) {
-      case LowIrCondJump:
-        tmpVar = mostRecentDefOf(n.condition)
-        n.condition = tmpVar
-        tmpVar.useSites << n
-        break
-      case LowIrCallOut:
-      case LowIrMethodCall:
-        for (int i = 0; i < n.paramTmpVars.size(); i++) {
-           tmpVar = mostRecentDefOf(n.paramTmpVars[i])
-           n.paramTmpVars[i] = tmpVar
-           tmpVar.useSites << n
-        }
-        break
-      case LowIrReturn:
-        if (n.tmpVar) {
-          tmpVar = mostRecentDefOf(n.tmpVar)
-          n.tmpVar = tmpVar
-          tmpVar.useSites << n
-        }
-        break
-      case LowIrBinOp:
-        tmpVar = mostRecentDefOf(n.leftTmpVar)
-        n.leftTmpVar = tmpVar
-        tmpVar.useSites << n
-        if (n.rightTmpVar) {
-          tmpVar = mostRecentDefOf(n.rightTmpVar)
-          n.rightTmpVar = tmpVar
-          tmpVar.useSites << n
-        }
-        break
-      case LowIrMov:
-        tmpVar = mostRecentDefOf(n.src)
-        n.src = tmpVar
-        tmpVar.useSites << n
-        break
-      case LowIrStore: //continues into LowIrLoad for the index
-        tmpVar = mostRecentDefOf(n.value)
-        n.value = tmpVar
-        tmpVar.useSites << n
-      case LowIrLoad:
-        tmpVar = mostRecentDefOf(n.index)
-        n.index = tmpVar
-        tmpVar.useSites << n
-        break
-      case LowIrIntLiteral:
-      case LowIrStringLiteral:
-        break
-      default:
-        if (n.getClass() == LowIrNode.class || n.getClass() == LowIrValueNode.class) break
-        assert false
+      for (var in n.getUses()) {
+        n.replaceUse(var, mostRecentDefOf(var))
       }
     }
     //replace defs
-    switch (n) {
-      case LowIrValueNode:
-        if (n.getClass() == LowIrValueNode.class) {
-          //this is a noop, we should ignore it
-          break
-        }
-        pushedDefs << n.tmpVar
-        tmpVar = pushNewDefOf(n.tmpVar)
-        n.tmpVar = tmpVar
-        tmpVar.defSite = n
-        break
-      case LowIrMov:
-        pushedDefs << n.dst
-        tmpVar = pushNewDefOf(n.dst)
-        n.dst = tmpVar
-        tmpVar.defSite = n
-        break
-      default:
-        break
+    if (n.getDef()) {
+      pushedDefs << n.getDef()
+      n.replaceDef(n.getDef(), pushNewDefOf(n.getDef()))
     }
+
     //now, we're on "for each successor Y of block n"
     n.successors.each { y ->
       def j = y.predecessors.indexOf(n)

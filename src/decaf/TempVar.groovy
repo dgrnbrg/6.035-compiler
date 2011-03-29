@@ -7,7 +7,8 @@ class TempVar {
 
   //these are filled in during ssa-ification
   LowIrNode defSite
-  LowIrNode useSites = []
+  //if a site uses a variable n times, it will appear n times in useSites
+  Collection<LowIrNode> useSites = []
 
   String toString() {
     "TempVar($id, $type)"
