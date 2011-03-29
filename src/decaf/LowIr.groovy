@@ -24,6 +24,55 @@ class LowIrBridge {
       return new LowIrBridge(this.begin, next.end)
     }
   }
+
+  void insertBetween(LowIrNode before, LowIrNode after) {
+    LowIrNode.unlink(before, after)
+    LowIrNode.link(before, begin)
+    LowIrNode.link(end, after)
+    //fix the explicit links in Cond Jumps
+    if (before instanceof LowIrCondJump) {
+      if (before.trueDest == after) {
+        before.trueDest = begin
+      } else if (before.falseDest == after) {
+        before.falseDest = begin
+      } else {
+        assert false
+      }
+    }
+  }
+
+  void insertBefore(LowIrNode node) {
+    def noop = new LowIrNode(metaText: 'insertBefore cruft')
+    node.predecessors.clone().each {
+      LowIrNode.unlink(it, node)
+      LowIrNode.link(it, noop)
+      if (it instanceof LowIrCondJump) {
+        if (it.trueDest == node) {
+          it.trueDest = noop
+        } else if (it.falseDest == node) {
+          it.falseDest = noop
+        } else {
+          assert false
+        }
+      }
+    }
+    LowIrNode.link(noop, node)
+    insertBetween(noop, node)
+  }
+
+  //removes this bridge from the lowir
+/*
+  void excise() {
+    assert end.successors.size() <= 1
+    def successors = end.successors.clone()
+    def predecessors = begin.predecessors.clone()
+    predecessors.each {
+      LowIrNode.unlink(it, begin)
+      LowIrNode.link(it, )//here
+    }
+    LowIrNode.
+  }
+*/
 }
 
 class LowIrValueBridge extends LowIrBridge {
@@ -60,6 +109,13 @@ class LowIrNode implements GraphNode{
     snd.predecessors << fst
   }
 
+  static void unlink(LowIrNode fst, LowIrNode snd) {
+    assert fst.successors.contains(snd)
+    assert snd.predecessors.contains(fst)
+    fst.successors.remove(snd)
+    snd.predecessors.remove(fst)
+  }
+
   String toString() {
     "LowIrNode($metaText)"
   }
@@ -93,7 +149,7 @@ class LowIrMethodCall extends LowIrValueNode {
   }
 }
 
-class LowIrReturn extends LowIrValueNode {
+class LowIrReturn extends LowIrNode {
   TempVar tmpVar
 
   String toString() {
@@ -158,5 +214,13 @@ class LowIrLoad extends LowIrValueNode {
 
   String toString() {
     "LowIrLoad(dest: $desc, index: $index)"
+  }
+}
+
+class LowIrPhi extends LowIrValueNode {
+  TempVar[] args
+
+  String toString() {
+    "LowIrPhi(tmpVar: $tmpVar, args: $args)"
   }
 }

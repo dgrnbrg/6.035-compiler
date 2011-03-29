@@ -234,6 +234,9 @@ public class GroovyMain {
     }
 
     ast.inOrderWalk(hiirGenerator.c)
+    // Here is where the assert function should be added to the 
+    // method symbol table.
+    //
     methodDescs = ast.methodSymTable.values()
     if (errors != []) throw new FatalException(code: 1)
   }
@@ -277,6 +280,8 @@ public class GroovyMain {
   def lowir = {->
     depends(setupDot)
     depends(genLowIr)
+
+
     def lidt = new LowIrDotTraverser(out: dotOut)
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
@@ -291,9 +296,9 @@ public class GroovyMain {
     depends(inter)
     depends(genTmpVars)
     methodDescs.each { MethodDescriptor methodDesc ->
-      methodDesc.lowir = lowirGen.destruct(methodDesc).begin 
-      // Calculate traces for each method
-      TraceGraph.calculateTraces(methodDesc.lowir);
+      methodDesc.lowir = lowirGen.destruct(methodDesc).begin
+      new SSAComputer().compute(methodDesc)
+//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
     }
   }
 
@@ -317,6 +322,9 @@ public class GroovyMain {
   def genCode = {->
     depends(genLowIr)
     methodDescs.each { methodDesc ->
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      // Calculate traces for each method
+      TraceGraph.calculateTraces(methodDesc.lowir);
       codeGen.handleMethod(methodDesc)
     }
   }

@@ -250,6 +250,8 @@ class CodeGenerator extends Traverser {
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
       }
       break
+    case LowIrPhi:
+      break
     case LowIrNode: //this is a noop
       assert stmt.getClass() == LowIrNode.class || stmt.getClass() == LowIrValueNode.class
       break
