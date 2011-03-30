@@ -14,7 +14,7 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-    out.println("${cur.hashCode()} [label=\"$cur\"$nodeColor]")
+    out.println("${cur.hashCode()} [label=\"$cur $cur.label\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -278,6 +278,7 @@ public class GroovyMain {
     def lidt = new LowIrDotTraverser(out: dotOut)
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       TraceGraph.calculateTraces(methodDesc.lowir);
       lidt.traverse(methodDesc.lowir)
     }
@@ -294,7 +295,6 @@ public class GroovyMain {
       new SSAComputer().compute(methodDesc)
       new CopyPropagation().propagate(methodDesc.lowir)
       new DeadCodeElimination().run(methodDesc.lowir)
-//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
     }
   }
 

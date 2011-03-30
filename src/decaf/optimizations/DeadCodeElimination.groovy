@@ -66,11 +66,7 @@ class DeadCodeElimination extends Analizer {
       if (it.getDef() != null && !(it.getDef() in liveOut)) {
         it.excise()
       }
-      //if it's a noop, delete this node
-      if (it.getClass() == LowIrNode.class || it.getClass() == LowIrValueNode.class) {
-        if (it.metaText == 'continue') return
-//        it.excise()
-      }
+      //deleting noops seems to cause weird bugs, so we won't do that any more
     }
   }
 }
