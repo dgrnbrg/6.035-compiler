@@ -171,6 +171,7 @@ class SSAComputer {
       def joinPoint = phi
       while (joinPoint.predecessors.size() == 1) joinPoint = joinPoint.predecessors[0]
       //we can't handle if a phi function expects an n-way join but finds an m-way join and m != n
+//      println "$phi ${phi.args.size()} ${joinPoint.predecessors.size()}"
       assert phi.args.size() == joinPoint.predecessors.size()
 
       //insert the appropriate moves
@@ -184,11 +185,17 @@ class SSAComputer {
         new LowIrBridge(mov).insertBetween(pred, joinPoint)
       }
 
-      //delete the phi function
-      assert phi.predecessors.size() == 1 && phi.successors.size() == 1
-      LowIrNode.link(phi.predecessors[0], phi.successors[0])
-      LowIrNode.unlink(phi.predecessors[0], phi)
-      LowIrNode.unlink(phi, phi.successors[0])
+      assert phi.successors.size() == 1
+      if (phi.predecessors.size() == 1) {
+        if (phi.successors[0]) LowIrNode.link(phi.predecessors[0], phi.successors[0])
+        LowIrNode.unlink(phi.predecessors[0], phi)
+      } else if (phi.predecessors.size() > 1) {
+        for (pred in phi.predecessors.clone()) {
+          if (phi.successors[0]) LowIrNode.link(pred, phi.successors[0])
+          LowIrNode.unlink(pred, phi)
+        }
+      }
+      if (phi.successors) LowIrNode.unlink(phi, phi.successors[0])
     }
   }
 }

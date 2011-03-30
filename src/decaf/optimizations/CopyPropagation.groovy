@@ -10,9 +10,9 @@ class CopyPropagation {
         def results = u*.replaceUse(node.dst, node.src)
         assert results.every{ it > 0 }
       } else if (node instanceof LowIrPhi) {
-        def definedArgs = node.args.findAll{ it.defSite != null && it.type == TempVarType.LOCAL}
+        def definedArgs = node.args.findAll{ it.defSite != null || it.type == TempVarType.PARAM}
         if (definedArgs.size() == 1) {
-          new LinkedHashSet(node.getDef().useSites)*.replaceUse(node.tmpVar, definedArgs[0])
+          new LinkedHashSet(node.getDef().useSites)*.replaceUse(node.getDef(), definedArgs[0])
         }
       }
     }
