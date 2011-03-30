@@ -52,7 +52,7 @@ class DeadCodeElimination extends Analizer {
       //don't delete the first node
       if (it.is(startNode)) return
       //can have side effects
-      if (it instanceof LowIrCallOut || it instanceof LowIrPhi) {
+      if (it instanceof LowIrCallOut || it instanceof LowIrMethodCall) {
         return
       }
       //could be div by 0, resulting in a runtime exception

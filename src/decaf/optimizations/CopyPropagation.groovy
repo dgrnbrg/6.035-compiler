@@ -1,30 +1,19 @@
 package decaf.optimizations
 import decaf.*
+import static decaf.graph.Traverser.eachNodeOf
 
 class CopyPropagation {
-  int iteration = 0
   def propagate(LowIrNode startNode) {
-    //for each node (worklist algorithm)
-    def oldTag = "copy-propagation-$iteration".toString()
-    iteration++
-    def newTag = "copy-propagation-$iteration".toString()
-
-    def unvisitedNodes = [startNode]
-    while (unvisitedNodes.size() != 0) {
-      def node = unvisitedNodes.pop()
-      //mark and add unvisited to list
-      node.anno.remove(oldTag)
-      node.anno[newTag] = true
-      node.successors.each {
-        if (!(it.anno[newTag])) {
-          unvisitedNodes << it
-        }
-      }
-
+    eachNodeOf(startNode) { node ->
       if (node instanceof LowIrMov) {
-        def u = new HashSet(node.getDef().useSites)
+        def u = new LinkedHashSet(node.getDef().useSites)
         def results = u*.replaceUse(node.dst, node.src)
         assert results.every{ it > 0 }
+      } else if (node instanceof LowIrPhi) {
+        def definedArgs = node.args.findAll{ it.defSite != null && it.type == TempVarType.LOCAL}
+        if (definedArgs.size() == 1) {
+          new LinkedHashSet(node.getDef().useSites)*.replaceUse(node.tmpVar, definedArgs[0])
+        }
       }
     }
   }
