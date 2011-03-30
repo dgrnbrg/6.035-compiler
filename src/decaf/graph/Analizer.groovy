@@ -9,11 +9,11 @@ abstract class Analizer {
   AnalysisDirection dir = AnalysisDirection.FORWARD
 
   //transfer returns true if something changed
-  abstract Set<GraphNode> transfer(GraphNode node, Set<GraphNode> input);
-  abstract Set<GraphNode> join(GraphNode node);
+  abstract Set transfer(GraphNode node, Set input);
+  abstract Set join(GraphNode node);
 
-  abstract void store(GraphNode node, Set<GraphNode> data);
-  abstract Set<GraphNode> load(GraphNode node);
+  abstract void store(GraphNode node, Set data);
+  abstract Set load(GraphNode node);
 
   void analize(GraphNode startNode) {
     def worklist = new LinkedHashSet()

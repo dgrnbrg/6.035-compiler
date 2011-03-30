@@ -14,12 +14,12 @@ class DeadCodeElimination extends Analizer {
       node.anno['deadcode-liveness'] = new HashSet()
   }
 
-  void store(GraphNode node, Set<GraphNode> data) {
+  void store(GraphNode node, Set data) {
     lazyInit(node)
     node.anno['deadcode-liveness'] = data
   }
 
-  Set<GraphNode> load(GraphNode node) {
+  Set load(GraphNode node) {
     lazyInit(node)
     return node.anno['deadcode-liveness']
   }
@@ -32,13 +32,13 @@ class DeadCodeElimination extends Analizer {
     return Collections.singleton(node.getDef())
   }
 
-  Set<GraphNode> transfer(GraphNode node, Set<GraphNode> input) {
+  Set transfer(GraphNode node, Set input) {
     def out = gen(node)
     out.addAll(input - kill(node))
     return out
   }
 
-  Set<GraphNode> join(GraphNode node) {
+  Set join(GraphNode node) {
     def out = new HashSet()
     for (succ in node.successors) {
       out += load(succ)
@@ -69,7 +69,7 @@ class DeadCodeElimination extends Analizer {
       //if it's a noop, delete this node
       if (it.getClass() == LowIrNode.class || it.getClass() == LowIrValueNode.class) {
         if (it.metaText == 'continue') return
-        it.excise()
+//        it.excise()
       }
     }
   }
