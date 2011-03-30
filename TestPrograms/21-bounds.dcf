@@ -1,0 +1,25 @@
+// EXPECTS 0
+// EXPECTS 1
+// EXPECTS 2
+// EXPECTS 3
+// EXPECTS 4
+// EXPECTS 5
+// EXPECTS 6
+// EXPECTS 7
+// EXPECTS 8
+// EXPECTS 9
+// EXPECTS RUNTIME ERROR: Array out of bounds
+// EXITCODE 1
+// This should produce a runtime error
+class Program {
+  int a[10];
+  
+  void main() {
+    int i, j;
+    j = 11;
+    for i = 0, j {
+      a[i] = i;
+      callout("printf", "%d\n", i);
+    }
+  }
+}

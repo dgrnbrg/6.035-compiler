@@ -1,0 +1,13 @@
+// EXPECTS 0 1 2 3 4 5 6 8 9 
+class Program {
+  void main() {
+    int i;
+    for i = 0, 10 {
+      if (i == 7) {
+	continue;
+      }
+      callout("printf", "%d ", i);
+    }
+    callout("printf", "\n");
+  }
+}

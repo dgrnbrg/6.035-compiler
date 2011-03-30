@@ -1,0 +1,29 @@
+// EXPECTS result should be 11: 11
+// EXPECTS result should be 7: 7
+// EXPECTS result should be 3: 3
+class Program {
+  int a, b, c;
+  void main() {
+    a = 1;
+    b = 2;
+    {
+      int a, b;
+      a = 3;
+      b = 4;
+      {
+	int a, b;
+	a = 5;
+	b = 6;
+
+	c = a + b;
+	callout("printf", "result should be 11: %d\n", c);
+      }
+
+      c = a + b;
+      callout("printf", "result should be 7: %d\n", c);
+    }
+
+    c = a + b;
+    callout("printf", "result should be 3: %d\n", c);
+  }
+}
