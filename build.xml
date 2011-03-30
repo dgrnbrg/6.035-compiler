@@ -99,9 +99,14 @@
   </target>
 
   <target name="compile" depends="parser">
+    <javac srcdir="${java}:${src}" destdir="${classes}">
+      <classpath refid="libraries"/>
+    </javac>
     <groovyc srcdir="${java}:${src}" destdir="${classes}" stacktrace="true">
       <classpath refid="libraries"/>
-      <javac debug="on" />
+      <classpath>
+        <pathelement location="${classes}" />
+      </classpath>
     </groovyc>
   </target>
 
