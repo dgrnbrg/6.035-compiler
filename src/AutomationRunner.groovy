@@ -14,10 +14,36 @@ For the latter, add one comment per line with the same structure, but use this f
 
 def attempted = 0
 def succeeded = 0
-new File('TestPrograms').eachFile { file ->
+def failList = []
+def failFile = new File('failed_automations')
+if (failFile.exists() && failFile.text != '') {
+  failFile.eachLine {
+    def file = new File(it)
+    if (!file.name.endsWith('dcf')) return
+    attempted++
+    if (AutomationTester.test(file)) succeeded++
+    else failList << file
+  }
+} else {
+  new File('TestPrograms').eachFile { file ->
+    if (!file.name.endsWith('dcf')) return
+    attempted++
+    if (AutomationTester.test(file)) succeeded++
+    else failList << file
+  }
+}
+
+println "\nSummary: $succeeded/$attempted passed"
+
+failFile.text = failList.inject(''){str, elt -> str + elt + '\n'}
+
+//cleanup
+new File('tmp.s').delete()
+new File('tmp.o').delete()
+
+class AutomationTester {
+ static boolean test(file) {
   //only compile decaf programs
-  if (!file.name.endsWith('dcf')) return
-  attempted++
   //output to tmp.s, use assertions
   def compiler = GroovyMain.runMain('codegen', file.text, ['assertEnabled': true, 'o': 'tmp.s'])
 
@@ -35,7 +61,7 @@ new File('TestPrograms').eachFile { file ->
       def location = it.getFileName() != null ? "${it.getFileName()}:${it.getLineNumber()}" : 'Unknown'
       println "  at ${it.getClassName()}.${it.getMethodName()}($location)"
     }
-    return
+    return false
   }
 
   //try to run gcc
@@ -47,7 +73,7 @@ new File('TestPrograms').eachFile { file ->
   if (gccout.toString() != '' || gccerr.toString() != '') {
     //output should be silent, print issue and terminate
     println "gcc stdout:\n$gccout\ngcc stderr:\n$gccerr"
-    return
+    return false
   }
 
   //try to run our application
@@ -68,15 +94,11 @@ new File('TestPrograms').eachFile { file ->
   app.waitFor()
   if (app.exitValue() == expectedExitCode && (expectedOutput == null || expectedOutput == appout.toString())) {
     println "$file.name succeeded!"
-    succeeded++
+    return true
   } else {
     println "$file.name failed.\nstdout:\n$appout"
     if (expectedOutput) println "Expected output:\n$expectedOutput"
+    return false
   }
+ }
 }
-
-println "\nSummary: $succeeded/$attempted passed"
-
-//cleanup
-new File('tmp.s').delete()
-new File('tmp.o').delete()

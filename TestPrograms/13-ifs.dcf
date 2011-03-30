@@ -1,0 +1,103 @@
+// EXPECTS [Hello World]
+// EXPECTS should be here
+// EXPECTS should be here
+class Program
+{
+    boolean not2(boolean a)
+    {
+        boolean b;
+        
+        b = true;
+        if (a) {
+            b=false;
+        }
+        
+        return b;
+    }
+
+    void phw(boolean a,boolean b,boolean c,boolean d,boolean e,boolean f,
+	     boolean g,boolean h,boolean i,boolean j )
+    {    
+        if (a) {
+            callout("printf","H");
+            if (b) {
+                callout("printf","e");
+                if (c) {
+                    callout("printf","l");
+                    if (d) {
+                        callout("printf","l");
+                        if (e) {
+                            callout("printf","*");
+                        }
+                        if (not2(e)) {
+                            callout("printf","o");
+                        }
+                    }
+                    if (not2(d)) {
+                        callout("printf","*");
+                    }
+                }
+                if (not2(c)) {
+                    callout("printf","*");
+                }
+            }
+            if (not2(b)) {
+                callout("printf","*");
+            }
+        }
+
+        if (not2(a)) {
+            callout("printf","*");
+        }
+
+        callout("printf"," ");
+
+        if (not2(f)) { callout ("printf","*"); }
+        
+	if (g) { 
+            if (not2(h)) { 
+	        callout("printf","W"); 
+                if (i) { 
+		    callout("printf","o");
+                    if (j) { callout("printf","r"); }
+                }
+            }
+        }
+        if (not2(g)) {
+            callout("printf","*");
+        }   
+    
+        callout("printf","l");
+        callout("printf","d");
+    }
+ 
+    void main()
+    {
+        callout("printf","[");
+        phw(true,true,true,true,false,true,true,false,true,true);
+        callout("printf","]");
+        callout("printf","\n");
+
+        if (2 > (3 - 5)*2)
+	{
+            callout("printf","should be here\n");
+
+	    if (2 > 5)
+	    {
+                callout("printf","should not be here\n");
+	    }
+	    else
+	    {
+                callout("printf","should be here\n");
+	    }
+	} 
+
+	else 
+	{
+            callout("printf","should not be here\n");
+	}
+     
+    }
+
+}
+
