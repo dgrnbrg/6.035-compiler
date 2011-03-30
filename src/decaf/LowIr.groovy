@@ -137,6 +137,17 @@ class LowIrNode implements GraphNode{
   Collection<TempVar> getUses() {
     return []
   }
+
+  void excise() {
+    if (predecessors.size() == 1 && successors.size() == 1) {
+      def oldPred = predecessors[0]
+      if (oldPred instanceof LowIrCondJump) return
+      def oldSucc = successors[0]
+      if (oldPred) unlink(oldPred, this)
+      if (oldSucc) unlink(this, oldSucc)
+      if (oldPred && oldSucc) link(oldPred, oldSucc)
+    }
+  }
 }
 
 class LowIrCondJump extends LowIrNode {
