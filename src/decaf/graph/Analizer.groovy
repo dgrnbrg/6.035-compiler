@@ -1,4 +1,5 @@
 package decaf.graph
+import static decaf.graph.Traverser.eachNodeOf
 
 enum AnalysisDirection {
   FORWARD, BACKWARD
@@ -15,9 +16,11 @@ abstract class Analizer {
   abstract Set<GraphNode> load(GraphNode node);
 
   void analize(GraphNode startNode) {
-    def worklist = new LinkedHashSet(allNodes(startNode))
+    def worklist = new LinkedHashSet()
+    eachNodeOf(startNode) { worklist << it }
+
     while (worklist.size() != 0) {
-      def node = worklist.iterator().first()
+      def node = worklist.iterator().next()
       worklist.remove(node)
       def old = load(node).clone()
       def input = join(node)
@@ -31,6 +34,7 @@ abstract class Analizer {
           assert false
         }
       }
+      store(node, out)
     }
   }
 }

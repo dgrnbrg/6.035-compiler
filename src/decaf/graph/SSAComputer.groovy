@@ -1,5 +1,6 @@
 package decaf.graph
 import decaf.*
+import static decaf.graph.Traverser.eachNodeOf
 
 //TODO: test multi-way merging (e.g. for loop with 3+ breaks)
 class SSAComputer {
@@ -41,19 +42,7 @@ class SSAComputer {
       return tmpVar
     }
 
-    //for each node (worklist algorithm)
-    def unvisitedNodes = new LinkedHashSet([startNode])
-    while (unvisitedNodes.size() != 0) {
-      def node = unvisitedNodes.iterator().next()
-      unvisitedNodes.remove(node)
-      //mark and add unvisited to list
-      node.anno['ssa-foreach-mark'] = true
-      node.successors.each {
-        if (!(it.anno['ssa-foreach-mark'])) {
-          unvisitedNodes << it
-        }
-      }
-
+    eachNodeOf(startNode) { node ->
       //compute if it defined a variable
       def tmpVar = a_orig(node)
       if (tmpVar) {
@@ -172,18 +161,7 @@ class SSAComputer {
   */
   static void destroyAllMyBeautifulHardWork(LowIrNode startNode) {
     def phiFunctions = []
-    //for each node (worklist algorithm)
-    def unvisitedNodes = [startNode]
-    while (unvisitedNodes.size() != 0) {
-      def node = unvisitedNodes.pop()
-      //mark and add unvisited to list
-      node.anno['de-ssa-foreach-mark'] = true
-      node.successors.each {
-        if (!(it.anno['de-ssa-foreach-mark'])) {
-          unvisitedNodes << it
-        }
-      }
-
+    eachNodeOf(startNode) { node ->
       if (node instanceof LowIrPhi) phiFunctions << node
     }
 

@@ -102,4 +102,23 @@ abstract class Traverser {
     }
 
   }
+
+  static void eachNodeOf(start, closure) {
+    //for each node (worklist algorithm)
+    def unvisitedNodes = new LinkedHashSet([start])
+    def visitedNodes = new HashSet()
+    while (unvisitedNodes.size() != 0) {
+      def node = unvisitedNodes.iterator().next()
+      unvisitedNodes.remove(node)
+      //mark and add unvisited to list
+      visitedNodes << node
+      node.successors.each {
+        if (!(visitedNodes.contains(it))) {
+          unvisitedNodes << it
+        }
+      }
+
+      closure(node)
+    }
+  }
 }
