@@ -139,13 +139,30 @@ class LowIrNode implements GraphNode{
   }
 
   void excise() {
-    if (predecessors.size() == 1 && successors.size() == 1) {
-      def oldPred = predecessors[0]
-      if (oldPred instanceof LowIrCondJump) return
+    if (successors.size() == 1) {
+      def oldPreds = predecessors.clone()
       def oldSucc = successors[0]
-      if (oldPred) unlink(oldPred, this)
-      if (oldSucc) unlink(this, oldSucc)
-      if (oldPred && oldSucc) link(oldPred, oldSucc)
+      unlink(this, oldSucc)
+      for (pred in oldPreds) {
+        unlink(pred, this)
+        link(pred, oldSucc)
+        //fix the explicit links in Cond Jumps
+        if (pred instanceof LowIrCondJump) {
+          if (pred.trueDest == this) {
+            pred.trueDest = oldSucc
+          } else if (pred.falseDest == this) {
+            pred.falseDest = oldSucc
+          } else {
+            assert false
+          }
+        }
+      }
+      if (getDef()) {
+        getDef().defSite = null
+      }
+      for (use in getUses()) {
+        use.useSites.remove(this)
+      }
     }
   }
 }
