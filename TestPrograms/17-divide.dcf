@@ -1,0 +1,21 @@
+// EXPECTS 72  0
+// EXPECTS 36  0
+// EXPECTS 24  0
+// EXPECTS 18  0
+// EXPECTS 14  2
+// EXPECTS 12  0
+// EXPECTS 10  2
+// EXPECTS 9  0
+// EXPECTS 8  0
+class Program
+{
+  void main() { 
+    int i, k;
+    int j;
+    i = 72;
+    for j = 1, 10 {
+      k = i + j;
+      callout("printf", "%d  %d\n", i / j, k % j);
+    }  
+  }
+}

@@ -1,0 +1,92 @@
+// EXPECTS hello world from main
+// EXPECTS some values (13,14): 13 14
+// EXPECTS args: 13+13+13+14+14+14=81
+// EXPECTS returned a variable, value is 81, should be 81
+// EXPECTS returned a constant, value is 1, should be 1
+// EXPECTS successfully did a short-circuited and.
+// EXPECTS successfully did a short-circuited and.
+// EXPECTS successfully did a short-circuited or.
+// EXPECTS successfully did a short-circuited or.
+// EXPECTS sum from 0 to 99 is 4950, should be 4950
+
+// test shortcircuit and other stuff
+
+class Program
+{
+  int field_in_class;
+
+  int test_long_args(int a, int b, int c, int d, int e, int f)
+  {
+    callout("printf","args: %d+%d+%d+%d+%d+%d=%d\n",a,b,c,d,e,f,a+b+c+d+e+f);
+    return a+b+c+d+e+f;
+  }
+
+  boolean test_short_circuit(boolean andy, boolean okay)
+  {
+    if (okay != true) {
+      if (andy != true) {
+        callout("printf","short circuit failed in and\n");
+      } else {
+        callout("printf","short circuit failed in or\n");
+      }
+    } 
+    return true;
+  }
+
+  void main()
+  {
+    int field_on_stack;
+    int result;
+    boolean a;
+    int x;
+
+
+    callout("printf","hello world from main\n");
+
+    field_in_class = 13;
+    field_on_stack = 14;
+    callout("printf","some values (13,14): %d %d\n",
+	    field_in_class,field_on_stack);
+
+    result = test_long_args(field_in_class,field_in_class,field_in_class,
+	                    field_on_stack,field_on_stack,field_on_stack);
+    callout("printf","returned a variable, value is %d, should be 81\n",result);
+
+    a = test_short_circuit(false, true);
+    callout("printf","returned a constant, value is %d, should be 1\n",a);
+
+    a = true;
+    if (a && test_short_circuit(true, true)) {
+	callout("printf","successfully did a short-circuited and.\n");
+    } else {
+	callout("printf","if failed on a && proc\n");
+    }
+
+    if (a!=true && test_short_circuit(true, false)) {
+	callout("printf","if failed on !a && proc\n");
+    } else {
+	callout("printf","successfully did a short-circuited and.\n");
+    }
+
+    if (a || test_short_circuit(false, false)) {
+	callout("printf","successfully did a short-circuited or.\n");
+    } else {
+	callout("printf","if failed on a || proc\n");
+    }
+
+    if (a!=true || test_short_circuit(false, true)) {
+	callout("printf","successfully did a short-circuited or.\n");
+    } else {
+	callout("printf","if failed on !a || proc\n");
+    }
+
+
+    
+    result = 0;
+    field_on_stack = 100;
+    for i = 0, field_on_stack {
+        result = result + i;
+    }
+    callout("printf","sum from 0 to 99 is %d, should be 4950\n",result);
+  }
+}
