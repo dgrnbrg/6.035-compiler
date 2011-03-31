@@ -275,12 +275,11 @@ public class GroovyMain {
     depends(genLowIr)
 
 
-    def lidt = new LowIrDotTraverser(out: dotOut)
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
 //      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       TraceGraph.calculateTraces(methodDesc.lowir);
-      lidt.traverse(methodDesc.lowir)
+      new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
     dotOut.println '}'
   }
