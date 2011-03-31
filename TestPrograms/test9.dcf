@@ -1,0 +1,25 @@
+// test that CSE isn't failing
+class Program {
+  void main() {
+    int a, b, x;
+    a = 1;
+    b = 2;
+    x = a + b;
+    assert(x == 3);
+    if (true) {
+      a = 3;
+      x = a + b;
+      assert(x == 5);
+      if (false) {
+        x = 0;
+        assert(false);
+      }
+      x = a + b;
+      assert(x == 5);
+    }
+    x = a + b;
+    assert (x == 5);
+    x = a + b;
+    assert (x == 5);
+  }
+}

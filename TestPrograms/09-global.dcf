@@ -1,0 +1,15 @@
+// EXPECTS 10 + 5 = 15 (15)
+class Program
+{
+    int a, b, c;
+
+    void main()
+    {
+        a = 10;
+        b = 5;
+
+        c = a + b;
+
+        callout("printf", "%d + %d = %d (15)\n", a, b, c);
+    }
+}

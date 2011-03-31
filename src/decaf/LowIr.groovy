@@ -137,6 +137,34 @@ class LowIrNode implements GraphNode{
   Collection<TempVar> getUses() {
     return []
   }
+
+  void excise() {
+    if (successors.size() == 1) {
+      def oldPreds = predecessors.clone()
+      def oldSucc = successors[0]
+      unlink(this, oldSucc)
+      for (pred in oldPreds) {
+        unlink(pred, this)
+        link(pred, oldSucc)
+        //fix the explicit links in Cond Jumps
+        if (pred instanceof LowIrCondJump) {
+          if (pred.trueDest == this) {
+            pred.trueDest = oldSucc
+          } else if (pred.falseDest == this) {
+            pred.falseDest = oldSucc
+          } else {
+            assert false
+          }
+        }
+      }
+      if (getDef()) {
+        getDef().defSite = null
+      }
+      for (use in getUses()) {
+        use.useSites.remove(this)
+      }
+    }
+  }
 }
 
 class LowIrCondJump extends LowIrNode {
@@ -387,7 +415,7 @@ class LowIrStore extends LowIrNode {
   }
 
   String toString() {
-    "LowIrStore(dest: $desc, index: $index)"
+    "LowIrStore(desc: $desc, index: $index)"
   }
 }
 
@@ -411,7 +439,7 @@ class LowIrLoad extends LowIrValueNode {
   }
 
   String toString() {
-    "LowIrLoad(dest: $desc, index: $index)"
+    "LowIrLoad(desc: $desc, index: $index, tmpVar: $tmpVar)"
   }
 }
 

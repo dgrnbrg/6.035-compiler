@@ -1,0 +1,10 @@
+// EXPECTS Hello, World.
+class Program
+{
+    void main()
+    {
+        callout("printf", "Hello, World.\n");
+    }
+}
+
+      

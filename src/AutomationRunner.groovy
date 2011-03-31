@@ -61,6 +61,9 @@ class AutomationTester {
       def location = it.getFileName() != null ? "${it.getFileName()}:${it.getLineNumber()}" : 'Unknown'
       println "  at ${it.getClassName()}.${it.getMethodName()}($location)"
     }
+    if (compiler.errors) {
+      compiler.errors.each{println it}
+    }
     return false
   }
 
