@@ -14,8 +14,7 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-    //out.println("${cur.hashCode()} [label=\"$cur Label=${cur.label} \\nTrc = ${cur.anno}\"$nodeColor]")
-    out.println("${cur.hashCode()} [label=\"$cur\"]")
+    out.println("${cur.hashCode()} [label=\"$cur $cur.label\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -223,7 +222,7 @@ public class GroovyMain {
   def genHiIr = {->
     depends(genSymTable)
 
-    if(argparser['assertEnabled']) {
+    if(argparser['assertEnabled'] != null) {
       ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
     }
 
@@ -276,10 +275,11 @@ public class GroovyMain {
     depends(genLowIr)
 
 
-    def lidt = new LowIrDotTraverser(out: dotOut)
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-      lidt.traverse(methodDesc.lowir)
+//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      TraceGraph.calculateTraces(methodDesc.lowir);
+      new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
     dotOut.println '}'
   }
@@ -291,9 +291,10 @@ public class GroovyMain {
     depends(genTmpVars)
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
+      new CommonSubexpressionElimination().run(methodDesc)
       new SSAComputer().compute(methodDesc)
       new CopyPropagation().propagate(methodDesc.lowir)
-//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      new DeadCodeElimination().run(methodDesc.lowir)
     }
   }
 

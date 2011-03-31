@@ -1,7 +1,7 @@
 package decaf.graph
 import decaf.*
+import static decaf.graph.Traverser.eachNodeOf
 
-//TODO: test multi-way merging (e.g. for loop with 3+ breaks)
 class SSAComputer {
   DominanceComputations domComps = new DominanceComputations()
   TempVarFactory tempFactory
@@ -41,19 +41,7 @@ class SSAComputer {
       return tmpVar
     }
 
-    //for each node (worklist algorithm)
-    def unvisitedNodes = new LinkedHashSet([startNode])
-    while (unvisitedNodes.size() != 0) {
-      def node = unvisitedNodes.iterator().next()
-      unvisitedNodes.remove(node)
-      //mark and add unvisited to list
-      node.anno['ssa-foreach-mark'] = true
-      node.successors.each {
-        if (!(it.anno['ssa-foreach-mark'])) {
-          unvisitedNodes << it
-        }
-      }
-
+    eachNodeOf(startNode) { node ->
       //compute if it defined a variable
       def tmpVar = a_orig(node)
       if (tmpVar) {
@@ -172,18 +160,7 @@ class SSAComputer {
   */
   static void destroyAllMyBeautifulHardWork(LowIrNode startNode) {
     def phiFunctions = []
-    //for each node (worklist algorithm)
-    def unvisitedNodes = [startNode]
-    while (unvisitedNodes.size() != 0) {
-      def node = unvisitedNodes.pop()
-      //mark and add unvisited to list
-      node.anno['de-ssa-foreach-mark'] = true
-      node.successors.each {
-        if (!(it.anno['de-ssa-foreach-mark'])) {
-          unvisitedNodes << it
-        }
-      }
-
+    eachNodeOf(startNode) { node ->
       if (node instanceof LowIrPhi) phiFunctions << node
     }
 
@@ -198,7 +175,13 @@ class SSAComputer {
       //insert the appropriate moves
       def moves = [] //this contains tuples of [LowIrMov, predecessor]
       joinPoint.predecessors.eachWithIndex { pred, index ->
-        moves << [new LowIrMov(src: phi.args[index], dst: phi.tmpVar), pred]
+        //we only emit moves for phi arguments that were defined
+        if (phi.args[index].defSite != null) {
+          moves << [new LowIrMov(src: phi.args[index], dst: phi.tmpVar), pred]
+        } else {
+          //TODO: make these be inline
+          moves << [new LowIrIntLiteral(value: 0, tmpVar: phi.tmpVar), pred]
+        }
       }
       moves.each {tuple -> 
         def mov = tuple[0]
@@ -206,11 +189,17 @@ class SSAComputer {
         new LowIrBridge(mov).insertBetween(pred, joinPoint)
       }
 
-      //delete the phi function
-      assert phi.predecessors.size() == 1 && phi.successors.size() == 1
-      LowIrNode.link(phi.predecessors[0], phi.successors[0])
-      LowIrNode.unlink(phi.predecessors[0], phi)
-      LowIrNode.unlink(phi, phi.successors[0])
+      assert phi.successors.size() == 1
+      if (phi.predecessors.size() == 1) {
+        if (phi.successors[0]) LowIrNode.link(phi.predecessors[0], phi.successors[0])
+        LowIrNode.unlink(phi.predecessors[0], phi)
+      } else if (phi.predecessors.size() > 1) {
+        for (pred in phi.predecessors.clone()) {
+          if (phi.successors[0]) LowIrNode.link(pred, phi.successors[0])
+          LowIrNode.unlink(pred, phi)
+        }
+      }
+      if (phi.successors) LowIrNode.unlink(phi, phi.successors[0])
     }
   }
 }

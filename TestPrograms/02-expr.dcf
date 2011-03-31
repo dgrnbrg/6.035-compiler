@@ -1,0 +1,22 @@
+// EXPECTS 30 2600
+class Program
+{
+    void main()
+    {
+        int a, b, c;
+        int d, e;
+
+        a = 10;
+        b = 20;
+        c = 30;
+
+        d = (a + b); // d = 30
+        e = (c * 3); // e = 90
+
+        e = d * e - 100; // e = 2600
+
+        callout("printf", "%d %d\n", d, e);
+    }
+}
+
+      

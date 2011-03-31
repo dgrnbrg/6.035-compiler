@@ -19,16 +19,6 @@ class CodeGenerator extends Traverser {
     // Part of pre-trace codegen
     // traverse(method.lowir)
     traverseWithTraces(method.lowir)
-    // Remove following line when done with codegen
-    //assert(false);
-    emit(method.name + '_end:')
-    if (method.returnType == Type.VOID) {
-      movq(0,rax) //void fxns return 0
-      leave()
-      ret()
-    } else {
-      dieWithMessage("Control fell off end of non-void function $method.name\\n")
-    }
   }
 
   Operand getTmp(TempVar tmp){
@@ -116,6 +106,8 @@ class CodeGenerator extends Traverser {
     case LowIrReturn:
       if (stmt.tmpVar != null) {
         movq(getTmp(stmt.tmpVar),rax)
+      } else {
+        movq(0,rax) //void fxns return 0
       }
       leave()
       ret()
@@ -266,9 +258,7 @@ class CodeGenerator extends Traverser {
       jmp(method.name + '_end')
     }*/
 
-    if(stmt.anno["trace"]["terminal"]) {
-      jmp(method.name + '_end')
-    } else if(stmt.anno["trace"]["FalseJmpSrc"]) {
+    if(stmt.anno["trace"]["FalseJmpSrc"]) {
       jmp(stmt.falseDest.label)
     } else if(stmt.anno["trace"]["JmpSrc"]) {
       jmp(stmt.anno["trace"]["JmpSrc"])
