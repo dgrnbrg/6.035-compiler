@@ -5,9 +5,13 @@ import static decaf.LowIrNode.link
 class LowIrGenerator {
 
   MethodDescriptor desc //keep a descriptor around to generate new temps or inspect other properties
+  def returnValueNode
+  def inliningStack
 
   LowIrBridge destruct(MethodDescriptor desc) {
     this.desc = desc
+    inliningStack = [desc]
+    returnValueNode = null
     def epilogue
     if (desc.returnType == Type.VOID) {
       epilogue = new LowIrBridge(new LowIrReturn())
@@ -17,9 +21,30 @@ class LowIrGenerator {
     return destruct(desc.block).seq(epilogue)
   }
 
-  LowIrBridge destructInline(MethodDescriptor desc) {
+  // returns a valuebridge which is the inlined function
+  LowIrBridge destructInline(MethodDescriptor desc, params) {
     //generate prologue to configure recursive parameters
-    //generate lowirbridge which represents method, but handle return as a special case (jump to end)
+    //move arguments into parameters
+    def index = 0
+    index = 0
+    def movIntoParams = new LowIrBridge(
+      params.collect{ param -> new LowIrMov(src: param, dst: desc.params[index++].tmpVar) } ?:
+        new LowIrNode(metaText: 'zero argument inlined function')
+    )
+    //save old returnValueNode (for recursive inlining) and update current
+    def oldReturnValueNode = returnValueNode
+    returnValueNode = new LowIrValueNode(tmpVar: this.desc.tempFactory.createLocalTemp())
+    //generate lowirbridge which represents method
+    inliningStack << desc
+    def methodBody = destruct(desc.block)
+    inliningStack.pop()
+    def epilogue = new LowIrValueBridge(returnValueNode)
+    if (desc.returnType != Type.VOID) {
+      epilogue = dieWithMessage("Control fell off end of non-void function $desc.name\\n").seq(epilogue)
+    }
+    def result = movIntoParams.seq(methodBody).seq(epilogue)
+    returnValueNode = oldReturnValueNode
+    return result
   }
 
   LowIrBridge destruct(Block block) {
@@ -50,19 +75,35 @@ class LowIrGenerator {
       bridge = bridge.seq(it)
     }
     def paramTmpVars = params.collect { it.tmpVar }
-    def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor, paramTmpVars: paramTmpVars)
-    lowir.tmpVar = methodCall.tmpVar
-    return bridge.seq(new LowIrValueBridge(lowir))
+    int mSize = 0 // # of nodes in hiir
+    methodCall.descriptor.block.inOrderWalk{ mSize += 1; walk() }
+    def methodBridge
+    //NB change mSize > N to choose the size of the functions to inline vs. not
+    if (mSize > 50 || methodCall.descriptor in inliningStack) {
+      def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor, paramTmpVars: paramTmpVars)
+      lowir.tmpVar = methodCall.tmpVar
+      methodBridge = new LowIrValueBridge(lowir)
+    } else {
+      methodBridge = destructInline(methodCall.descriptor, paramTmpVars)
+    }
+    return bridge.seq(methodBridge)
   }
 
   LowIrBridge destruct(Return ret) {
     def bridge = new LowIrBridge(new LowIrNode(metaText: 'begin ret'))
-    def lowir = new LowIrReturn()
+    def tmpVar = desc.tempFactory.createLocalTemp()
     if (ret.expr != null) {
       bridge = destruct(ret.expr)
-      lowir.tmpVar = bridge.tmpVar
+      tmpVar = bridge.tmpVar
     }
-    return bridge.seq(new LowIrBridge(lowir))
+    def lowir
+    if (returnValueNode != null) {
+      lowir = new LowIrMov(src: tmpVar, dst: returnValueNode.tmpVar)
+      LowIrNode.link(lowir, returnValueNode)
+    } else {
+      lowir = new LowIrReturn(tmpVar: tmpVar)
+    }
+    return bridge.seq(new LowIrBridge(lowir, new LowIrNode(metaText: 'return spurious node')))
   }
 
   LowIrBridge destruct(StringLiteral lit) {
@@ -238,5 +279,15 @@ class LowIrGenerator {
     def constOne = new LowIrIntLiteral(value: 1, tmpVar: desc.tempFactory.createLocalTemp())
     def exit = new LowIrCallOut(name: 'exit', paramTmpVars: [constOne.tmpVar], tmpVar: desc.tempFactory.createLocalTemp())
     return new LowIrBridge([msgStr,printf,constOne,exit])
+  }
+
+  LowIrBridge createEpilogue(MethodDescriptor desc) {
+    def epilogue
+    if (desc.returnType == Type.VOID) {
+      epilogue = new LowIrBridge(new LowIrReturn())
+    } else {
+      epilogue = dieWithMessage("Control fell off end of non-void function $desc.name\\n")
+    }
+    return epilogue
   }
 }
