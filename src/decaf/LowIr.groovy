@@ -16,6 +16,13 @@ class LowIrBridge {
     this.end = end
   }
 
+  LowIrBridge(List nodes) {
+    this(nodes[0], nodes[-1])
+    for (int i = 0; i < nodes.size() - 1; i++) {
+      LowIrNode.link(nodes[i], nodes[i+1])
+    }
+  }
+
   LowIrBridge seq(LowIrBridge next) {
     LowIrNode.link(this.end, next.begin)
     if (next instanceof LowIrValueBridge) {

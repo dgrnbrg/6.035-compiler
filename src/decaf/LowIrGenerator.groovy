@@ -8,7 +8,18 @@ class LowIrGenerator {
 
   LowIrBridge destruct(MethodDescriptor desc) {
     this.desc = desc
-    return destruct(desc.block)
+    def epilogue
+    if (desc.returnType == Type.VOID) {
+      epilogue = new LowIrBridge(new LowIrReturn())
+    } else {
+      epilogue = dieWithMessage("Control fell off end of non-void function $desc.name\\n")
+    }
+    return destruct(desc.block).seq(epilogue)
+  }
+
+  LowIrBridge destructInline(MethodDescriptor desc) {
+    //generate prologue to configure recursive parameters
+    //generate lowirbridge which represents method, but handle return as a special case (jump to end)
   }
 
   LowIrBridge destruct(Block block) {
@@ -219,5 +230,13 @@ class LowIrGenerator {
     def breakNode = new LowIrNode(metaText: 'break')
     LowIrNode.link(breakNode, forLoopBreakContinueStack[-1][0])
     return new LowIrBridge(breakNode, new LowIrNode(metaText: 'break spurious node'))
+  }
+
+  LowIrBridge dieWithMessage(String msg) {
+    def msgStr = new LowIrStringLiteral(value: "RUNTIME ERROR: $msg", tmpVar: desc.tempFactory.createLocalTemp())
+    def printf = new LowIrCallOut(name: 'printf', paramTmpVars: [msgStr.tmpVar], tmpVar: desc.tempFactory.createLocalTemp())
+    def constOne = new LowIrIntLiteral(value: 1, tmpVar: desc.tempFactory.createLocalTemp())
+    def exit = new LowIrCallOut(name: 'exit', paramTmpVars: [constOne.tmpVar], tmpVar: desc.tempFactory.createLocalTemp())
+    return new LowIrBridge([msgStr,printf,constOne,exit])
   }
 }
