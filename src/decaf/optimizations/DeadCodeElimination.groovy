@@ -48,6 +48,7 @@ class DeadCodeElimination extends Analizer {
 
   def run(startNode) {
     analize(startNode)
+    def worklist = new LinkedHashSet()
     eachNodeOf(startNode) {
       //don't delete the first node
       if (it.is(startNode)) return
@@ -64,9 +65,16 @@ class DeadCodeElimination extends Analizer {
         set += load(succ)
       }
       if (it.getDef() != null && !(it.getDef() in liveOut)) {
-        it.excise()
+        worklist << it
       }
       //deleting noops seems to cause weird bugs, so we won't do that any more
+    }
+    while (worklist.size() > 0) {
+      def node = worklist.iterator().next()
+      worklist.remove(node)
+      def uses = node.getUses()
+      node.excise()
+      worklist += uses.findAll{it.useSites.size() == 0}*.defSite
     }
   }
 }
