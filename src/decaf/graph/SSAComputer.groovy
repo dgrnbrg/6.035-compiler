@@ -160,8 +160,10 @@ class SSAComputer {
   */
   static void destroyAllMyBeautifulHardWork(LowIrNode startNode) {
     def phiFunctions = []
+    def undefTmpVars = new LinkedHashSet()
     eachNodeOf(startNode) { node ->
       if (node instanceof LowIrPhi) phiFunctions << node
+      if (node.getUses().defSite == null) undefTmpVars.addAll(node.getUses())
     }
 
     //for each phi
@@ -173,19 +175,15 @@ class SSAComputer {
       assert phi.args.size() == joinPoint.predecessors.size()
 
       //insert the appropriate moves
-      def moves = [] //this contains tuples of [LowIrMov, predecessor]
-      joinPoint.predecessors.eachWithIndex { pred, index ->
+      joinPoint.predecessors.clone().eachWithIndex { pred, index ->
         //we only emit moves for phi arguments that were defined
+        def mov
         if (phi.args[index].defSite != null) {
-          moves << [new LowIrMov(src: phi.args[index], dst: phi.tmpVar), pred]
+          mov = new LowIrMov(src: phi.args[index], dst: phi.tmpVar)
         } else {
           //TODO: make these be inline
-          moves << [new LowIrIntLiteral(value: 0, tmpVar: phi.tmpVar), pred]
+          mov = new LowIrIntLiteral(value: 0, tmpVar: phi.tmpVar)
         }
-      }
-      moves.each {tuple -> 
-        def mov = tuple[0]
-        def pred = tuple[1]
         new LowIrBridge(mov).insertBetween(pred, joinPoint)
       }
 
@@ -200,6 +198,11 @@ class SSAComputer {
         }
       }
       if (phi.successors) LowIrNode.unlink(phi, phi.successors[0])
+    }
+
+    assert startNode.successors.size() == 1
+    for (tmpVar in undefTmpVars) {
+      new LowIrBridge(new LowIrIntLiteral(value: 0, tmpVar: tmpVar)).insertBetween(startNode, startNode.successors[0])
     }
   }
 }
