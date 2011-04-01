@@ -7,6 +7,7 @@ class LowIrGenerator {
   MethodDescriptor desc //keep a descriptor around to generate new temps or inspect other properties
   def returnValueNode
   def inliningStack
+  def inliningThreshold = 50
 
   LowIrBridge destruct(MethodDescriptor desc) {
     this.desc = desc
@@ -26,7 +27,6 @@ class LowIrGenerator {
     //generate prologue to configure recursive parameters
     //move arguments into parameters
     def index = 0
-    index = 0
     def movIntoParams = new LowIrBridge(
       params.collect{ param -> new LowIrMov(src: param, dst: desc.params[index++].tmpVar) } ?:
         new LowIrNode(metaText: 'zero argument inlined function')
@@ -78,8 +78,7 @@ class LowIrGenerator {
     int mSize = 0 // # of nodes in hiir
     methodCall.descriptor.block.inOrderWalk{ mSize += 1; walk() }
     def methodBridge
-    //NB change mSize > N to choose the size of the functions to inline vs. not
-    if (mSize > 50 || methodCall.descriptor in inliningStack) {
+    if (mSize > inliningThreshold || methodCall.descriptor in inliningStack) {
       def lowir = new LowIrMethodCall(descriptor: methodCall.descriptor, paramTmpVars: paramTmpVars)
       lowir.tmpVar = methodCall.tmpVar
       methodBridge = new LowIrValueBridge(lowir)
@@ -172,6 +171,7 @@ class LowIrGenerator {
       //it is an array, so we need to link the index to it
       if (bridge instanceof LowIrValueBridge) {
         storeBridge.end.index = bridge.tmpVar
+        storeBridge = boundsCheck(assignment.loc.descriptor, bridge.tmpVar).seq(storeBridge)
       }
       return srcBridge.seq(bridge).seq(storeBridge)
     } else {
@@ -194,6 +194,7 @@ class LowIrGenerator {
       //it is an array, so we need to link the index to it
       if (bridge instanceof LowIrValueBridge) {
         valBridge.end.index = bridge.tmpVar
+        valBridge = boundsCheck(loc.descriptor, bridge.tmpVar).seq(valBridge)
       }
       return bridge.seq(valBridge)
     } else {
@@ -281,13 +282,31 @@ class LowIrGenerator {
     return new LowIrBridge([msgStr,printf,constOne,exit])
   }
 
-  LowIrBridge createEpilogue(MethodDescriptor desc) {
-    def epilogue
-    if (desc.returnType == Type.VOID) {
-      epilogue = new LowIrBridge(new LowIrReturn())
-    } else {
-      epilogue = dieWithMessage("Control fell off end of non-void function $desc.name\\n")
-    }
-    return epilogue
+  LowIrBridge boundsCheck(VariableDescriptor arrDesc, TempVar indexVar) {
+    assert arrDesc.arraySize != null
+    //if too high, die, else low. if too low, die, else done
+    def highTmp = desc.tempFactory.createLocalTemp()
+    def cmpResult = desc.tempFactory.createLocalTemp()
+    def highBridge = new LowIrBridge([
+      new LowIrIntLiteral(value: arrDesc.arraySize, tmpVar: highTmp),
+      new LowIrBinOp(leftTmpVar: indexVar, rightTmpVar: highTmp, op: BinOpType.GTE, tmpVar: cmpResult),
+      new LowIrCondJump(condition: cmpResult)
+    ])
+    def lowTmp = desc.tempFactory.createLocalTemp()
+    def lowBridge = new LowIrBridge([
+      new LowIrIntLiteral(value: 0, tmpVar: lowTmp),
+      new LowIrBinOp(leftTmpVar: indexVar, rightTmpVar: lowTmp, op: BinOpType.LT, tmpVar: cmpResult),
+      new LowIrCondJump(condition: cmpResult)
+    ])
+    def outOfBoundsBridge = dieWithMessage("Array out of bounds")
+    highBridge.end.trueDest = outOfBoundsBridge.begin
+    highBridge.end.falseDest = lowBridge.begin
+    LowIrNode.link(highBridge.end, outOfBoundsBridge.begin)
+    LowIrNode.link(highBridge.end, lowBridge.begin)
+    lowBridge.end.trueDest = outOfBoundsBridge.begin
+    lowBridge.end.falseDest = new LowIrNode(metaText: 'bounds check end')
+    LowIrNode.link(lowBridge.end, outOfBoundsBridge.begin)
+    LowIrNode.link(lowBridge.end, lowBridge.end.falseDest)
+    return new LowIrBridge(highBridge.begin, lowBridge.end.falseDest)
   }
 }

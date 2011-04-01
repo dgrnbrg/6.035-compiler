@@ -197,6 +197,30 @@ public class GroovyMain {
     dotOut.println('}')
   }
 
+  def opts = new LinkedHashSet()
+  def decideOptimizations = {->
+    if ('cse' in argparser['opt']) {
+      opts << 'cse'
+    }
+    if ('ssa' in argparser['opt']) {
+      opts << 'ssa'
+    }
+    if ('cp' in argparser['opt']) {
+      opts += ['ssa', 'cp']
+    }
+    if ('dce' in argparser['opt']) {
+      opts += ['ssa', 'dce']
+    }
+    if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
+      lowirGen.inliningThreshold = 50
+    } else {
+      lowirGen.inliningThreshold = 0
+    }
+    if ('all' in argparser['opt']) {
+      opts += ['ssa', 'dce', 'cse', 'cp']
+    }
+  }
+
   def symTableGenerator = new SymbolTableGenerator(errors: errors)
 
   //todo: test that dot is closed even if symtable not generated
@@ -288,13 +312,18 @@ public class GroovyMain {
 
   def genLowIr = {->
     depends(inter)
+    depends(decideOptimizations) //cse, ssa, all, cp, dce
     depends(genTmpVars)
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
-      new CommonSubexpressionElimination().run(methodDesc)
-      new SSAComputer().compute(methodDesc)
-      new CopyPropagation().propagate(methodDesc.lowir)
-      new DeadCodeElimination().run(methodDesc.lowir)
+      if ('cse' in opts)
+        new CommonSubexpressionElimination().run(methodDesc)
+      if ('ssa' in opts)
+        new SSAComputer().compute(methodDesc)
+      if ('cp' in opts)
+        new CopyPropagation().propagate(methodDesc.lowir)
+      if ('dce' in opts)
+        new DeadCodeElimination().run(methodDesc.lowir)
     }
   }
 
