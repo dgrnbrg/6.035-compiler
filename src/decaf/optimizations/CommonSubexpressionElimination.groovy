@@ -2,6 +2,7 @@ package decaf.optimizations
 import decaf.*
 import decaf.graph.*
 import static decaf.graph.Traverser.eachNodeOf
+import static decaf.BinOpType.*
 
 class CommonSubexpressionElimination extends Analizer{
 
@@ -111,7 +112,7 @@ class CommonSubexpressionElimination extends Analizer{
   def kill(node) {
     def set = node.getDef() != null ? lazy(exprsContainingTmp, node.getDef()) : Collections.emptySet()
     //todo: this is so not optimal it hurts
-    if (node instanceof LowIrCallOut || node instanceof LowIrMethodCall || node instanceof LowIrStore) {
+    if (node instanceof LowIrMethodCall || node instanceof LowIrStore) {
       set = memoryExprs
     }
     return set
@@ -131,7 +132,10 @@ class AvailableExpr {
     switch (node) {
     case LowIrBinOp:
       i = node.op.hashCode() * 43 + node.leftTmpVar.hashCode() * 97
-      if (node.rightTmpVar) i += node.rightTmpVar.hashCode() * 97
+      if (node.rightTmpVar) {
+        if (node.op in [ADD, MUL, EQ, NEQ, AND, OR]) i += node.rightTmpVar.hashCode() * 97
+        else i += node.rightTmpVar.hashCode() * 103
+      }
       break
     case LowIrLoad:
       i = node.desc.hashCode() * 4257

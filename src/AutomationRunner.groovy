@@ -45,7 +45,7 @@ class AutomationTester {
  static boolean test(file) {
   //only compile decaf programs
   //output to tmp.s, use assertions
-  def compiler = GroovyMain.runMain('codegen', file.text, ['assertEnabled': true, 'o': 'tmp.s'])
+  def compiler = GroovyMain.runMain('codegen', file.text, ['assertEnabled': true, 'o': 'tmp.s', 'opt': ['all']])
 
   //if compilation failed, print error and terminate
   if (compiler.failException) {

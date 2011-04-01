@@ -122,7 +122,6 @@ class CodeGenerator extends Traverser {
     case LowIrLoad:
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
-        doArrayBoundsCheck(stmt.desc, r11)
         def arrOp = r11(stmt.desc.name + '_globalvar', 8)
         movq(arrOp, r10)
       } else {
@@ -134,7 +133,6 @@ class CodeGenerator extends Traverser {
       movq(getTmp(stmt.value), r10)
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
-        doArrayBoundsCheck(stmt.desc, r11)
         def arrOp = r11(stmt.desc.name + '_globalvar', 8)
         movq(r10, arrOp)
       } else {
@@ -298,30 +296,6 @@ class CodeGenerator extends Traverser {
      }
     }
     return code.toString()
-  }
-
-  static int arrayBoundsLabelCounter = 0
-  def genArrayBoundsLabel() {
-    return "array_bounds_check_${arrayBoundsLabelCounter++}".toString()
-  }
-
-  //the access is in the inRegister, the desc is the array's descriptor
-  def doArrayBoundsCheck(VariableDescriptor desc, inRegister) {
-    def arrayBoundsLabel = genArrayBoundsLabel()
-    def arrayBoundsLabelPost = genArrayBoundsLabel()
-
-    cmp(desc.arraySize, inRegister)
-    jge(arrayBoundsLabel)
-
-    cmp(0, inRegister)
-    jl(arrayBoundsLabel)
-
-    jmp(arrayBoundsLabelPost)
-
-    emit(arrayBoundsLabel + ':')
-    dieWithMessage("Array out of bounds\\n");
-
-    emit(arrayBoundsLabelPost + ':')
   }
 
   def dieWithMessage(String msg) {

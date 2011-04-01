@@ -46,27 +46,42 @@ class DeadCodeElimination extends Analizer {
     return out
   }
 
+  boolean sideEffectFree(LowIrNode it) {
+    //can have side effects
+    if (it instanceof LowIrCallOut || it instanceof LowIrMethodCall) {
+      return false
+    }
+    //could be div by 0, resulting in a runtime exception
+    if (it instanceof LowIrBinOp && it.op == BinOpType.DIV) {
+      return false
+    }
+
+    return true
+  }
+
   def run(startNode) {
     analize(startNode)
+    def worklist = new LinkedHashSet()
     eachNodeOf(startNode) {
       //don't delete the first node
       if (it.is(startNode)) return
-      //can have side effects
-      if (it instanceof LowIrCallOut || it instanceof LowIrMethodCall) {
-        return
-      }
-      //could be div by 0, resulting in a runtime exception
-      if (it instanceof LowIrBinOp && it.op == BinOpType.DIV) {
-        return
-      }
+      if (!sideEffectFree(it)) return
       //if the defined variable isn't live, delete this node
       def liveOut = it.successors.inject(new HashSet()) { set, succ ->
         set += load(succ)
       }
       if (it.getDef() != null && !(it.getDef() in liveOut)) {
-        it.excise()
+        worklist << it
       }
       //deleting noops seems to cause weird bugs, so we won't do that any more
+    }
+    while (worklist.size() > 0) {
+      def node = worklist.iterator().next()
+      worklist.remove(node)
+      def uses = node.getUses()
+      if (sideEffectFree(node) && !node.is(startNode))
+        node.excise()
+      worklist += uses.findAll{it.useSites.size() == 0}*.defSite.findAll{it != null && sideEffectFree(it)}
     }
   }
 }
