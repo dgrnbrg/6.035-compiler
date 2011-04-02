@@ -87,8 +87,7 @@ class CommonSubexpressionElimination extends Analizer{
 
   Set join(GraphNode node) {
     if (node.predecessors) {
-      return node.predecessors.inject(allExprs.clone()) { set, succ -> set.retainAll(load(succ)); set }
-      return node.predecessors.inject(allExprs) { set, succ -> set.intersect(load(succ)) }
+      return node.predecessors.inject(load(node.predecessors[0]).clone()) { set, succ -> set.retainAll(load(succ)); set }
     } else
       return new LinkedHashSet()
   }
