@@ -14,7 +14,7 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-    out.println("${cur.hashCode()} [label=\"$cur $cur.label\"$nodeColor]")
+    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['avail']}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -316,6 +316,8 @@ public class GroovyMain {
     depends(genTmpVars)
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
+    }
+    methodDescs.each { MethodDescriptor methodDesc ->
       if ('cse' in opts)
         new CommonSubexpressionElimination().run(methodDesc)
       if ('ssa' in opts)

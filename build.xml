@@ -141,6 +141,8 @@
       <arg value="-target" />
       <arg value="${Compiler.target}"/>
       <arg value="-assertEnabled"/>
+      <arg value="-opt"/>
+      <arg value="all"/>
     </java>
   </target>
 

@@ -6,11 +6,14 @@ import static decaf.BinOpType.*
 
 class CommonSubexpressionElimination extends Analizer{
 
-  def memoryExprs = new LinkedHashSet()
   def allExprs = new LinkedHashSet()
-  def exprsContainingTmp = [:]
+  def exprsContainingTmp = new LazyMap({new LinkedHashSet()})
 
-  def lazy = { map, key -> if (!map.containsKey(key)) map[key] = new LinkedHashSet(); map[key] }
+  def methodToClobbers = new LazyMap({
+    def clobbers = new LinkedHashSet()
+    eachNodeOf(it.lowir){node -> if (node instanceof LowIrStore) clobbers << node.desc }
+    return clobbers
+  })
 
   def run(MethodDescriptor methodDesc) {
     def startNode = methodDesc.lowir
@@ -20,10 +23,9 @@ class CommonSubexpressionElimination extends Analizer{
       expr = new AvailableExpr(it)
       switch (it) {
       case LowIrLoad:
-        memoryExprs << expr
       case LowIrBinOp:
         it.getUses().each { use ->
-          lazy(exprsContainingTmp, use) << expr
+          exprsContainingTmp[use] << expr
         }
         allExprs << expr
         break
@@ -66,20 +68,16 @@ class CommonSubexpressionElimination extends Analizer{
   }
 
   // map from nodes to (map from availableExpr to first def site)
-  def availExprMap = [:]
-  final void lazyInit(node) {
-    if (availExprMap[node] == null)
-      availExprMap[node] = [:]
-  }
+  def availExprMap = new LazyMap({[:]})
 
   void store(GraphNode node, Set data) {
     def newMap = [:]
     data.each { newMap[it] = it.node.getDef() }
     availExprMap[node] = newMap
+    node.anno['avail']=data
   }
 
   Set load(GraphNode node) {
-    lazyInit(node)
     return new LinkedHashSet(availExprMap[node].keySet())
   }
 
@@ -88,9 +86,10 @@ class CommonSubexpressionElimination extends Analizer{
   }
 
   Set join(GraphNode node) {
-    if (node.predecessors)
+    if (node.predecessors) {
+      return node.predecessors.inject(allExprs.clone()) { set, succ -> set.retainAll(load(succ)); set }
       return node.predecessors.inject(allExprs) { set, succ -> set.intersect(load(succ)) }
-    else
+    } else
       return new LinkedHashSet()
   }
 
@@ -110,10 +109,12 @@ class CommonSubexpressionElimination extends Analizer{
   }
 
   def kill(node) {
-    def set = node.getDef() != null ? lazy(exprsContainingTmp, node.getDef()) : Collections.emptySet()
+    def set = node.getDef() != null ? exprsContainingTmp[node.getDef()] : Collections.emptySet()
     //todo: this is so not optimal it hurts
-    if (node instanceof LowIrMethodCall || node instanceof LowIrStore) {
-      set = memoryExprs
+    if (node instanceof LowIrMethodCall) {
+      set = methodToClobbers[node.descriptor].collect{new AvailableExpr(new LowIrLoad(desc: it))}
+    } else if (node instanceof LowIrStore) {
+      set = Collections.singleton(new AvailableExpr(new LowIrLoad(desc: node.desc)))
     }
     return set
   }
