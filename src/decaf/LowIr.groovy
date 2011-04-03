@@ -422,7 +422,7 @@ class LowIrStore extends LowIrNode {
   }
 
   String toString() {
-    "LowIrStore(desc: $desc, index: $index)"
+    "LowIrStore(value: $value, desc: $desc, index: $index)"
   }
 }
 

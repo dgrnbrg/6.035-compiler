@@ -200,7 +200,7 @@ public class GroovyMain {
   def opts = new LinkedHashSet()
   def decideOptimizations = {->
     if ('cse' in argparser['opt']) {
-      opts << 'cse'
+      opts += ['ssa', 'cse']
     }
     if ('ssa' in argparser['opt']) {
       opts << 'ssa'
@@ -318,10 +318,10 @@ public class GroovyMain {
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
     methodDescs.each { MethodDescriptor methodDesc ->
-      if ('cse' in opts)
-        new CommonSubexpressionElimination().run(methodDesc)
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
+      if ('cse' in opts)
+        new CommonSubexpressionElimination().run(methodDesc)
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)

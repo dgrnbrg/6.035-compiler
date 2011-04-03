@@ -15,8 +15,10 @@ class CommonSubexpressionElimination extends Analizer{
     return clobbers
   })
 
+  def tempFactory
   def run(MethodDescriptor methodDesc) {
     def startNode = methodDesc.lowir
+    tempFactory = methodDesc.tempFactory
     store(startNode, new LinkedHashSet())
     eachNodeOf(startNode) {
       def expr
@@ -38,6 +40,7 @@ class CommonSubexpressionElimination extends Analizer{
       case LowIrBinOp:
         def expr = new AvailableExpr(it)
         if (it.predecessors.every{pred -> load(pred).contains(expr)}) {
+/*
           def tmpVar = methodDesc.tempFactory.createLocalTemp()
           def worklist = new LinkedHashSet(it.predecessors)
           def visited = new HashSet(worklist)
@@ -57,6 +60,10 @@ class CommonSubexpressionElimination extends Analizer{
               worklist += candidate.predecessors - visited
             }
           }
+*/
+          rootNode = it
+          tmpVarCache = [:]
+          def tmpVar = createRedundancy(it, expr)
           //now, insert mov so that from tmpvar to redundant expr's destination
           assert it.successors.size() == 1
           new LowIrBridge(new LowIrMov(src: tmpVar, dst: it.getDef())).insertBetween(
@@ -64,6 +71,53 @@ class CommonSubexpressionElimination extends Analizer{
           it.excise()
         }
       }
+    }
+  }
+
+  def getExpressionOf(node) {
+    if (node instanceof LowIrBinOp || node instanceof LowIrLoad) {
+      return new AvailableExpr(node)
+    } else {
+      return [tmpVar: null]
+    }
+  }
+
+  def rootNode
+  Map tmpVarCache
+  TempVar createRedundancy(LowIrNode startNode, targetExpression) {
+    def nodeUnderInspection = startNode
+    def exprUnderInspection = getExpressionOf(nodeUnderInspection)
+    def walkedNodes = [nodeUnderInspection]
+    while (nodeUnderInspection.predecessors.size() == 1
+        && !tmpVarCache.containsKey(nodeUnderInspection)) {
+      if (exprUnderInspection == targetExpression && nodeUnderInspection != rootNode) {
+        break
+      }
+      nodeUnderInspection = nodeUnderInspection.predecessors[0]
+      exprUnderInspection = getExpressionOf(nodeUnderInspection)
+      walkedNodes << nodeUnderInspection
+    }
+
+    if (tmpVarCache.containsKey(nodeUnderInspection)) return tmpVarCache[nodeUnderInspection]
+
+    if (exprUnderInspection == targetExpression) {
+      walkedNodes.each { tmpVarCache[it] = exprUnderInspection.tmpVar }
+      return exprUnderInspection.tmpVar
+    } else if (nodeUnderInspection.predecessors.size() > 1) {
+      //we need to insert a phi before this node, but first, find the 2 tmpVars
+      //if all are equal, return it; otherwise, insert phi function
+      def tmps = nodeUnderInspection.predecessors.collect{ createRedundancy(it, targetExpression) }
+      if (tmps.findAll{it == tmps[0]}.size() == tmps.size()) {
+        walkedNodes.each { tmpVarCache[it] = tmps[0] }
+        return tmps[0]
+      } else {
+        def phi = new LowIrPhi(tmpVar: tempFactory.createLocalTemp(), args: tmps)
+        new LowIrBridge(phi).insertBefore(nodeUnderInspection)
+        walkedNodes.each { tmpVarCache[it] = phi.tmpVar }
+        return phi.tmpVar
+      }
+    } else {
+      assert false, "shouldn't reach a start node"
     }
   }
 
@@ -125,6 +179,8 @@ class AvailableExpr {
   AvailableExpr(node) {
     this.node = node
   }
+
+  def getTmpVar() { node.getDef() }
 
   int hashCode() {
     int i = 0
