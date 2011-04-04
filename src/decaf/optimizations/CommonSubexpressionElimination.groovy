@@ -35,10 +35,14 @@ class CommonSubexpressionElimination extends Analizer{
     }
     analize(startNode)
     eachNodeOf(startNode) {
+      def expr
       switch (it) {
       case LowIrLoad:
       case LowIrBinOp:
-        def expr = new AvailableExpr(it)
+        expr = new AvailableExpr(it)
+        break
+      }
+      if (expr != null) {
         if (it.predecessors.every{pred -> load(pred).contains(expr)}) {
 /*
           def tmpVar = methodDesc.tempFactory.createLocalTemp()
@@ -66,7 +70,7 @@ class CommonSubexpressionElimination extends Analizer{
           def tmpVar = createRedundancy(it, expr)
           //now, insert mov so that from tmpvar to redundant expr's destination
           assert it.successors.size() == 1
-          new LowIrBridge(new LowIrMov(src: tmpVar, dst: it.getDef())).insertBetween(
+          new LowIrBridge(new LowIrMov(src: tmpVar, dst: expr.tmpVar)).insertBetween(
             it, it.successors[0])
           it.excise()
         }
@@ -77,6 +81,8 @@ class CommonSubexpressionElimination extends Analizer{
   def getExpressionOf(node) {
     if (node instanceof LowIrBinOp || node instanceof LowIrLoad) {
       return new AvailableExpr(node)
+    } else if (node instanceof LowIrStore) {
+      return new AvailableExpr(new LowIrLoad(tmpVar: node.value, desc: node.desc))
     } else {
       return [tmpVar: null]
     }
@@ -154,6 +160,9 @@ class CommonSubexpressionElimination extends Analizer{
       set = Collections.singleton(new AvailableExpr(node))
       set -= kill(node)
       break
+    case LowIrStore:
+      set = Collections.singleton(new AvailableExpr(new LowIrLoad(desc: node.desc, tmpVar: node.value)))
+      break
     default:
       set = Collections.emptySet()
       break
@@ -163,7 +172,6 @@ class CommonSubexpressionElimination extends Analizer{
 
   def kill(node) {
     def set = node.getDef() != null ? exprsContainingTmp[node.getDef()] : Collections.emptySet()
-    //todo: this is so not optimal it hurts
     if (node instanceof LowIrMethodCall) {
       set = methodToClobbers[node.descriptor].collect{new AvailableExpr(new LowIrLoad(desc: it))}
     } else if (node instanceof LowIrStore) {
