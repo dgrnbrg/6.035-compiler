@@ -30,8 +30,8 @@ class ArgParserTest extends GroovyTestCase {
     checkMap([other:[], o:'hello'], parser.results)
 
     parser = new ArgParser()
-    parser.parse(['-opt', '-unroll','unroll'])
-    checkMap([other:[], opt:['-unroll','unroll']], parser.results)
+    parser.parse(['-opt', 'cp','dce'])
+    checkMap([other:[], opt:['cp','dce']], parser.results)
 
     parser = new ArgParser()
     parser.parse(['-target','inter'])
