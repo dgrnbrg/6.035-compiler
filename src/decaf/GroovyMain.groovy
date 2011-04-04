@@ -14,7 +14,7 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['avail']}\"$nodeColor]")
+    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['instVal']}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -211,13 +211,17 @@ public class GroovyMain {
     if ('dce' in argparser['opt']) {
       opts += ['ssa', 'dce']
     }
+    if ('sccp' in argparser['opt']) {
+      opts += ['ssa', 'sccp']
+    }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
     } else {
       lowirGen.inliningThreshold = 0
     }
+    //TODO: add sccp after testing to all
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'cse', 'cp']
+      opts += ['ssa', 'dce', 'cse', 'cp', 'sccp']
     }
   }
 
@@ -326,6 +330,8 @@ public class GroovyMain {
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
+      if ('sccp' in opts)
+        new SparseConditionalConstantPropagation().run(methodDesc)
     }
   }
 
