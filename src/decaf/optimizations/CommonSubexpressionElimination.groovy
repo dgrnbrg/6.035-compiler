@@ -9,12 +9,6 @@ class CommonSubexpressionElimination extends Analizer{
   def allExprs = new LinkedHashSet()
   def exprsContainingTmp = new LazyMap({new LinkedHashSet()})
 
-  def methodToClobbers = new LazyMap({
-    def clobbers = new LinkedHashSet()
-    eachNodeOf(it.lowir){node -> if (node instanceof LowIrStore) clobbers << node.desc }
-    return clobbers
-  })
-
   def tempFactory
   def run(MethodDescriptor methodDesc) {
     def startNode = methodDesc.lowir
@@ -173,7 +167,9 @@ class CommonSubexpressionElimination extends Analizer{
   def kill(node) {
     def set = node.getDef() != null ? exprsContainingTmp[node.getDef()] : Collections.emptySet()
     if (node instanceof LowIrMethodCall) {
-      set = methodToClobbers[node.descriptor].collect{new AvailableExpr(new LowIrLoad(desc: it))}
+      set = node.descriptor.getDescriptorsOfNestedStores().collect{
+        new AvailableExpr(new LowIrLoad(desc: it))
+      }
     } else if (node instanceof LowIrStore) {
       set = Collections.singleton(new AvailableExpr(new LowIrLoad(desc: node.desc)))
     }
