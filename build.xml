@@ -140,9 +140,9 @@
       <arg value="${Compiler.decafFile}"/>
       <arg value="-target" />
       <arg value="${Compiler.target}"/>
-      <arg value="-assertEnabled"/>
+<!--      <arg value="-assertEnabled"/> -->
       <arg value="-opt"/>
-      <arg value="all"/>
+      <arg value="cse"/>
     </java>
   </target>
 
