@@ -112,7 +112,7 @@ public class MethodDescriptor {
 
   @Lazy Set<VariableDescriptor> localStoreSet = {->
     Set stores = new LinkedHashSet()
-    eachNodeOf(lowir){if (it instanceof LowIrStore) loads << it.desc}
+    eachNodeOf(lowir){if (it instanceof LowIrStore) stores << it.desc}
     return stores
   }()
 
