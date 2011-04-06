@@ -14,10 +14,11 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\nantIn: ${cur.anno['antIn']}\\navailOut: ${cur.anno['availOut']}\\nexprKill: ${cur.anno['exprKill']}\\nantOut: ${cur.anno['antOut']}\\n\\n${cur.anno['earliest']}\"$nodeColor]")
-    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['insert']}\\n${cur.anno['delete']}\"$nodeColor]")
+//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\nexpr: ${cur.anno['expr']}\\nantIn: ${cur.anno['antIn']}\\navailOut: ${cur.anno['availOut']}\\nexprKill: ${cur.anno['exprKill']}\\nantOut: ${cur.anno['antOut']}\\n\\n${cur.anno['earliest']}\"$nodeColor]")
+//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\nexpr: ${cur.anno['expr']}\\nantIn: ${cur.anno['antIn']}\\nexprKill: ${cur.anno['exprKill']}\\nantOut: ${cur.anno['antOut']}\\n\\n${cur.anno['earliest']}\"$nodeColor]")
+    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['expr']}\\n${cur.anno['insert']}\\n${cur.anno['delete']}\"$nodeColor]")
 //    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['earliest']}\\n${cur.anno['later']}\\n${cur.anno['laterIn']}\"$nodeColor]")
-//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['earliest']}\"$nodeColor]")
+//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['expr']}\\n${cur.anno['earliest']}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -321,15 +322,18 @@ public class GroovyMain {
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
     methodDescs.each { MethodDescriptor methodDesc ->
-      if ('ssa' in opts)
+//      if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
-      if ('cse' in opts)
+      new CopyPropagation().propagate(methodDesc.lowir)
+      new DeadCodeElimination().run(methodDesc.lowir)
+//      if ('cse' in opts)
 //        new CommonSubexpressionElimination().run(methodDesc)
         new PartialRedundancyElimination().run(methodDesc)
-      if ('cp' in opts)
+/*      if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
+*/
     }
   }
 
