@@ -137,6 +137,8 @@ class SSAComputer {
       def j = y.predecessors.indexOf(n)
       y.anno['phi-functions'].each {
         it.args[j] = mostRecentDefOf(it.args[j])
+        //no need to remove old use, since this should be the construction phase of DU chains
+        it.args[j].useSites << it
       }
     }
     //for each child X of n
@@ -161,6 +163,7 @@ class SSAComputer {
   static void destroyAllMyBeautifulHardWork(LowIrNode startNode) {
     def phiFunctions = []
     def undefTmpVars = new LinkedHashSet()
+
     eachNodeOf(startNode) { node ->
       if (node instanceof LowIrPhi) phiFunctions << node
       if (node.getUses().defSite == null) undefTmpVars.addAll(node.getUses())
@@ -168,6 +171,8 @@ class SSAComputer {
 
     //for each phi
     for (phi in phiFunctions) {
+      DominanceComputations domComps = new DominanceComputations()
+      domComps.computeDominators(startNode)
       //find the join point
       def joinPoint = phi
       while (joinPoint.predecessors.size() == 1) joinPoint = joinPoint.predecessors[0]
@@ -175,11 +180,17 @@ class SSAComputer {
       assert phi.args.size() == joinPoint.predecessors.size()
 
       //insert the appropriate moves
-      joinPoint.predecessors.clone().eachWithIndex { pred, index ->
+      joinPoint.predecessors.clone().each { pred ->
         //we only emit moves for phi arguments that were defined
+        //search up dominator tree to find defsites or determine that it's zero if there is no defsite
+        def defSite = pred
+        while (defSite != null && !(defSite.getDef() in phi.args)) {
+          defSite = domComps.ancestor[defSite]
+        }
+
         def mov
-        if (phi.args[index].defSite != null) {
-          mov = new LowIrMov(src: phi.args[index], dst: phi.tmpVar)
+        if (defSite?.getDef() in phi.args) {
+          mov = new LowIrMov(src: defSite.getDef(), dst: phi.tmpVar)
         } else {
           //TODO: make these be inline
           mov = new LowIrIntLiteral(value: 0, tmpVar: phi.tmpVar)

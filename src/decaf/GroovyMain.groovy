@@ -301,7 +301,7 @@ public class GroovyMain {
 
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       TraceGraph.calculateTraces(methodDesc.lowir);
       new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
