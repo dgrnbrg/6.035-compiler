@@ -137,6 +137,7 @@ class SSAComputer {
       def j = y.predecessors.indexOf(n)
       y.anno['phi-functions'].each {
         it.args[j] = mostRecentDefOf(it.args[j])
+        it.args[j].useSites << it
       }
     }
     //for each child X of n
