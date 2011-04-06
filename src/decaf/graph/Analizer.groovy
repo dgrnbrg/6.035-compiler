@@ -12,8 +12,8 @@ abstract class Analizer {
   abstract Set transfer(GraphNode node, Set input);
   abstract Set join(GraphNode node);
 
-  abstract void store(key, Set data);
-  abstract Set load(key);
+  abstract void store(GraphNode key, Set data);
+  abstract Set load(GraphNode key);
 
   def worklistInit = { startNode ->
     def worklist = new LinkedHashSet()
@@ -33,7 +33,7 @@ if (node instanceof decaf.optimizations.LCMEdge && node.fst == node.snd) println
       def out = transfer(node, input)
 if (node instanceof decaf.LowIrNode && node.label == 'label10') {
 //  println "adding node12's preds back to list, current antIn = $out"
-  println "$node\n  old: $old\n  in: $input\n  out: $out"
+//  println "$node\n  old: $old\n  in: $input\n  out: $out"
 }
       if (old != out) {
 //println "propagating"

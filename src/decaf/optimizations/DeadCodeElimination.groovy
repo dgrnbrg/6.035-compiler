@@ -80,8 +80,9 @@ class DeadCodeElimination extends Analizer {
       def node = worklist.iterator().next()
       worklist.remove(node)
       def uses = node.getUses()
-      if (sideEffectFree(node) && !node.is(startNode))
+      if (sideEffectFree(node) && !node.is(startNode)) {
         node.excise()
+      }
       worklist += uses.findAll{it.useSites.size() == 0}*.defSite.findAll{it != null && sideEffectFree(it)}
     }
   }
