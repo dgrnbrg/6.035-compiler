@@ -93,7 +93,7 @@ class PartialRedundancyElimination {
     joinFn: {node -> 
       def succs = node.successors
       if (succs) {
-        return succs.inject(load(succs[0])){set, succ -> set.addAll(load(succ)); set}
+        return succs.inject(load(succs[0])){set, succ -> set.retainAll(load(succ)); set}
       } else {
         return new HashSet()
       }
