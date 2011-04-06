@@ -15,9 +15,14 @@ abstract class Analizer {
   abstract void store(GraphNode node, Set data);
   abstract Set load(GraphNode node);
 
-  void analize(GraphNode startNode) {
+  def worklistInit = { startNode ->
     def worklist = new LinkedHashSet()
     eachNodeOf(startNode) { worklist << it }
+    return worklist
+  }
+
+  void analize(GraphNode startNode) {
+    def worklist = worklistInit(startNode)
 
     while (worklist.size() != 0) {
       def node = worklist.iterator().next()
