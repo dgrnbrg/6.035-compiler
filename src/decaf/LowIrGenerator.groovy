@@ -243,6 +243,14 @@ class LowIrGenerator {
     def movOp = new LowIrMov(src: sumBinOp.tmpVar, dst: indexTmpVar)
     def incBridge = new LowIrBridge(oneLiteral).seq(new LowIrBridge(sumBinOp)).seq(new LowIrBridge(movOp))
 
+    //make the bypass bridge
+    def bypassBridge = new LowIrBridge(new LowIrNode(metaText: "for loop bypass (index is ${indexTmpVar})")).seq(new LowIrValueBridge(new LowIrBinOp(
+      op: BinOpType.LT,
+      tmpVar: desc.tempFactory.createLocalTemp(),
+      leftTmpVar: indexTmpVar,
+      rightTmpVar: finalValBridge.tmpVar
+    )))
+
     //make the cmp bridge
     def cmpBridge = new LowIrBridge(new LowIrNode(metaText: "for loop cmp (index is ${indexTmpVar})")).seq(new LowIrValueBridge(new LowIrBinOp(
       op: BinOpType.LT,
@@ -258,8 +266,9 @@ class LowIrGenerator {
     forLoopBreakContinueStack.pop()
 
     def cmpNode = shortcircuit(cmpBridge, bodyBridge.begin, endNode)
+    def bypassNode = shortcircuit(bypassBridge, bodyBridge.begin, endNode)
     LowIrNode.link(incBridge.end, cmpNode)
-    LowIrNode.link(initBridge.end, cmpNode)
+    LowIrNode.link(initBridge.end, bypassNode)
     return new LowIrBridge(initBridge.begin, endNode)
   }
 
