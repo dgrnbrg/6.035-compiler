@@ -136,6 +136,7 @@ class SSAComputer {
     n.successors.each { y ->
       def j = y.predecessors.indexOf(n)
       y.anno['phi-functions'].each {
+        it.args[j].useSites.remove(it)
         it.args[j] = mostRecentDefOf(it.args[j])
         it.args[j].useSites << it
       }
@@ -162,6 +163,8 @@ class SSAComputer {
   static void destroyAllMyBeautifulHardWork(LowIrNode startNode) {
     def phiFunctions = []
     def undefTmpVars = new LinkedHashSet()
+    def domComps = new DominanceComputations()
+    domComps.computeDominators(startNode)
     eachNodeOf(startNode) { node ->
       if (node instanceof LowIrPhi) phiFunctions << node
       if (node.getUses().defSite == null) undefTmpVars.addAll(node.getUses())
@@ -176,15 +179,17 @@ class SSAComputer {
       assert phi.args.size() == joinPoint.predecessors.size()
 
       //insert the appropriate moves
-      joinPoint.predecessors.clone().eachWithIndex { pred, index ->
+      joinPoint.predecessors.clone().each { pred ->
+        //find a definition of an argument to the phi function on this branch
+        def defSite = pred
+        while (defSite != null && !(defSite.getDef() in phi.args))
+          defSite = domComps.ancestor[defSite]
+        if (defSite == null) return //this branch is dead
+
         //we only emit moves for phi arguments that were defined
         def mov
-        if (phi.args[index].defSite != null) {
-          mov = new LowIrMov(src: phi.args[index], dst: phi.tmpVar)
-        } else {
-          //TODO: make these be inline
-          mov = new LowIrIntLiteral(value: 0, tmpVar: phi.tmpVar)
-        }
+println "phi tmp = $phi.tmpVar"
+        mov = new LowIrMov(src: defSite.getDef(), dst: phi.tmpVar)
         new LowIrBridge(mov).insertBetween(pred, joinPoint)
       }
 

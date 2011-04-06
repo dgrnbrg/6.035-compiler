@@ -308,11 +308,11 @@ class ClosureAnalizer extends Analizer {
   Set transfer(GraphNode node, Set input) { xfer(node, input) }
   Set join(GraphNode node) { joinFn(node) }
 
-  void store(key, Set data) { 
+  void store(GraphNode key, Set data) { 
 //if (key instanceof LowIrNode && key.label == 'label10') println "storing into label 10 $data"
 map[key] = data 
 }
-  Set load(key) {
+  Set load(GraphNode key) {
 //if (key instanceof LowIrNode && key.label == 'label10') println "loading from label 10 ${map[key]}"
  map[key] }
 }

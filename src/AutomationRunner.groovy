@@ -43,6 +43,7 @@ new File('tmp.o').delete()
 
 class AutomationTester {
  static boolean test(file) {
+println "trying $file"
   //only compile decaf programs
   //output to tmp.s, use assertions
   def compiler = GroovyMain.runMain('codegen', file.text, ['assertEnabled': true, 'o': 'tmp.s', 'opt': ['all']])
@@ -78,7 +79,7 @@ class AutomationTester {
     println "gcc stdout:\n$gccout\ngcc stderr:\n$gccerr"
     return false
   }
-
+Thread.sleep(500)
   //try to run our application
   Process app = "./tmp.o".execute()
   def appout = new StringBuffer()

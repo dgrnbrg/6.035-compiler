@@ -305,7 +305,7 @@ public class GroovyMain {
 
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       TraceGraph.calculateTraces(methodDesc.lowir);
       new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
@@ -322,18 +322,17 @@ public class GroovyMain {
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
     methodDescs.each { MethodDescriptor methodDesc ->
-//      if ('ssa' in opts)
+      if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
-      new CopyPropagation().propagate(methodDesc.lowir)
-      new DeadCodeElimination().run(methodDesc.lowir)
-//      if ('cse' in opts)
-//        new CommonSubexpressionElimination().run(methodDesc)
-        new PartialRedundancyElimination().run(methodDesc)
-/*      if ('cp' in opts)
+//      new CopyPropagation().propagate(methodDesc.lowir)
+//      new DeadCodeElimination().run(methodDesc.lowir)
+      if ('cse' in opts)
+        new CommonSubexpressionElimination().run(methodDesc)
+//        new PartialRedundancyElimination().run(methodDesc)
+      if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
-*/
     }
   }
 

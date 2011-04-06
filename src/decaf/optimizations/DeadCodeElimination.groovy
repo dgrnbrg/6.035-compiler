@@ -81,6 +81,7 @@ class DeadCodeElimination extends Analizer {
       worklist.remove(node)
       def uses = node.getUses()
       if (sideEffectFree(node) && !node.is(startNode)) {
+println "excising $node"
         node.excise()
       }
       worklist += uses.findAll{it.useSites.size() == 0}*.defSite.findAll{it != null && sideEffectFree(it)}
