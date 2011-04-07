@@ -15,12 +15,14 @@ class ValueNumberer {
 
   //maintains uniqueness for values
   def uniqueMap = new LazyMap({new Expression(unique: true)})
+  def uniqueToTmp = [:]
 
   def getExprOfTmp(TempVar tmp) {
     //if param, unique
     //if undef, 0
     //if known, node
     if (tmp.type == TempVarType.PARAM) {
+      uniqueToTmp[uniqueMap[tmp]] = tmp
       return uniqueMap[tmp]
     } else if (tmp.defSite == null) {
       return new Expression(constVal: 0)
@@ -41,6 +43,7 @@ class ValueNumberer {
     case LowIrCallOut:
     case LowIrMethodCall:
       result = uniqueMap[node]
+      uniqueToTmp[result] = node.tmpVar
       break
     case LowIrIntLiteral:
       result = new Expression(constVal: node.value)
@@ -57,6 +60,7 @@ class ValueNumberer {
     case LowIrPhi:
       if (visitedPhis.contains(node)) {
         result = uniqueMap[node] //TODO: check that we get self-phis on loops correct
+        uniqueToTmp[result] = node.tmpVar
         break
       }
       visitedPhis << node
@@ -66,6 +70,7 @@ class ValueNumberer {
         break
       } else {
         result = uniqueMap[node]
+        uniqueToTmp[result] = node.tmpVar
         break
       }
     case LowIrCondJump:

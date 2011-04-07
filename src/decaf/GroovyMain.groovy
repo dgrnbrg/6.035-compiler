@@ -320,8 +320,8 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
-      if ('cse' in opts)
-        new CommonSubexpressionElimination().run(methodDesc)
+//      if ('cse' in opts)
+//        new CommonSubexpressionElimination().run(methodDesc)
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
