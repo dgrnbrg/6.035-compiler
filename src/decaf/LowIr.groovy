@@ -17,9 +17,26 @@ class LowIrBridge {
   }
 
   LowIrBridge(List nodes) {
-    this(nodes[0], nodes[-1])
-    for (int i = 0; i < nodes.size() - 1; i++) {
-      LowIrNode.link(nodes[i], nodes[i+1])
+    if (nodes.isEmpty()) {
+      this.begin = new LowIrNode(metaText:'empty block')
+      this.end = this.begin
+      return
+    }
+    assert nodes.inject(true){cond, node -> cond && node instanceof LowIrNode} ||
+           nodes.inject(true){cond, node -> cond && node instanceof LowIrBridge}
+    if (nodes[0] instanceof LowIrNode) {
+      this.begin = nodes[0]
+      this.end = nodes[-1]
+      for (int i = 0; i < nodes.size() - 1; i++) {
+        LowIrNode.link(nodes[i], nodes[i+1])
+      }
+    } else if (nodes[0] instanceof LowIrBridge) {
+      nodes.eachWithIndex { it, index ->
+        if (index == 0) return
+        LowIrNode.link(nodes[index-1].end, it.begin)
+      }
+      this.begin = nodes[0].begin
+      this.end = nodes[-1].end
     }
   }
 
@@ -49,22 +66,24 @@ class LowIrBridge {
   }
 
   void insertBefore(LowIrNode node) {
-    def noop = new LowIrNode(metaText: 'insertBefore cruft')
-    node.predecessors.clone().each {
-      LowIrNode.unlink(it, node)
-      LowIrNode.link(it, noop)
-      if (it instanceof LowIrCondJump) {
-        if (it.trueDest == node) {
-          it.trueDest = noop
-        } else if (it.falseDest == node) {
-          it.falseDest = noop
-        } else {
-          assert false
+    if (node.predecessors.size() > 1) {
+      def noop = new LowIrNode(metaText: 'insertBefore cruft')
+      node.predecessors.clone().each {
+        LowIrNode.unlink(it, node)
+        LowIrNode.link(it, noop)
+        if (it instanceof LowIrCondJump) {
+          if (it.trueDest == node) {
+            it.trueDest = noop
+          } else if (it.falseDest == node) {
+            it.falseDest = noop
+          } else {
+            assert false
+          }
         }
       }
+      LowIrNode.link(noop, node)
     }
-    LowIrNode.link(noop, node)
-    insertBetween(noop, node)
+    insertBetween(node.predecessors[0], node)
   }
 
   //removes this bridge from the lowir
@@ -422,7 +441,7 @@ class LowIrStore extends LowIrNode {
   }
 
   String toString() {
-    "LowIrStore(desc: $desc, index: $index)"
+    "LowIrStore(value: $value, desc: $desc, index: $index)"
   }
 }
 

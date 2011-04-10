@@ -27,10 +27,8 @@ class LowIrGenerator {
     //generate prologue to configure recursive parameters
     //move arguments into parameters
     def index = 0
-    def movIntoParams = new LowIrBridge(
-      params.collect{ param -> new LowIrMov(src: param, dst: desc.params[index++].tmpVar) } ?:
-        new LowIrNode(metaText: 'zero argument inlined function')
-    )
+    def paramVars = params.collect{ param -> new LowIrMov(src: param, dst: desc.params[index++].tmpVar) } ?: null
+    def movIntoParams = paramVars ? new LowIrBridge(paramVars) : null
     //save old returnValueNode (for recursive inlining) and update current
     def oldReturnValueNode = returnValueNode
     returnValueNode = new LowIrValueNode(tmpVar: this.desc.tempFactory.createLocalTemp())
@@ -42,26 +40,30 @@ class LowIrGenerator {
     if (desc.returnType != Type.VOID) {
       epilogue = dieWithMessage("Control fell off end of non-void function $desc.name\\n").seq(epilogue)
     }
-    def result = movIntoParams.seq(methodBody).seq(epilogue)
+    def result = movIntoParams
+    def appendOrInit = { result = result?.seq(it) ?: it }
+    appendOrInit(methodBody)
+    appendOrInit(epilogue)
     returnValueNode = oldReturnValueNode
     return result
   }
 
   LowIrBridge destruct(Block block) {
     def internals = block.statements.collect { destruct(it) }
-    def bridge = new LowIrBridge(new LowIrNode(metaText:'begin block'))
-    internals.each {
-      bridge = bridge.seq(it)
+    return new LowIrBridge(internals)
+/*
+    if (internals.isEmpty()) return new LowIrBridge(new LowIrNode(metaText:'empty block'))
+    internals.eachWithIndex { it, index ->
+      if (index == 0) return
+      LowIrNode.link(internals[index-1].end, it.begin)
     }
-    return bridge
+    return new LowIrBridge(internals[0].begin, internals[-1].end)
+*/
   }
 
   LowIrBridge destruct(CallOut callout) {
-    def bridge = new LowIrBridge(new LowIrNode(metaText: 'begin callout params'))
     def params = callout.params.collect { destruct(it) }
-    params.each {
-      bridge = bridge.seq(it)
-    }
+    def bridge = new LowIrBridge(params)
     def paramTmpVars = params.collect { it.tmpVar }
     def lowir = new LowIrCallOut(name: callout.name.value, paramTmpVars: paramTmpVars)
     lowir.tmpVar = callout.tmpVar
@@ -69,11 +71,8 @@ class LowIrGenerator {
   }
 
   LowIrBridge destruct(MethodCall methodCall) {
-    def bridge = new LowIrBridge(new LowIrNode(metaText: 'begin methodcall params'))
     def params = methodCall.params.collect { destruct(it) }
-    params.each {
-      bridge = bridge.seq(it)
-    }
+    def bridge = new LowIrBridge(params)
     def paramTmpVars = params.collect { it.tmpVar }
     int mSize = 0 // # of nodes in hiir
     methodCall.descriptor.block.inOrderWalk{ mSize += 1; walk() }
@@ -163,17 +162,18 @@ class LowIrGenerator {
   LowIrBridge destruct(Assignment assignment) {
     def srcBridge = destruct(assignment.expr)
     if (assignment.loc.descriptor.tmpVar == null) {
-      def bridge = new LowIrBridge(new LowIrNode(metaText: 'global index placeholder (st)'))
+      def bridge
       if (assignment.loc.indexExpr != null) {
         bridge = destruct(assignment.loc.indexExpr)
       }
       def storeBridge = new LowIrBridge(new LowIrStore(desc: assignment.loc.descriptor, value: srcBridge.tmpVar))
       //it is an array, so we need to link the index to it
-      if (bridge instanceof LowIrValueBridge) {
+      if (bridge != null) {
         storeBridge.end.index = bridge.tmpVar
         storeBridge = boundsCheck(assignment.loc.descriptor, bridge.tmpVar).seq(storeBridge)
+        return srcBridge.seq(bridge).seq(storeBridge)
       }
-      return srcBridge.seq(bridge).seq(storeBridge)
+      return srcBridge.seq(storeBridge)
     } else {
       //local scalar
       def lowir = new LowIrMov(src: srcBridge.tmpVar, dst: assignment.loc.descriptor.tmpVar)
@@ -186,17 +186,18 @@ class LowIrGenerator {
   LowIrBridge destruct(Location loc) {
     //global variable
     if (loc.descriptor.tmpVar == null) {
-      def bridge = new LowIrBridge(new LowIrNode(metaText: 'global index placeholder (ld)'))
+      def bridge
       if (loc.indexExpr != null) {
         bridge = destruct(loc.indexExpr)
       }
       def valBridge = new LowIrValueBridge(new LowIrLoad(tmpVar: loc.tmpVar, desc: loc.descriptor))
       //it is an array, so we need to link the index to it
-      if (bridge instanceof LowIrValueBridge) {
+      if (bridge != null) {
         valBridge.end.index = bridge.tmpVar
         valBridge = boundsCheck(loc.descriptor, bridge.tmpVar).seq(valBridge)
+        return bridge.seq(valBridge)
       }
-      return bridge.seq(valBridge)
+      return valBridge
     } else {
       //it's a local/param
       return new LowIrValueBridge(new LowIrValueNode(metaText: 'location value',tmpVar: loc.descriptor.tmpVar))
@@ -242,6 +243,14 @@ class LowIrGenerator {
     def movOp = new LowIrMov(src: sumBinOp.tmpVar, dst: indexTmpVar)
     def incBridge = new LowIrBridge(oneLiteral).seq(new LowIrBridge(sumBinOp)).seq(new LowIrBridge(movOp))
 
+    //make the bypass bridge
+    def bypassBridge = new LowIrBridge(new LowIrNode(metaText: "for loop bypass (index is ${indexTmpVar})")).seq(new LowIrValueBridge(new LowIrBinOp(
+      op: BinOpType.LT,
+      tmpVar: desc.tempFactory.createLocalTemp(),
+      leftTmpVar: indexTmpVar,
+      rightTmpVar: finalValBridge.tmpVar
+    )))
+
     //make the cmp bridge
     def cmpBridge = new LowIrBridge(new LowIrNode(metaText: "for loop cmp (index is ${indexTmpVar})")).seq(new LowIrValueBridge(new LowIrBinOp(
       op: BinOpType.LT,
@@ -257,8 +266,9 @@ class LowIrGenerator {
     forLoopBreakContinueStack.pop()
 
     def cmpNode = shortcircuit(cmpBridge, bodyBridge.begin, endNode)
+    def bypassNode = shortcircuit(bypassBridge, bodyBridge.begin, endNode)
     LowIrNode.link(incBridge.end, cmpNode)
-    LowIrNode.link(initBridge.end, cmpNode)
+    LowIrNode.link(initBridge.end, bypassNode)
     return new LowIrBridge(initBridge.begin, endNode)
   }
 

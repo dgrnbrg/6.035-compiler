@@ -1,4 +1,5 @@
 package decaf
+import static decaf.graph.Traverser.eachNodeOf
 
 class SymbolTable extends WalkableImpl {
   def children = []
@@ -102,6 +103,30 @@ public class MethodDescriptor {
   FileInfo fileInfo
   LowIrNode lowir
   TempVarFactory tempFactory = new TempVarFactory(this)
+
+  @Lazy Set<VariableDescriptor> localLoadSet = {->
+    Set loads = new LinkedHashSet()
+    eachNodeOf(lowir){if (it instanceof LowIrLoad) loads << it.desc}
+    return loads
+  }()
+
+  @Lazy Set<VariableDescriptor> localStoreSet = {->
+    Set stores = new LinkedHashSet()
+    eachNodeOf(lowir){if (it instanceof LowIrStore) stores << it.desc}
+    return stores
+  }()
+
+  def getDescriptorsOfNestedLoads() {
+    def result = localLoadSet.clone()
+    eachNodeOf(lowir){ if (it instanceof LowIrMethodCall) result.addAll(it.descriptor.localLoadSet) }
+    return result
+  }
+
+  def getDescriptorsOfNestedStores() {
+    def result = localStoreSet.clone()
+    eachNodeOf(lowir){ if (it instanceof LowIrMethodCall) result.addAll(it.descriptor.localStoreSet) }
+    return result
+  }
 
   String toString() {
     "$returnType $name($params)"

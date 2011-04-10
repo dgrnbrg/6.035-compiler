@@ -4,6 +4,7 @@ import decaf.graph.GraphNode
 import decaf.graph.*
 import static decaf.graph.Traverser.eachNodeOf
 
+//TODO: kill dead loads
 class DeadCodeElimination extends Analizer {
   DeadCodeElimination() {
     dir = AnalysisDirection.BACKWARD

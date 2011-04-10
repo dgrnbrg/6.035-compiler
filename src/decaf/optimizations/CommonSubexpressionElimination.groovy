@@ -9,14 +9,10 @@ class CommonSubexpressionElimination extends Analizer{
   def allExprs = new LinkedHashSet()
   def exprsContainingTmp = new LazyMap({new LinkedHashSet()})
 
-  def methodToClobbers = new LazyMap({
-    def clobbers = new LinkedHashSet()
-    eachNodeOf(it.lowir){node -> if (node instanceof LowIrStore) clobbers << node.desc }
-    return clobbers
-  })
-
+  def tempFactory
   def run(MethodDescriptor methodDesc) {
     def startNode = methodDesc.lowir
+    tempFactory = methodDesc.tempFactory
     store(startNode, new LinkedHashSet())
     eachNodeOf(startNode) {
       def expr
@@ -33,11 +29,16 @@ class CommonSubexpressionElimination extends Analizer{
     }
     analize(startNode)
     eachNodeOf(startNode) {
+      def expr
       switch (it) {
       case LowIrLoad:
       case LowIrBinOp:
-        def expr = new AvailableExpr(it)
+        expr = new AvailableExpr(it)
+        break
+      }
+      if (expr != null) {
         if (it.predecessors.every{pred -> load(pred).contains(expr)}) {
+/*
           def tmpVar = methodDesc.tempFactory.createLocalTemp()
           def worklist = new LinkedHashSet(it.predecessors)
           def visited = new HashSet(worklist)
@@ -57,13 +58,66 @@ class CommonSubexpressionElimination extends Analizer{
               worklist += candidate.predecessors - visited
             }
           }
+*/
+          rootNode = it
+          tmpVarCache = [:]
+          def tmpVar = createRedundancy(it, expr)
           //now, insert mov so that from tmpvar to redundant expr's destination
           assert it.successors.size() == 1
-          new LowIrBridge(new LowIrMov(src: tmpVar, dst: it.getDef())).insertBetween(
+          new LowIrBridge(new LowIrMov(src: tmpVar, dst: expr.tmpVar)).insertBetween(
             it, it.successors[0])
           it.excise()
         }
       }
+    }
+  }
+
+  def getExpressionOf(node) {
+    if (node instanceof LowIrBinOp || node instanceof LowIrLoad) {
+      return new AvailableExpr(node)
+    } else if (node instanceof LowIrStore) {
+      return new AvailableExpr(new LowIrLoad(tmpVar: node.value, desc: node.desc))
+    } else {
+      return [tmpVar: null]
+    }
+  }
+
+  def rootNode
+  Map tmpVarCache
+  TempVar createRedundancy(LowIrNode startNode, targetExpression) {
+    def nodeUnderInspection = startNode
+    def exprUnderInspection = getExpressionOf(nodeUnderInspection)
+    def walkedNodes = [nodeUnderInspection]
+    while (nodeUnderInspection.predecessors.size() == 1
+        && !tmpVarCache.containsKey(nodeUnderInspection)) {
+      if (exprUnderInspection == targetExpression && nodeUnderInspection != rootNode) {
+        break
+      }
+      nodeUnderInspection = nodeUnderInspection.predecessors[0]
+      exprUnderInspection = getExpressionOf(nodeUnderInspection)
+      walkedNodes << nodeUnderInspection
+    }
+
+    if (tmpVarCache.containsKey(nodeUnderInspection)) return tmpVarCache[nodeUnderInspection]
+
+    if (exprUnderInspection == targetExpression) {
+      walkedNodes.each { tmpVarCache[it] = exprUnderInspection.tmpVar }
+      return exprUnderInspection.tmpVar
+    } else if (nodeUnderInspection.predecessors.size() > 1) {
+      //we need to insert a phi before this node, but first, find the 2 tmpVars
+      //if all are equal, return it; otherwise, insert phi function
+      def tmps = nodeUnderInspection.predecessors.collect{ createRedundancy(it, targetExpression) }
+      if (tmps.findAll{it == tmps[0]}.size() == tmps.size()) {
+        walkedNodes.each { tmpVarCache[it] = tmps[0] }
+        return tmps[0]
+      } else {
+        def phi = new LowIrPhi(tmpVar: tempFactory.createLocalTemp(), args: tmps)
+        new LowIrBridge(phi).insertBefore(nodeUnderInspection)
+        walkedNodes.each { tmpVarCache[it] = phi.tmpVar }
+        return phi.tmpVar
+      }
+    } else {
+      assert false, "shouldn't reach a start node"
     }
   }
 
@@ -87,8 +141,7 @@ class CommonSubexpressionElimination extends Analizer{
 
   Set join(GraphNode node) {
     if (node.predecessors) {
-      return node.predecessors.inject(allExprs.clone()) { set, succ -> set.retainAll(load(succ)); set }
-      return node.predecessors.inject(allExprs) { set, succ -> set.intersect(load(succ)) }
+      return node.predecessors.inject(load(node.predecessors[0]).clone()) { set, succ -> set.retainAll(load(succ)); set }
     } else
       return new LinkedHashSet()
   }
@@ -101,6 +154,9 @@ class CommonSubexpressionElimination extends Analizer{
       set = Collections.singleton(new AvailableExpr(node))
       set -= kill(node)
       break
+    case LowIrStore:
+      set = Collections.singleton(new AvailableExpr(new LowIrLoad(desc: node.desc, tmpVar: node.value)))
+      break
     default:
       set = Collections.emptySet()
       break
@@ -110,9 +166,10 @@ class CommonSubexpressionElimination extends Analizer{
 
   def kill(node) {
     def set = node.getDef() != null ? exprsContainingTmp[node.getDef()] : Collections.emptySet()
-    //todo: this is so not optimal it hurts
     if (node instanceof LowIrMethodCall) {
-      set = methodToClobbers[node.descriptor].collect{new AvailableExpr(new LowIrLoad(desc: it))}
+      set = node.descriptor.getDescriptorsOfNestedStores().collect{
+        new AvailableExpr(new LowIrLoad(desc: it))
+      }
     } else if (node instanceof LowIrStore) {
       set = Collections.singleton(new AvailableExpr(new LowIrLoad(desc: node.desc)))
     }
@@ -126,6 +183,8 @@ class AvailableExpr {
   AvailableExpr(node) {
     this.node = node
   }
+
+  def getTmpVar() { node.getDef() }
 
   int hashCode() {
     int i = 0
