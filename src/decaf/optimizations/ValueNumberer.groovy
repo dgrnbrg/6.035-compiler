@@ -55,7 +55,10 @@ class ValueNumberer {
       break
     case LowIrStore:
     case LowIrLoad:
-      result = new Expression(varDesc: node.desc, index: node.index)
+      result = new Expression(varDesc: node.desc)
+      if (node.index != null) {
+        result.index = getExprOfTmp(node.index)
+      }
       break
     case LowIrPhi:
       if (visitedPhis.contains(node)) {
