@@ -50,12 +50,12 @@ class ValueNumberer {
       break
     case LowIrBinOp:
       def lhs = getExprOfTmp(node.leftTmpVar)
-      def rhs = getExprOfTmp(node.rightTmpVar)
+      def rhs = node.rightTmpVar != null ? getExprOfTmp(node.rightTmpVar) : null
       result = new Expression(left: lhs, right: rhs, op: node.op)
       break
     case LowIrStore:
     case LowIrLoad:
-      result = new Expression(varDesc: node.desc)
+      result = new Expression(varDesc: node.desc, index: node.index)
       break
     case LowIrPhi:
       if (visitedPhis.contains(node)) {
@@ -99,16 +99,16 @@ class Expression {
   //For binops
   def left, right, op
   //For variables
-  def varDesc
+  def varDesc, index
 
   //This checks that you set it up correctly
   def check() {
     if (constVal != null) {
-      assert !unique && left == null && right == null && op == null && varDesc == null
+      assert !unique && left == null && right == null && op == null && varDesc == null && index == null
     } else if (unique) {
-      assert constVal == null && left == null && right == null && op == null && varDesc == null
+      assert constVal == null && left == null && right == null && op == null && varDesc == null && index == null
     } else if (left) {
-      assert constVal == null && !unique && varDesc == null
+      assert constVal == null && !unique && varDesc == null && index == null
     } else if (varDesc) {
       assert !unique && constVal == null && left == null && right == null && op == null
     } else {
@@ -121,10 +121,16 @@ class Expression {
     if (unique) return super.hashCode() //hash of pointer
     if (constVal != null) return 103*constVal
     if (op != null) {
-      return left.hashCode() * 17 + op.hashCode() * 41 + right.hashCode() * 91
+      def tmp = left.hashCode() * 17 + op.hashCode() * 41
+      if (right != null) tmp += right.hashCode() * 91
+      return tmp
     }
     if (varDesc != null) {
-      return varDesc.hashCode()
+      def tmp = varDesc.hashCode()
+      if (index != null) {
+        tmp += index.hashCode() * 13
+      }
+      return tmp
     }
   }
 
