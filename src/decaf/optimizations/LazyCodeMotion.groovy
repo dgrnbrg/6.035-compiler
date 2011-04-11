@@ -210,88 +210,109 @@ class LazyCodeMotion {
     //when we encounter a node that has an edge which needs some expression inserted along it
     //  we store the edge and the constructed expression into a deferred insertion list
     //finally, we insert the expressions
-    def domComps = new DominanceComputations()
+    newTmp = {-> desc.tempFactory.createLocalTemp()}
+    domComps = new DominanceComputations()
     domComps.computeDominators(startNode)
-    //initially, any expr has no defs
-    def recentDefs = new LazyMap({ expr ->
-      if (expr.unique) return [valueNumberer.uniqueToTmp[expr]]
-      else return []
-    })
-    def deferredInserts = [] //list of lists=[before, after, bridge]
-    def newTmp = {-> desc.tempFactory.createLocalTemp() }
-    def findAndDefer //predefine closure name or else it can't be self-recursive
-    findAndDefer = { node ->
-      //first, we defer any insertions and store their recent defs
-      for (succ in node.successors) {
-        for (expr in insertAlongEdge(node, succ)) {
-println "found an insertable expr"
-          expr.check()
-          def bridge
-          if (expr.constVal != null) {
-            bridge = new LowIrBridge(new LowIrIntLiteral(value: expr.constVal, tmpVar: newTmp()))
-          } else if (expr.unique) {
-            assert false //I think this can't happen
-          } else if (expr.op != null) {
-            def leftNode, rightNode
-            if (expr.left.constVal != null && recentDefs[expr.left].size() == 0) {
-              leftNode = new LowIrIntLiteral(value: 0, tmpVar: newTmp())
-              recentDefs[expr.left] << leftNode.tmpVar
-            }
-            if (expr.right.constVal != null && recentDefs[expr.right].size() == 0) {
-              rightNode = new LowIrIntLiteral(value: 0, tmpVar: newTmp())
-              recentDefs[expr.right] << rightNode.tmpVar
-            }
-println "$expr.left ${recentDefs[expr.left]}"
-//TODO: note the the current error appears to be due to mistraversal or something
-            def binopNode = new LowIrBinOp(
-              op: expr.op,
-              leftTmpVar: recentDefs[expr.left][-1],
-              rightTmpVar: recentDefs[expr.right][-1]
-            )
-            def nodeList = []
-            if (leftNode != null) {
-              recentDefs[expr.left].pop()
-              nodeList << leftNode
-            }
-            if (rightNode != null) {
-              recentDefs[expr.right].pop()
-              nodeList << rightNode
-            }
-            nodeList << binopNode
-            bridge = new LowIrBridge(nodeList)
-          } else if (expr.varDesc != null) {
-            //TODO: this smells like arrays will be totally wrong
-            bridge = new LowIrBridge(new LowIrLoad(desc: expr.desc, tmpVar: newTmp()))
-          } else {
-            assert false
-          }
-          deferredInserts << [node, succ, bridge]
+    findAndReplace(desc.lowir)
+    uniqueToTmp = valueNumberer.uniqueToTmp
+    for (action in toInsertOrDelete) {
+      domComps = new DominanceComputations()
+      domComps.computeDominators(startNode)
+//      valueNumberer = new ValueNumberer()
+//println "####################### $action"
+//      doRewrite(action)
+    }
+  }
+
+  def newTmp
+  def domComps
+  def toInsertOrDelete = new LinkedHashSet()
+  def uniqueToTmp
+  def findDefInDomTree(LowIrNode node, expr) {
+    if (uniqueToTmp.containsKey(expr)) return uniqueToTmp[expr]
+    while (node != null && valueNumberer.getExpr(node) != expr) {
+      if (expr.op != null) {
+        //println "$node doesn't contain $expr (it's ${valueNumberer.getExpr(node)})"
+      }
+      node = domComps.ancestor[node]
+    }
+    if (node instanceof LowIrStore) return node.value
+    //TODO: this shouldn't happen after we fix the initial definitions
+    if (node == null) {
+      def t = newTmp()
+      //println "@@@returning new $t for $expr"
+      return t
+    }
+    assert node.getDef() != null
+    return node.getDef()
+  }
+  def findAndReplace(LowIrNode node) {
+    for (expr in deleteNode(node)) {
+      toInsertOrDelete << [expr, node]
+    }
+    for (succ in node.successors) {
+      for (expr in insertAlongEdge(node, succ)) {
+        toInsertOrDelete << [expr, node, succ]
+      }
+    }
+    domComps.domTree[node].each{findAndReplace(it)}
+  }
+
+  def doRewrite(List action) {
+    if (action.size() == 3) {
+      def fst = action[1], snd = action[2]
+      if (action[2].predecessors.size() > 1) {
+        new LowIrBridge(new LowIrNode(metaText: 'lcm rewrite')).insertBefore(action[2])
+      }
+      assert action[2].predecessors.size() == 1
+      fst = snd.predecessors[0]
+//      assert insertAlongEdge(fst, snd).size() > 0
+      def expr = action[0]
+        expr.check()
+        def node
+        if (expr.constVal != null) {
+          node = new LowIrIntLiteral(value: expr.constVal, tmpVar: newTmp())
+        } else if (expr.unique) {
+          assert false //I think this can't happen
+        } else if (expr.op != null) {
+          node = new LowIrBinOp(
+            op: expr.op,
+            leftTmpVar: findDefInDomTree(fst, expr.left),
+            rightTmpVar: expr.right ? findDefInDomTree(fst, expr.right) : null,
+            tmpVar: newTmp()
+          )
+//if (expr.op == BinOpType.LT) println "inserting an LT"
+        } else if (expr.varDesc != null) {
+          //TODO: this smells like arrays will be totally wrong
+          node = new LowIrLoad(desc: expr.varDesc, tmpVar: newTmp())
+        } else {
+          assert false
         }
-      }
-      //next, we push a def if it exists
-      def definedExpr = valueNumberer.getExpr(node)
-      if (node.getDef()) {
-        recentDefs[definedExpr] << node.getDef()
-      } else if (node instanceof LowIrStore) {
-        recentDefs[definedExpr] << node.value
-      } else {
-        definedExpr = null
-      }
-      //then, we recur
-      domComps.domTree[node].each{ findAndDefer(it) }
-      //finally, we pop the def
-      if (definedExpr != null) {
-        recentDefs[definedExpr].pop()
+        
+        node.anno['expr'] = expr
+        node.tmpVar.defSite = node
+        valueNumberer.memo[node] = expr
+        new LowIrBridge(node).insertBetween(fst, snd)
+    } else {
+      def del = action[1]
+      def expr = action[0]
+//if (expr.op == BinOpType.LT) println "deleting an LT"
+      assert del.predecessors.size() == 1
+      def tmp = findDefInDomTree(del.predecessors[0], expr)
+//      println "replacing ${del.getDef()} with $tmp"
+      if (tmp.defSite != null) {
+        del.getDef().useSites.clone().each{
+          assert it.replaceUse(del.getDef(), tmp) > 0
+        }
+        del.excise() //delete
       }
     }
-    findAndDefer(desc.lowir)
+  }
+}
 
-    //now, we can insert the replacements
-    deferredInserts.each {
-      it[2].insertBetween(it[0], it[1])
-    }
-
-    //replacement to come...
+class MutatedGraphException extends Exception {
+  MutatedGraphException(String msg) {
+    super(msg);
   }
 }
 
