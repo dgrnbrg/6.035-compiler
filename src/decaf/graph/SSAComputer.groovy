@@ -167,8 +167,8 @@ class SSAComputer {
       if (node.getDef() != null) {
         node.getDef().defSite = node
         if (!(node.getDef() in clearedUses)) {
-          clearedUses << use
-          use.useSites = []
+          clearedUses << node.getDef()
+          node.getDef().useSites = []
         }
       }
       for (use in node.getUses()) {
