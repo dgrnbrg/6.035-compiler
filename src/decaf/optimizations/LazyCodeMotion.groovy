@@ -180,6 +180,7 @@ class LazyCodeMotion {
   def valueNumberer = new ValueNumberer() //this is used to decide equivalencies of expressions
 
   def run(MethodDescriptor desc) {
+    SSAComputer.updateDUChains(desc.lowir)
     initialize(desc.lowir)
     availAnal.analize(startNode)
     antAnal.analize(startNode)
@@ -215,37 +216,39 @@ class LazyCodeMotion {
     domComps.computeDominators(startNode)
     findAndReplace(desc.lowir)
     uniqueToTmp = valueNumberer.uniqueToTmp
+    uniqueToTmp.each{k, v-> if (k.unique) exprToNewTmp[k] = v}
+    // we need to copy these expressions
     for (action in toInsertOrDelete) {
-      domComps = new DominanceComputations()
-      domComps.computeDominators(startNode)
 //      valueNumberer = new ValueNumberer()
 //println "####################### $action"
-//      doRewrite(action)
+      doRewrite(action)
     }
+    //make sure that non-deleted expressions are available too
+    def needsCopy = []
+    eachNodeOf(startNode) { node ->
+      if (valueNumberer.getExpr(node) in exprToNewTmp.keySet().findAll{!it.unique}) {
+        needsCopy << node
+      }
+    }
+    for (node in needsCopy) {
+      assert node.successors.size() == 1
+      def nodeTmp
+      if (node instanceof LowIrStore) nodeTmp = node.value
+      else nodeTmp = node.getDef()
+      def expr = valueNumberer.getExpr(node)
+      new LowIrBridge(new LowIrMov(src: nodeTmp, dst: exprToNewTmp[expr])).insertBetween(
+        node, node.successors[0]
+      )
+    }
+//    println "Deleted ${toInsertOrDelete.findAll{it.size() == 2}.size()}, inserted ${toInsertOrDelete.findAll{it.size() == 3}.size()}"
+//    SSAComputer.destroyAllMyBeautifulHardWork(desc.lowir)
+    new SSAComputer().compute(desc)
   }
 
   def newTmp
   def domComps
   def toInsertOrDelete = new LinkedHashSet()
   def uniqueToTmp
-  def findDefInDomTree(LowIrNode node, expr) {
-    if (uniqueToTmp.containsKey(expr)) return uniqueToTmp[expr]
-    while (node != null && valueNumberer.getExpr(node) != expr) {
-      if (expr.op != null) {
-        //println "$node doesn't contain $expr (it's ${valueNumberer.getExpr(node)})"
-      }
-      node = domComps.ancestor[node]
-    }
-    if (node instanceof LowIrStore) return node.value
-    //TODO: this shouldn't happen after we fix the initial definitions
-    if (node == null) {
-      def t = newTmp()
-      //println "@@@returning new $t for $expr"
-      return t
-    }
-    assert node.getDef() != null
-    return node.getDef()
-  }
   def findAndReplace(LowIrNode node) {
     for (expr in deleteNode(node)) {
       toInsertOrDelete << [expr, node]
@@ -258,6 +261,7 @@ class LazyCodeMotion {
     domComps.domTree[node].each{findAndReplace(it)}
   }
 
+  def exprToNewTmp = new LazyMap({newTmp()})
   def doRewrite(List action) {
     if (action.size() == 3) {
       def fst = action[1], snd = action[2]
@@ -271,20 +275,22 @@ class LazyCodeMotion {
         expr.check()
         def node
         if (expr.constVal != null) {
-          node = new LowIrIntLiteral(value: expr.constVal, tmpVar: newTmp())
+          node = new LowIrIntLiteral(value: expr.constVal, tmpVar: exprToNewTmp[expr])
         } else if (expr.unique) {
           assert false //I think this can't happen
         } else if (expr.op != null) {
           node = new LowIrBinOp(
             op: expr.op,
-            leftTmpVar: findDefInDomTree(fst, expr.left),
-            rightTmpVar: expr.right ? findDefInDomTree(fst, expr.right) : null,
-            tmpVar: newTmp()
+            leftTmpVar: exprToNewTmp[expr.left],
+            rightTmpVar: expr.right ? exprToNewTmp[expr.right] : null,
+            tmpVar: exprToNewTmp[expr]
           )
 //if (expr.op == BinOpType.LT) println "inserting an LT"
         } else if (expr.varDesc != null) {
+return
           //TODO: this smells like arrays will be totally wrong
-          node = new LowIrLoad(desc: expr.varDesc, tmpVar: newTmp())
+          node = new LowIrLoad(desc: expr.varDesc, tmpVar: exprToNewTmp[expr])
+          if (expr.index != null) node.index = exprToNewTmp[expr.index]
         } else {
           assert false
         }
@@ -297,15 +303,20 @@ class LazyCodeMotion {
       def del = action[1]
       def expr = action[0]
 //if (expr.op == BinOpType.LT) println "deleting an LT"
-      assert del.predecessors.size() == 1
-      def tmp = findDefInDomTree(del.predecessors[0], expr)
+      assert del.successors.size() == 1
+      def tmp = exprToNewTmp[expr]
 //      println "replacing ${del.getDef()} with $tmp"
+/*
       if (tmp.defSite != null) {
         del.getDef().useSites.clone().each{
-          assert it.replaceUse(del.getDef(), tmp) > 0
+          def replacements = it.replaceUse(del.getDef(), tmp)
+          if (replacements == 0) println "Warning: found broken useSite"
         }
-        del.excise() //delete
       }
+*/
+      if (expr.varDesc != null) return
+      new LowIrBridge(new LowIrMov(src: tmp, dst: del.getDef())).insertBetween(del, del.successors[0])
+      del.excise() //delete
     }
   }
 }

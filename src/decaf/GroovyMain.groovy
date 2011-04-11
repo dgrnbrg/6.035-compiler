@@ -327,6 +327,8 @@ public class GroovyMain {
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
       new LazyCodeMotion().run(methodDesc)
+      new CopyPropagation().propagate(methodDesc.lowir)
+      new DeadCodeElimination().run(methodDesc.lowir)
     }
   }
 
