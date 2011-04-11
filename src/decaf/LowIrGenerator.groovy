@@ -13,13 +13,14 @@ class LowIrGenerator {
     this.desc = desc
     inliningStack = [desc]
     returnValueNode = null
+    def prologue = new LowIrBridge(new LowIrNode(metaText: 'begin method'))
     def epilogue
     if (desc.returnType == Type.VOID) {
       epilogue = new LowIrBridge(new LowIrReturn())
     } else {
       epilogue = dieWithMessage("Control fell off end of non-void function $desc.name\\n")
     }
-    return destruct(desc.block).seq(epilogue)
+    return prologue.seq(destruct(desc.block)).seq(epilogue)
   }
 
   // returns a valuebridge which is the inlined function
