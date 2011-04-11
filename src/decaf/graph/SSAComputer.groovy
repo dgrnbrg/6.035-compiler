@@ -9,8 +9,10 @@ class SSAComputer {
   def compute(MethodDescriptor desc) {
     this.tempFactory = desc.tempFactory
     def startNode = desc.lowir
+    destroyAllMyBeautifulHardWork(startNode)
     doDominanceComputations(startNode)
     placePhiFunctions(startNode)
+    deleteDUChains(startNode)
     rename(startNode)
   }
 
@@ -52,6 +54,9 @@ class SSAComputer {
           defsites[tmpVar] << node
         }
       }
+      //clean up old annotations
+      node.anno['phi-functions'] = null
+      node.anno['phi-functions-to-visit'] = null
     }
 
     def insertBeforeMap = [:]
@@ -173,6 +178,22 @@ class SSAComputer {
         }
         use.useSites << node
       }
+    }
+  }
+
+  static void deleteDUChains(LowIrNode startNode) {
+    def tmps = new LinkedHashSet()
+    eachNodeOf(startNode) { node ->
+      def newStuff = node.getUses()
+      if (node.getDef()) newStuff << node.getDef()
+      for (tmp in newStuff) {
+        tmps << tmp
+      }
+    }
+    for (tmp in tmps) {
+      if (!tmp) continue
+      tmp.useSites = []
+      tmp.defSite = null
     }
   }
 
