@@ -10,19 +10,14 @@ class DeadCodeElimination extends Analizer {
     dir = AnalysisDirection.BACKWARD
   }
 
-  final void lazyInit(node) {
-    if (node.anno['deadcode-liveness'] == null)
-      node.anno['deadcode-liveness'] = new HashSet()
-  }
+  def map = new LazyMap({new HashSet()})
 
   void store(GraphNode node, Set data) {
-    lazyInit(node)
-    node.anno['deadcode-liveness'] = data
+    map[node] = data
   }
 
   Set load(GraphNode node) {
-    lazyInit(node)
-    return node.anno['deadcode-liveness']
+    return map[node]
   }
 
   def gen(node) {
