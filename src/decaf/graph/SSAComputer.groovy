@@ -156,6 +156,26 @@ class SSAComputer {
     }
   }
 
+  static void updateDUChains(LowIrNode startNode) {
+    def clearedUses = new HashSet()
+    eachNodeOf(startNode) { node ->
+      if (node.getDef() != null) {
+        node.getDef().defSite = node
+        if (!(node.getDef() in clearedUses)) {
+          clearedUses << use
+          use.useSites = []
+        }
+      }
+      for (use in node.getUses()) {
+        if (!(use in clearedUses)) {
+          clearedUses << use
+          use.useSites = [node]
+        }
+        use.useSites << node
+      }
+    }
+  }
+
   /**
   Find all phi functions, then search through the predecessors to the join point
   Insert a move for each possibility at the join point, then delete the phi function
