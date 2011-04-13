@@ -220,7 +220,7 @@ public class GroovyMain {
       lowirGen.inliningThreshold = 0
     }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'cse', 'cp']
+      opts += ['ssa', 'dce', 'pre', 'cp']
     }
   }
 
@@ -329,9 +329,11 @@ public class GroovyMain {
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
-      new LazyCodeMotion().run(methodDesc)
-      new CopyPropagation().propagate(methodDesc.lowir)
-      new DeadCodeElimination().run(methodDesc.lowir)
+      if ('pre' in opts) {
+        new LazyCodeMotion().run(methodDesc)
+        new CopyPropagation().propagate(methodDesc.lowir)
+        new DeadCodeElimination().run(methodDesc.lowir)
+      }
     }
   }
 
