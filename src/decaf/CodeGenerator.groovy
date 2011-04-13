@@ -103,6 +103,10 @@ class CodeGenerator extends Traverser {
       movq(rax,getTmp(stmt.tmpVar))
       add(8*stmt.paramTmpVars.size(), rsp)
       break
+    case LowIrBoundsCheck:
+      movq(getTmp(stmt.testVar), r10)
+      doBoundsCheck(stmt.lowerBound, stmt.upperBound, r10)
+      break
     case LowIrReturn:
       if (stmt.tmpVar != null) {
         movq(getTmp(stmt.tmpVar),rax)
@@ -287,6 +291,32 @@ class CodeGenerator extends Traverser {
 
   void link(GraphNode src, GraphNode dst) {
   }
+
+  static int boundsLabelCounter = 0
+  def genBoundsLabel() {
+    return "bounds_check_${boundsLabelCounter++}".toString()
+  }
+
+  //the access is in the inRegister, low and high are ints that will checked
+  def doBoundsCheck(int low, int high, inRegister) {
+    def boundsLabel = genBoundsLabel()
+    def boundsLabelPost = genBoundsLabel()
+
+    cmp(high, inRegister)
+    jge(boundsLabel)
+
+    cmp(low, inRegister)
+    jl(boundsLabel)
+
+    jmp(boundsLabelPost)
+
+    emit(boundsLabel + ':')
+    dieWithMessage("Array out of bounds\\n");
+
+    emit(boundsLabelPost + ':')
+  }
+
+
 
   def getAsm() {
     StringBuilder code = new StringBuilder()

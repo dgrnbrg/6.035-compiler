@@ -298,30 +298,10 @@ class LowIrGenerator {
 
   LowIrBridge boundsCheck(VariableDescriptor arrDesc, TempVar indexVar) {
     assert arrDesc.arraySize != null
-    //if too high, die, else low. if too low, die, else done
-    def highTmp = desc.tempFactory.createLocalTemp()
-    def cmpResult = desc.tempFactory.createLocalTemp()
-    def highBridge = new LowIrBridge([
-      new LowIrIntLiteral(value: arrDesc.arraySize, tmpVar: highTmp),
-      new LowIrBinOp(leftTmpVar: indexVar, rightTmpVar: highTmp, op: BinOpType.GTE, tmpVar: cmpResult),
-      new LowIrCondJump(condition: cmpResult)
-    ])
-    def lowTmp = desc.tempFactory.createLocalTemp()
-    def lowBridge = new LowIrBridge([
-      new LowIrIntLiteral(value: 0, tmpVar: lowTmp),
-      new LowIrBinOp(leftTmpVar: indexVar, rightTmpVar: lowTmp, op: BinOpType.LT, tmpVar: cmpResult),
-      new LowIrCondJump(condition: cmpResult)
-    ])
-    def outOfBoundsBridgeHigh = dieWithMessage("Array out of bounds (high %d)", indexVar)
-    def outOfBoundsBridgeLow = dieWithMessage("Array out of bounds (low %d)", indexVar)
-    highBridge.end.trueDest = outOfBoundsBridgeHigh.begin
-    highBridge.end.falseDest = lowBridge.begin
-    LowIrNode.link(highBridge.end, outOfBoundsBridgeHigh.begin)
-    LowIrNode.link(highBridge.end, lowBridge.begin)
-    lowBridge.end.trueDest = outOfBoundsBridgeLow.begin
-    lowBridge.end.falseDest = new LowIrNode(metaText: 'bounds check end')
-    LowIrNode.link(lowBridge.end, outOfBoundsBridgeLow.begin)
-    LowIrNode.link(lowBridge.end, lowBridge.end.falseDest)
-    return new LowIrBridge(highBridge.begin, lowBridge.end.falseDest)
+    return new LowIrBridge(new LowIrBoundsCheck(
+      lowerBound: 0,
+      upperBound: arrDesc.arraySize,
+      testVar: indexVar
+    ))
   }
 }

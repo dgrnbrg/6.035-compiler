@@ -8,7 +8,7 @@
 // EXPECTS 7
 // EXPECTS 8
 // EXPECTS 9
-// EXPECTS RUNTIME ERROR: Array out of bounds (high 10)
+// EXPECTS RUNTIME ERROR: Array out of bounds
 // EXITCODE 1
 // This should produce a runtime error
 class Program {
