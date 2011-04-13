@@ -12,27 +12,18 @@ class LazyCodeMotion {
   //exprDEE(b) contains expressions defined in b that survive to the end of b
   // (downward exposed expressions)
   Set exprDEE(LowIrNode node) {
+    //Each node exposes its expressions
+    // (nodes that don't generate exprs are given uniques that are never used)
     return new HashSet([valueNumberer.getExpr(node)])
-/*
-    switch (node) {
-    case LowIrLoad:
-    case LowIrStore:
-//      if (node.index != null) return new HashSet()
-    case LowIrBinOp:
-      return new HashSet([valueNumberer.getExpr(node)])
-    default:
-      return new HashSet()
-    }
-*/
   }
 
   //exprUEE (b) contains expressions defined in b that have upward exposed arguments (both args)
   //  (upward exposed expressions)
   Set exprUEE(LowIrNode node) {
     switch (node) {
-    case LowIrIntLiteral:
+//Note: the following relocation will break the system, so IntLiteral's aren't UEE
+//    case LowIrIntLiteral:
     case LowIrLoad:
-//      if (node.index != null) return new HashSet()
     case LowIrBinOp:
       return new HashSet([valueNumberer.getExpr(node)])
     //LowIrStore changes the value of a load so it's not upward exposed
@@ -42,12 +33,13 @@ class LazyCodeMotion {
   }
 
   //set of expressions whose arguments were killed by the node
-  //TODO: I think this only matters for loads/stores since tmps are in SSA already
   Set exprKill(LowIrNode node) {
     def set = new HashSet()
+    //every expr that uses this one
     set.addAll(exprsContainingExpr[valueNumberer.getExpr(node)])
     switch (node) {
     case LowIrMethodCall:
+      //Method kills anything it might store to; we don't bother to only kill certain indices
       node.descriptor.getDescriptorsOfNestedStores().each{set.addAll(exprsContainingDesc[it])}
       break
     case LowIrStore:
@@ -59,7 +51,7 @@ class LazyCodeMotion {
   }
 
   //this is for doing \bar{input}
-  //it's been removed for performance reasons
+  //it's been removed for performance reasons, but left here for easy reference
 /*
   Set not(Set input) {
     input = allExprs - input
@@ -68,17 +60,21 @@ class LazyCodeMotion {
 */
 
 //Here we create the needed analyses and define their result sets
+//********************
+//** IMPORTANT NOTE **
+//********************
+//You'll see commented out lines written in a function style and then
+//the imperative version is what's left in for performance reasons.
+
   //computes available expressions
   def availAnal = new ClosureAnalizer(
     init: { new HashSet(allExprs) },
     xfer: {node, input ->
-//def t = System.currentTimeMillis()
       def set = exprDEE(node)
 //      set.addAll(input.intersect(not(exprKill(node))))
       def set_prime = input.clone()
       set_prime.removeAll(exprKill(node))
       set.addAll(set_prime)
-//println "xfer takes ${System.currentTimeMillis() -t}"
       return set
     },
     joinFn: {node -> 
@@ -94,6 +90,8 @@ class LazyCodeMotion {
   //computes anticipatable expressions
   def antAnal = new ClosureAnalizer(
     init: { new HashSet(allExprs) },
+    //We initialize the worklist in reverse to allow the propagator to visit the nodes
+    //in closer to linear time than n^2/2 time
     worklistInit: {startNode ->
       def worklist = []
       eachNodeOf(startNode) { worklist << it }
@@ -222,14 +220,10 @@ class LazyCodeMotion {
 
   def run(MethodDescriptor desc) {
     SSAComputer.updateDUChains(desc.lowir)
-//println "updated DU chains"
     initialize(desc.lowir)
     availAnal.analize(startNode)
-//println "know available"
     antAnal.analize(startNode)
-//println "know anticipatable"
     laterAnal.analize(startNode)
-//println "know later sets"
 
     eachNodeOf(desc.lowir) {
       it.anno['antIn'] = antIn(it)
@@ -291,12 +285,12 @@ class LazyCodeMotion {
       )
     }
 eachNodeOf(startNode){it.anno['expr'] = valueNumberer.getExpr(it)}
-println '########'
-exprToNewTmp.each{k,v->println "$k $v"}
+//println '########'
+//exprToNewTmp.each{k,v->println "$k $v"}
 //println "inserted copies"
 //    println "Deleted ${toInsertOrDelete.findAll{it.size() == 2}.size()}, inserted ${toInsertOrDelete.findAll{it.size() == 3}.size()}"
 //    SSAComputer.destroyAllMyBeautifulHardWork(desc.lowir)
-//    new SSAComputer().compute(desc)
+    new SSAComputer().compute(desc)
 //println "SSA fixed"
   }
 
@@ -320,10 +314,11 @@ exprToNewTmp.each{k,v->println "$k $v"}
   def doRewrite(List action) {
     if (action.size() == 3) {
       def fst = action[1], snd = action[2]
-      if (action[2].predecessors.size() > 1) {
-        new LowIrBridge(new LowIrNode(metaText: 'lcm rewrite')).insertBefore(action[2])
+      if (snd.predecessors.size() > 1) {
+        new LowIrBridge(new LowIrNode(metaText: 'lcm rewrite')).insertBefore(snd)
       }
-      assert action[2].predecessors.size() == 1
+//println snd.predecessors
+      assert snd.predecessors.size() == 1
       fst = snd.predecessors[0]
 //      assert insertAlongEdge(fst, snd).size() > 0
       def expr = action[0]
@@ -343,7 +338,7 @@ if (expr.left.constVal == 0) {
             rightTmpVar: expr.right ? exprToNewTmp[expr.right] : null,
             tmpVar: exprToNewTmp[expr]
           )
-if (node.label == 'label143') println 'hit fucked up shit'
+//if (node.label == 'label143') println 'hit fucked up shit'
 //if (expr.op == BinOpType.LT) println "inserting an LT"
         } else if (expr.varDesc != null) {
           //TODO: this smells like arrays will be totally wrong
@@ -355,7 +350,7 @@ if (node.label == 'label143') println 'hit fucked up shit'
         
         node.anno['expr'] = expr
         node.tmpVar.defSite = node
-if (expr.constVal == 0) println "@@ $node"
+//if (expr.constVal == 0) println "@@ $node"
         valueNumberer.memo[node] = expr
         new LowIrBridge(node).insertBetween(fst, snd)
     } else {
@@ -374,7 +369,7 @@ if (expr.constVal == 0) println "@@ $node"
       }
 */
 //      if (expr.varDesc != null) return
-if (expr.constVal == 0) println "^^ $del"
+//if (expr.constVal == 0) println "^^ $del"
       new LowIrBridge(new LowIrMov(src: tmp, dst: del.getDef())).insertBetween(del, del.successors[0])
       valueNumberer.memo[del.successors[0]] = expr
       del.excise() //delete
