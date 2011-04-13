@@ -245,144 +245,106 @@ class LazyCodeMotion {
     //Then, for each definition, search the dominator tree for the redundant definition
     //  and replace the current computation with a mov
 
-    //To do this, we compute the dominator tree and do an in-order walk of it
-    //we maintain a map of what the most recent definition of some expression is in
-    //when we encounter a node that has an edge which needs some expression inserted along it
-    //  we store the edge and the constructed expression into a deferred insertion list
-    //finally, we insert the expressions
-    newTmp = {-> desc.tempFactory.createLocalTemp()}
-    domComps = new DominanceComputations()
-    domComps.computeDominators(startNode)
-    findAndReplace(desc.lowir)
-    uniqueToTmp = valueNumberer.uniqueToTmp
-    uniqueToTmp.each{k, v-> if (k.unique) exprToNewTmp[k] = v}
-//println "initialized rewrites"
-    // we need to copy these expressions
+    //initialize exprToNewTmp map
+    exprToNewTmp = new LazyMap({ desc.tempFactory.createLocalTemp()})
+
+    //find every node to insert and delete and queue up the actions
+    eachNodeOf(startNode) { node ->
+      for (expr in deleteNode(node)) {
+        toInsertOrDelete << [expr, node]
+      }
+      for (succ in node.successors) {
+        for (expr in insertAlongEdge(node, succ)) {
+          toInsertOrDelete << [expr, node, succ]
+        }
+      }
+    }
+    //map sure that each unique expression is tied to its original tmpVar
+    //this handles the case of phis that have undetermined values and parameter tmpvars
+    //it also adds cruft from nodes that aren't used
+    valueNumberer.uniqueToTmp.each{k, v-> if (k.unique) exprToNewTmp[k] = v}
+
+    //insert and delete expressions as needed
     for (action in toInsertOrDelete) {
-//      valueNumberer = new ValueNumberer()
-//println "####################### $action"
       doRewrite(action)
     }
-//println "did insert and deletes"
-    //make sure that non-deleted expressions are available too
+
+    //insert moves from other places the expression is computed to the shared expression tmpVar
     def needsCopy = []
     def newTmps = new HashSet(exprToNewTmp.values())
     eachNodeOf(startNode) { node ->
+      //if the node defines a newTmp (i.e. one of the canonical names for an expression
+      // used by rewriting) or if it's a move from one of the canonical tmps (a copy from a deleted node)
       if (node.getDef() in newTmps || (node instanceof LowIrMov && node.src in newTmps)) return
-      if (deleteNode(node).size() != 0) return
+      //if the expression of this node is not unique or null, copy it
       if (valueNumberer.getExpr(node) in exprToNewTmp.keySet().findAll{it != null && !it.unique}) {
         needsCopy << node
       }
     }
     for (node in needsCopy) {
-      assert node.successors.size() == 1
+      assert node.successors.size() == 1 //not a cond jump
       def nodeTmp
-      if (node instanceof LowIrStore) nodeTmp = node.value
+      if (node instanceof LowIrStore) nodeTmp = node.value //stores expose their input as loads
       else nodeTmp = node.getDef()
       def expr = valueNumberer.getExpr(node)
       new LowIrBridge(new LowIrMov(src: nodeTmp, dst: exprToNewTmp[expr])).insertBetween(
         node, node.successors[0]
       )
     }
-eachNodeOf(startNode){it.anno['expr'] = valueNumberer.getExpr(it)}
-//println '########'
-//exprToNewTmp.each{k,v->println "$k $v"}
-//println "inserted copies"
-//    println "Deleted ${toInsertOrDelete.findAll{it.size() == 2}.size()}, inserted ${toInsertOrDelete.findAll{it.size() == 3}.size()}"
-//    SSAComputer.destroyAllMyBeautifulHardWork(desc.lowir)
+    eachNodeOf(startNode){it.anno['expr'] = valueNumberer.getExpr(it)}
     new SSAComputer().compute(desc)
-//println "SSA fixed"
   }
 
-  def newTmp
-  def domComps
   def toInsertOrDelete = new LinkedHashSet()
-  def uniqueToTmp
-  def findAndReplace(LowIrNode node) {
-    for (expr in deleteNode(node)) {
-      toInsertOrDelete << [expr, node]
-    }
-    for (succ in node.successors) {
-      for (expr in insertAlongEdge(node, succ)) {
-        toInsertOrDelete << [expr, node, succ]
-      }
-    }
-    domComps.domTree[node].each{findAndReplace(it)}
-  }
 
-  def exprToNewTmp = new LazyMap({newTmp()})
+  //This will be a map from expressions to their unique tmp
+  //every def and use of some particular expression gets its own tmp in this map
+  //the recomputation of SSA form will fix these reuses
+  def exprToNewTmp
   def doRewrite(List action) {
     if (action.size() == 3) {
       def fst = action[1], snd = action[2]
       if (snd.predecessors.size() > 1) {
         new LowIrBridge(new LowIrNode(metaText: 'lcm rewrite')).insertBefore(snd)
       }
-//println snd.predecessors
       assert snd.predecessors.size() == 1
       fst = snd.predecessors[0]
-//      assert insertAlongEdge(fst, snd).size() > 0
       def expr = action[0]
-        expr.check()
-        def node
-        if (expr.constVal != null) {
-          node = new LowIrIntLiteral(value: expr.constVal, tmpVar: exprToNewTmp[expr])
-        } else if (expr.unique) {
-          assert false //I think this can't happen
-        } else if (expr.op != null) {
-if (expr.left.constVal == 0) {
-  println "$expr ${exprToNewTmp[expr.left]} ${exprToNewTmp[expr.right]}"
-}
-          node = new LowIrBinOp(
-            op: expr.op,
-            leftTmpVar: exprToNewTmp[expr.left],
-            rightTmpVar: expr.right ? exprToNewTmp[expr.right] : null,
-            tmpVar: exprToNewTmp[expr]
-          )
-//if (node.label == 'label143') println 'hit fucked up shit'
-//if (expr.op == BinOpType.LT) println "inserting an LT"
-        } else if (expr.varDesc != null) {
-          //TODO: this smells like arrays will be totally wrong
-          node = new LowIrLoad(desc: expr.varDesc, tmpVar: exprToNewTmp[expr])
-          if (expr.index != null) node.index = exprToNewTmp[expr.index]
-        } else {
-          assert false
-        }
-        
-        node.anno['expr'] = expr
-        node.tmpVar.defSite = node
-//if (expr.constVal == 0) println "@@ $node"
-        valueNumberer.memo[node] = expr
-        new LowIrBridge(node).insertBetween(fst, snd)
+      expr.check()
+      def node
+      if (expr.constVal != null) {
+        node = new LowIrIntLiteral(value: expr.constVal, tmpVar: exprToNewTmp[expr])
+      } else if (expr.unique) {
+        assert false //I think this can't happen
+      } else if (expr.op != null) {
+        node = new LowIrBinOp(
+          op: expr.op,
+          leftTmpVar: exprToNewTmp[expr.left],
+          rightTmpVar: expr.right ? exprToNewTmp[expr.right] : null,
+          tmpVar: exprToNewTmp[expr]
+        )
+      } else if (expr.varDesc != null) {
+        node = new LowIrLoad(desc: expr.varDesc, tmpVar: exprToNewTmp[expr])
+        if (expr.index != null) node.index = exprToNewTmp[expr.index]
+      } else {
+        assert false
+      }
+      
+      node.anno['expr'] = expr
+      node.tmpVar.defSite = node
+      valueNumberer.memo[node] = expr
+      new LowIrBridge(node).insertBetween(fst, snd)
     } else {
       def del = action[1]
       def expr = action[0]
-//if (expr.op == BinOpType.LT) println "deleting an LT"
       assert del.successors.size() == 1
       def tmp = exprToNewTmp[expr]
-//      println "replacing ${del.getDef()} with $tmp"
-/*
-      if (tmp.defSite != null) {
-        del.getDef().useSites.clone().each{
-          def replacements = it.replaceUse(del.getDef(), tmp)
-          if (replacements == 0) println "Warning: found broken useSite"
-        }
-      }
-*/
-//      if (expr.varDesc != null) return
-//if (expr.constVal == 0) println "^^ $del"
       new LowIrBridge(new LowIrMov(src: tmp, dst: del.getDef())).insertBetween(del, del.successors[0])
       valueNumberer.memo[del.successors[0]] = expr
       del.excise() //delete
     }
   }
 }
-
-class MutatedGraphException extends Exception {
-  MutatedGraphException(String msg) {
-    super(msg);
-  }
-}
-
 //This is how we do dataflow analysis for the laterAnal, since it's on edges
 //LCM = LazyCodeMotion
 class LCMEdge implements GraphNode {
