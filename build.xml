@@ -142,8 +142,7 @@
       <arg value="${Compiler.target}"/>
       <arg value="-assertEnabled"/>
       <arg value="-opt"/>
-      <arg value="cp"/>
-      <arg value="dce"/>
+      <arg value="pre"/>
     </java>
   </target>
 

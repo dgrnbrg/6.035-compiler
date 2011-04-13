@@ -12,21 +12,27 @@ class LazyCodeMotion {
   //exprDEE(b) contains expressions defined in b that survive to the end of b
   // (downward exposed expressions)
   Set exprDEE(LowIrNode node) {
+    return new HashSet([valueNumberer.getExpr(node)])
+/*
     switch (node) {
     case LowIrLoad:
-    case LowIrBinOp:
     case LowIrStore:
+//      if (node.index != null) return new HashSet()
+    case LowIrBinOp:
       return new HashSet([valueNumberer.getExpr(node)])
     default:
       return new HashSet()
     }
+*/
   }
 
   //exprUEE (b) contains expressions defined in b that have upward exposed arguments (both args)
   //  (upward exposed expressions)
   Set exprUEE(LowIrNode node) {
     switch (node) {
+    case LowIrIntLiteral:
     case LowIrLoad:
+//      if (node.index != null) return new HashSet()
     case LowIrBinOp:
       return new HashSet([valueNumberer.getExpr(node)])
     //LowIrStore changes the value of a load so it's not upward exposed
@@ -39,32 +45,40 @@ class LazyCodeMotion {
   //TODO: I think this only matters for loads/stores since tmps are in SSA already
   Set exprKill(LowIrNode node) {
     def set = new HashSet()
-    if (node.getDef() != null )
-      set.addAll(exprsContainingExpr[valueNumberer.getExprOfTmp(node.getDef())])
+    set.addAll(exprsContainingExpr[valueNumberer.getExpr(node)])
     switch (node) {
     case LowIrMethodCall:
-      set.addAll(node.descriptor.getDescriptorsOfNestedStores().collect{new Expression(varDesc: it)})
+      node.descriptor.getDescriptorsOfNestedStores().each{set.addAll(exprsContainingDesc[it])}
       break
     case LowIrStore:
-      set << new Expression(varDesc: node.desc)
+      //TODO: might be too conservative
+      set += exprsContainingDesc[node.desc]
       break
     }
     return set
   }
 
   //this is for doing \bar{input}
+  //it's been removed for performance reasons
+/*
   Set not(Set input) {
     input = allExprs - input
     return input
   }
+*/
 
 //Here we create the needed analyses and define their result sets
   //computes available expressions
   def availAnal = new ClosureAnalizer(
     init: { new HashSet(allExprs) },
     xfer: {node, input ->
+//def t = System.currentTimeMillis()
       def set = exprDEE(node)
-      set.addAll(input.intersect(not(exprKill(node))))
+//      set.addAll(input.intersect(not(exprKill(node))))
+      def set_prime = input.clone()
+      set_prime.removeAll(exprKill(node))
+      set.addAll(set_prime)
+//println "xfer takes ${System.currentTimeMillis() -t}"
       return set
     },
     joinFn: {node -> 
@@ -80,9 +94,21 @@ class LazyCodeMotion {
   //computes anticipatable expressions
   def antAnal = new ClosureAnalizer(
     init: { new HashSet(allExprs) },
+    worklistInit: {startNode ->
+      def worklist = []
+      eachNodeOf(startNode) { worklist << it }
+      def worklist_final = new LinkedHashSet()
+      for (int i = worklist.size() - 1; i >= 0; i--) {
+        worklist_final << worklist[i]
+      }
+      return worklist_final
+    },
     xfer: {node, input ->
       def set = exprUEE(node)
-      set.addAll(input.intersect(not(exprKill(node))))
+      def set_prime = input.clone()
+      set_prime.removeAll(exprKill(node))
+      set.addAll(set_prime)
+//      set.addAll(input.intersect(not(exprKill(node))))
       return set
     },
     joinFn: {node -> 
@@ -109,7 +135,11 @@ class LazyCodeMotion {
       def i = edge.fst
       def j = edge.snd
       assert i != j
-      return earliest(i,j) + (input.intersect(not(exprUEE(i))))
+//      return earliest(i,j) + (input.intersect(not(exprUEE(i))))
+      def s = input
+      s.removeAll(exprUEE(i))
+      s.addAll(earliest(i,j))
+      return s
     },
     joinFn: {edge -> 
       def preds = edge.fst.predecessors
@@ -134,23 +164,36 @@ class LazyCodeMotion {
   def laterIn(j) {laterAnal.join(new LCMEdge(j, null))}
   def later(i,j) {laterAnal.transfer(new LCMEdge(i,j), laterIn(i))}
 
-  def insertAlongEdge(i,j) {later(i,j).intersect(not(laterIn(j)))}
-  def deleteNode(k) { k != startNode ? exprUEE(k).intersect(not(laterIn(k))) : new HashSet()}
+//  def insertAlongEdge(i,j) {later(i,j).intersect(not(laterIn(j)))}
+  def insertAlongEdge(i,j) {later(i,j) - laterIn(j)}
+//  def deleteNode(k) { k != startNode ? exprUEE(k).intersect(not(laterIn(k))) : new HashSet()}
+  def deleteNode(k) { k != startNode ? exprUEE(k) - laterIn(k) : new HashSet()}
 
   // e \in earliest(i,j) if 
   //  - it can move to head of j
   //  - it is not available at end of i
   //  - either to cannot move to head of i or another edge leaving i prevents its placement in i
   Set earliest(LowIrNode i, LowIrNode j) {
-     if (i == startNode)
-       return antIn(j).intersect(not(availOut(startNode)))
-     else
-       return antIn(j).intersect(not(availOut(i))).intersect(exprKill(i) + not(antOut(i)))
+     if (i == startNode) {
+       return antIn(j) - availOut(startNode)
+//       return antIn(j).intersect(not(availOut(startNode)))
+     } else {
+//       return antIn(j).intersect(not(availOut(i))).intersect(exprKill(i) + not(antOut(i)))
+       //this is faster, but differs from the above in how it looks (i.e. worse)
+       def x = antIn(j)
+       x.removeAll(availOut(i))
+       def y = x.clone()
+       y.retainAll(exprKill(i))
+       x.removeAll(antOut(i))
+       y.addAll(x)
+       return y
+     }
   }
 
 //this part prepares the graph-dependent sets
   def allExprs = new LinkedHashSet()
   def exprsContainingExpr = new LazyMap({new LinkedHashSet()})
+  def exprsContainingDesc = new LazyMap({new LinkedHashSet()})
   def startNode
   def initialize(LowIrNode startNode) {
     this.startNode = startNode
@@ -160,17 +203,15 @@ class LazyCodeMotion {
       it.anno['expr'] = expr //TODO: delete this annotation
       switch (it) {
       case LowIrLoad:
-      case LowIrBinOp:
       case LowIrStore:
-      case LowIrIntLiteral:
-        if (it.getDef() != null) {
-          it.getUses().each{use ->
-            exprsContainingExpr[valueNumberer.getExprOfTmp(use)] << expr
-          }
-        }
-        allExprs << expr
+        exprsContainingDesc[it.desc] << expr
         break
       }
+      it.getUses().each{use ->
+        exprsContainingExpr[valueNumberer.getExprOfTmp(use)] << expr
+      }
+      allExprs << expr
+
       if (it.successors.size() == 0) antAnal.store(it, new HashSet()) //establish starting values
     }
     availAnal.store(startNode, new HashSet()) //establish starting values
@@ -181,10 +222,14 @@ class LazyCodeMotion {
 
   def run(MethodDescriptor desc) {
     SSAComputer.updateDUChains(desc.lowir)
+//println "updated DU chains"
     initialize(desc.lowir)
     availAnal.analize(startNode)
+//println "know available"
     antAnal.analize(startNode)
+//println "know anticipatable"
     laterAnal.analize(startNode)
+//println "know later sets"
 
     eachNodeOf(desc.lowir) {
       it.anno['antIn'] = antIn(it)
@@ -217,16 +262,21 @@ class LazyCodeMotion {
     findAndReplace(desc.lowir)
     uniqueToTmp = valueNumberer.uniqueToTmp
     uniqueToTmp.each{k, v-> if (k.unique) exprToNewTmp[k] = v}
+//println "initialized rewrites"
     // we need to copy these expressions
     for (action in toInsertOrDelete) {
 //      valueNumberer = new ValueNumberer()
 //println "####################### $action"
       doRewrite(action)
     }
+//println "did insert and deletes"
     //make sure that non-deleted expressions are available too
     def needsCopy = []
+    def newTmps = new HashSet(exprToNewTmp.values())
     eachNodeOf(startNode) { node ->
-      if (valueNumberer.getExpr(node) in exprToNewTmp.keySet().findAll{!it.unique}) {
+      if (node.getDef() in newTmps || (node instanceof LowIrMov && node.src in newTmps)) return
+      if (deleteNode(node).size() != 0) return
+      if (valueNumberer.getExpr(node) in exprToNewTmp.keySet().findAll{it != null && !it.unique}) {
         needsCopy << node
       }
     }
@@ -240,9 +290,14 @@ class LazyCodeMotion {
         node, node.successors[0]
       )
     }
+eachNodeOf(startNode){it.anno['expr'] = valueNumberer.getExpr(it)}
+println '########'
+exprToNewTmp.each{k,v->println "$k $v"}
+//println "inserted copies"
 //    println "Deleted ${toInsertOrDelete.findAll{it.size() == 2}.size()}, inserted ${toInsertOrDelete.findAll{it.size() == 3}.size()}"
 //    SSAComputer.destroyAllMyBeautifulHardWork(desc.lowir)
-    new SSAComputer().compute(desc)
+//    new SSAComputer().compute(desc)
+//println "SSA fixed"
   }
 
   def newTmp
@@ -279,15 +334,18 @@ class LazyCodeMotion {
         } else if (expr.unique) {
           assert false //I think this can't happen
         } else if (expr.op != null) {
+if (expr.left.constVal == 0) {
+  println "$expr ${exprToNewTmp[expr.left]} ${exprToNewTmp[expr.right]}"
+}
           node = new LowIrBinOp(
             op: expr.op,
             leftTmpVar: exprToNewTmp[expr.left],
             rightTmpVar: expr.right ? exprToNewTmp[expr.right] : null,
             tmpVar: exprToNewTmp[expr]
           )
+if (node.label == 'label143') println 'hit fucked up shit'
 //if (expr.op == BinOpType.LT) println "inserting an LT"
         } else if (expr.varDesc != null) {
-return
           //TODO: this smells like arrays will be totally wrong
           node = new LowIrLoad(desc: expr.varDesc, tmpVar: exprToNewTmp[expr])
           if (expr.index != null) node.index = exprToNewTmp[expr.index]
@@ -297,6 +355,7 @@ return
         
         node.anno['expr'] = expr
         node.tmpVar.defSite = node
+if (expr.constVal == 0) println "@@ $node"
         valueNumberer.memo[node] = expr
         new LowIrBridge(node).insertBetween(fst, snd)
     } else {
@@ -314,8 +373,10 @@ return
         }
       }
 */
-      if (expr.varDesc != null) return
+//      if (expr.varDesc != null) return
+if (expr.constVal == 0) println "^^ $del"
       new LowIrBridge(new LowIrMov(src: tmp, dst: del.getDef())).insertBetween(del, del.successors[0])
+      valueNumberer.memo[del.successors[0]] = expr
       del.excise() //delete
     }
   }

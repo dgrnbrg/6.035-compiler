@@ -211,6 +211,9 @@ public class GroovyMain {
     if ('dce' in argparser['opt']) {
       opts += ['ssa', 'dce']
     }
+    if ('pre' in argparser['opt']) {
+      opts += ['ssa', 'pre']
+    }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
     } else {
