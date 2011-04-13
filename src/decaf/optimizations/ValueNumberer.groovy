@@ -144,6 +144,7 @@ class Expression {
     if (unique) return "unique${this.hashCode() % 100}"
     if (constVal != null) return "const($constVal)"
     if (op != null) return "($left $op $right)"
+    if (varDesc != null && index != null) return "desc($varDesc.name[$index])"
     if (varDesc != null) return "desc($varDesc.name)"
     assert false
   }
