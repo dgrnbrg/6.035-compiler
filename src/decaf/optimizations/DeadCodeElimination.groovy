@@ -56,6 +56,17 @@ class DeadCodeElimination extends Analizer {
   }
 
   def run(startNode) {
+    //We initialize the worklist in reverse to allow the propagator to visit the nodes
+    //in closer to linear time than n^2/2 time
+    worklistInit = { k ->
+      def worklist = []
+      eachNodeOf(k) { worklist << it }
+      def worklist_final = new LinkedHashSet()
+      for (int i = worklist.size() - 1; i >= 0; i--) {
+        worklist_final << worklist[i]
+      }
+      return worklist_final
+    }
     analize(startNode)
     def worklist = new LinkedHashSet()
     eachNodeOf(startNode) {
