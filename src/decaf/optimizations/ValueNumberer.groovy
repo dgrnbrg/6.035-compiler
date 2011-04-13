@@ -60,6 +60,13 @@ class ValueNumberer {
         result.index = getExprOfTmp(node.index)
       }
       break
+    case LowIrBoundsCheck:
+      result = new Expression(
+        boundLow: node.lowerBound,
+        boundHigh: node.upperBound,
+        boundTest: getExprOfTmp(node.testVar)
+      )
+      break
     case LowIrPhi:
       if (visitedPhis.contains(node)) {
         result = uniqueMap[node] //TODO: check that we get self-phis on loops correct
@@ -103,17 +110,27 @@ class Expression {
   def left, right, op
   //For variables
   def varDesc, index
+  //For bounds checks
+  def boundTest, boundLow, boundHigh
 
   //This checks that you set it up correctly
   def check() {
     if (constVal != null) {
-      assert !unique && left == null && right == null && op == null && varDesc == null && index == null
+      assert !unique && left == null && right == null && op == null && varDesc == null &&
+        index == null && boundTest == null && boundLow == null && boundHigh == null
     } else if (unique) {
-      assert constVal == null && left == null && right == null && op == null && varDesc == null && index == null
+      assert constVal == null && left == null && right == null && op == null &&
+        varDesc == null && index == null && boundTest == null && boundLow == null && boundHigh == null
     } else if (left) {
-      assert constVal == null && !unique && varDesc == null && index == null
+      assert constVal == null && !unique && varDesc == null && index == null &&
+        boundTest == null && boundLow == null && boundHigh == null
     } else if (varDesc) {
-      assert !unique && constVal == null && left == null && right == null && op == null
+      assert !unique && constVal == null && left == null && right == null &&
+        op == null && boundTest == null && boundLow == null && boundHigh == null
+    } else if (boundTest) {
+      assert boundLow != null && boundHigh != null
+      assert !unique && constVal == null && left == null && right == null &&
+        op == null && varDesc == null && index == null
     } else {
       assert false
     }
@@ -135,6 +152,9 @@ class Expression {
       }
       return tmp
     }
+    if (boundTest != null) {
+      return boundTest.hashCode() * 19 + boundLow * 1047 + boundHigh * 3
+    }
   }
 
   boolean equals(Object o) { o instanceof Expression && o.hashCode() == this.hashCode() }
@@ -146,6 +166,7 @@ class Expression {
     if (op != null) return "($left $op $right)"
     if (varDesc != null && index != null) return "desc($varDesc.name[$index])"
     if (varDesc != null) return "desc($varDesc.name)"
+    if (boundTest != null) return "check($boundLow <= $boundTest < $boundHigh"
     assert false
   }
 }

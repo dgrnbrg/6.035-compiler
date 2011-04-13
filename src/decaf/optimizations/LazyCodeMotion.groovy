@@ -25,6 +25,7 @@ class LazyCodeMotion {
 //    case LowIrIntLiteral:
     case LowIrLoad:
     case LowIrBinOp:
+    case LowIrBoundsCheck:
       return new HashSet([valueNumberer.getExpr(node)])
     //LowIrStore changes the value of a load so it's not upward exposed
     default:
@@ -287,11 +288,17 @@ class LazyCodeMotion {
       if (node instanceof LowIrStore) nodeTmp = node.value //stores expose their input as loads
       else nodeTmp = node.getDef()
       def expr = valueNumberer.getExpr(node)
-      new LowIrBridge(new LowIrMov(src: nodeTmp, dst: exprToNewTmp[expr])).insertBetween(
-        node, node.successors[0]
-      )
+      if (expr.boundTest == null) {
+        //only do for expressions that compute a result
+        new LowIrBridge(new LowIrMov(src: nodeTmp, dst: exprToNewTmp[expr])).insertBetween(
+          node, node.successors[0]
+        )
+      }
     }
     eachNodeOf(startNode){it.anno['expr'] = valueNumberer.getExpr(it)}
+    def insertCnt = toInsertOrDelete.findAll{it.size() == 3}.size()
+    def deleteCnt = toInsertOrDelete.findAll{it.size() == 2}.size()
+    println "total expressions removed in $desc.name = ${deleteCnt - insertCnt}"
     new SSAComputer().compute(desc)
   }
 
@@ -326,12 +333,15 @@ class LazyCodeMotion {
       } else if (expr.varDesc != null) {
         node = new LowIrLoad(desc: expr.varDesc, tmpVar: exprToNewTmp[expr])
         if (expr.index != null) node.index = exprToNewTmp[expr.index]
+      } else if (expr.boundTest != null) {
+        node = new LowIrBoundsCheck(lowerBound: expr.boundLow, upperBound: expr.boundHigh,
+          testVar: exprToNewTmp[expr.boundTest])
       } else {
         assert false
       }
       
       node.anno['expr'] = expr
-      node.tmpVar.defSite = node
+      //node.tmpVar.defSite = node
       valueNumberer.memo[node] = expr
       new LowIrBridge(node).insertBetween(fst, snd)
     } else {
@@ -339,8 +349,11 @@ class LazyCodeMotion {
       def expr = action[0]
       assert del.successors.size() == 1
       def tmp = exprToNewTmp[expr]
-      new LowIrBridge(new LowIrMov(src: tmp, dst: del.getDef())).insertBetween(del, del.successors[0])
-      valueNumberer.memo[del.successors[0]] = expr
+      if (del.getDef() != null) {
+        //only do this for binops and memops, not for bounds checks
+        new LowIrBridge(new LowIrMov(src: tmp, dst: del.getDef())).insertBetween(del, del.successors[0])
+        valueNumberer.memo[del.successors[0]] = expr
+      }
       del.excise() //delete
     }
   }
