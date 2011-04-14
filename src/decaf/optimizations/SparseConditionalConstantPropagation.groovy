@@ -13,8 +13,9 @@ class SparseConditionalConstantPropagation {
   def ssaWL = new LinkedHashSet()
   def edges = new LazyMap( { node -> node.predecessors.collect { [it, node]} })
   def execFlag = new LazyMap( { false })
+  def toUnlink = []
 
-  def run(MethodDescriptor methodDesc) {
+  def analize(MethodDescriptor methodDesc) {
     def startNode = methodDesc.lowir
     store(startNode, new InstVal())
     //init flowWL to contain edges exiting the start node of the program
@@ -130,6 +131,7 @@ class SparseConditionalConstantPropagation {
     case LowIrCallOut:
     case LowIrMethodCall:
     case LowIrIntLiteral:
+    default:
       result = calculate(node, null)
       break
     }
@@ -216,6 +218,43 @@ class SparseConditionalConstantPropagation {
       return new InstVal(LatticeType.OVERDEF)
     case LowIrIntLiteral:
       return new InstVal(node.value)
+    default:
+      return new InstVal(LatticeType.OVERDEF)
+    }
+  }
+
+  def run(MethodDescriptor methodDesc) {
+    def startNode = methodDesc.lowir
+    analize(methodDesc)
+    eachNodeOf(startNode) { node ->
+      def latType = tmpToInstVal[node.getDef()].latticeVal
+      if (latType == LatticeType.CONST && node.getDef() != null) {
+        def constVal = tmpToInstVal[node.getDef()].constVal
+        assert node.successors.size() == 1
+        new LowIrBridge(new LowIrIntLiteral(value: constVal, tmpVar: node.getDef())).
+          insertBetween(node, node.successors[0])
+        node.excise()
+      }
+      if (node instanceof LowIrCondJump &&
+          tmpToInstVal[node.condition].latticeVal == LatticeType.CONST) {
+        toUnlink << node
+      }
+    }
+    toUnlink.each {
+      def br = null
+      assert it.predecessors.size() == 1
+      def pred = it.predecessors[0]
+      def val = tmpToInstVal[it.condition].constVal
+      if (val == 1) {
+        br = it.trueDest
+      } else if (val == 0) {
+        br = it.falseDest
+      } else {
+        assert false
+      }
+      LowIrNode.unlink(pred, it)
+      LowIrNode.unlink(it, br)
+      LowIrNode.link(pred, br)
     }
   }
 
