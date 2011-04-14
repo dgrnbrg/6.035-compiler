@@ -43,9 +43,13 @@ new File('tmp.o').delete()
 
 class AutomationTester {
  static boolean test(file) {
+  println "Running $file"
   //only compile decaf programs
   //output to tmp.s, use assertions
-  def compiler = GroovyMain.runMain('codegen', file.text, ['assertEnabled': true, 'o': 'tmp.s', 'opt': ['all']])
+  def compiler
+  try {
+    compiler = GroovyMain.runMain('codegen', file.text, ['assertEnabled': true, 'o': 'tmp.s', 'opt': ['all']])
+  } catch (Throwable t) {t.printStackTrace(); return false}
 
   //if compilation failed, print error and terminate
   if (compiler.failException) {
