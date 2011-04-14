@@ -90,13 +90,37 @@ class SparseConditionalConstantPropagation {
         result = calculate(node, {x, y -> new InstVal(x - y) })
         break
       case BinOpType.MUL:
-        result = calculate(node, {x, y -> new InstVal(x * y) })
+        //check whether either of the operands is a const and is zero -- if so, the expression is zero
+        def leftType = tmpToInstVal[node.leftTmpVar].latticeVal
+        def rightType = tmpToInstVal[node.rightTmpVar].latticeVal
+        if ((leftType == LatticeType.CONST && tmpToInstVal[node.leftTmpVar].constVal == 0)
+             || rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0) {
+          result = new InstVal(0)
+        } else {
+          result = calculate(node, {x, y -> new InstVal(x * y) })
+        }
         break
       case BinOpType.DIV:
-        result = calculate(node, {x, y -> new InstVal(x / y) })
+        //check whether the dividend is a const and zero -- if so, the expression is zero
+        def leftType = tmpToInstVal[node.leftTmpVar].latticeVal
+        def rightType = tmpToInstVal[node.rightTmpVar].latticeVal
+        if (leftType == LatticeType.CONST && tmpToInstVal[node.leftTmpVar].constVal == 0
+           && ! (rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0)) {
+          result = new InstVal(0)
+        } else {
+          result = calculate(node, {x, y -> new InstVal(x / y) })
+        }
         break
       case BinOpType.MOD:
-        result = calculate(node, {x, y -> new InstVal(x % y) })
+        //check whether the dividend is a const and zero -- if so, the expression is zero
+        def leftType = tmpToInstVal[node.leftTmpVar].latticeVal
+        def rightType = tmpToInstVal[node.rightTmpVar].latticeVal
+        if (leftType == LatticeType.CONST && tmpToInstVal[node.leftTmpVar].constVal == 0
+           && ! (rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0)) {
+          result = new InstVal(0)
+        } else {
+          result = calculate(node, {x, y -> new InstVal(x % y) })
+        }
         break
       case BinOpType.LT:
         result = calculate(node, {x,y -> new InstVal( x < y ? 1 : 0) })
