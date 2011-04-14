@@ -24,7 +24,7 @@ class SSAComputer {
   /**
   This implements Place-\Phi-Functions on page 407 of modern compiler impl. in java
   */
-  def placePhiFunctions(LowIrNode startNode) {
+  def placePhiFunctions(LowIrNode startNode, filterTmps = null) {
     //A_orig is just the tmpVar of a LowIrValueNode, or empty
     def defsites = [:]
     def a_phi = [:]
@@ -40,6 +40,7 @@ class SSAComputer {
         tmpVar = node.dst
         break
       }
+      if (filterTmps != null && !(tmpVar in filterTmps)) tmpVar = null
       return tmpVar
     }
 

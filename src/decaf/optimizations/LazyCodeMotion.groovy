@@ -296,11 +296,16 @@ class LazyCodeMotion {
       }
     }
     eachNodeOf(startNode){it.anno['expr'] = valueNumberer.getExpr(it)}
-    def insertCnt = toInsertOrDelete.findAll{it.size() == 3}.size()
-    def deleteCnt = toInsertOrDelete.findAll{it.size() == 2}.size()
-    println "total expressions removed in $desc.name = ${deleteCnt - insertCnt}"
-    new SSAComputer().compute(desc)
+    insertCnt = toInsertOrDelete.findAll{it.size() == 3}.size()
+    deleteCnt = toInsertOrDelete.findAll{it.size() == 2}.size()
+    def ssaComp =new SSAComputer()
+    ssaComp.destroyAllMyBeautifulHardWork(startNode)
+    ssaComp.tempFactory = desc.tempFactory
+    ssaComp.doDominanceComputations(startNode)
+    ssaComp.placePhiFunctions(startNode, newTmps)
+    ssaComp.rename(startNode)
   }
+  def insertCnt, deleteCnt
 
   def toInsertOrDelete = new LinkedHashSet()
 
