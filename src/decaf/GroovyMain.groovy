@@ -330,9 +330,16 @@ public class GroovyMain {
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
       if ('pre' in opts) {
-        new LazyCodeMotion().run(methodDesc)
-        new CopyPropagation().propagate(methodDesc.lowir)
-        new DeadCodeElimination().run(methodDesc.lowir)
+        def repeats = 0
+        def stillGoing = true
+        while (repeats < 8 && stillGoing) {
+          def lcm = new LazyCodeMotion()
+          lcm.run(methodDesc)
+          new CopyPropagation().propagate(methodDesc.lowir)
+          new DeadCodeElimination().run(methodDesc.lowir)
+          stillGoing = lcm.insertCnt != lcm.deleteCnt
+          repeats++
+        }
       }
     }
   }
