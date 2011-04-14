@@ -214,13 +214,17 @@ public class GroovyMain {
     if ('pre' in argparser['opt']) {
       opts += ['ssa', 'pre']
     }
+    if ('sccp' in argparser['opt']) {
+      opts += ['ssa', 'sccp']
+    }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
     } else {
       lowirGen.inliningThreshold = 0
     }
+    //TODO: add sccp after testing to all
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'pre', 'cp']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp']
     }
   }
 
@@ -304,7 +308,7 @@ public class GroovyMain {
 
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       TraceGraph.calculateTraces(methodDesc.lowir);
       new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
@@ -325,6 +329,8 @@ public class GroovyMain {
         new SSAComputer().compute(methodDesc)
 //      if ('cse' in opts)
 //        new CommonSubexpressionElimination().run(methodDesc)
+      if ('sccp' in opts)
+        new SparseConditionalConstantPropagation().run(methodDesc)
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
@@ -332,7 +338,7 @@ public class GroovyMain {
       if ('pre' in opts) {
         def repeats = 0
         def stillGoing = true
-        while (repeats < 8 && stillGoing) {
+        while (repeats < 2 && stillGoing) {
           def lcm = new LazyCodeMotion()
           lcm.run(methodDesc)
           new CopyPropagation().propagate(methodDesc.lowir)

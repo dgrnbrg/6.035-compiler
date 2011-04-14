@@ -143,6 +143,9 @@
       <arg value="-assertEnabled"/>
       <arg value="-opt"/>
       <arg value="pre"/>
+      <arg value="sccp"/>
+      <arg value="dce"/>
+      <arg value="cp"/>
     </java>
   </target>
 

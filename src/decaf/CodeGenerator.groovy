@@ -27,8 +27,6 @@ class CodeGenerator extends Traverser {
       return rbp(8 * (tmp.id+2))
     case TempVarType.LOCAL: 
       return rbp(-8 * (tmp.id+1))
-    case TempVarType.GLOBAL:
-      return new Operand(tmp.globalName)
     default:
       assert false
     }
