@@ -137,7 +137,6 @@ class SSAComputer {
       def j = y.predecessors.indexOf(n)
       y.anno['phi-functions'].each {
         it.args[j] = mostRecentDefOf(it.args[j])
-        //no need to remove old use, since this should be the construction phase of DU chains
         it.args[j].useSites << it
       }
     }
