@@ -8,7 +8,7 @@ class InterferenceGraph {
   LinkedHashSet<TempVar> variables;
   MethodDescriptor methodDesc;
   LivenessAnalysis la;
-  def Edges;
+  def InterferenceEdges;
   
   public InterferenceGraph(MethodDescriptor md) {
     assert(md)
@@ -20,7 +20,7 @@ class InterferenceGraph {
     la.RunLivenessAnalysis()
     
     variables = la.variables
-    Edges = new LinkedHashSet()
+    InterferenceEdges = new LinkedHashSet()
     
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       if(la.liveOut[(node)] && node.getDef()) 
@@ -31,7 +31,12 @@ class InterferenceGraph {
     }
     
     println "The Interference Edges are: "
-    Edges.each { println "  $it" }
+    InterferenceEdges.each { println "  $it" }
+    
+    println "The variables of significant degree for k = 8 are:"
+    (getSignificantDegreeNodes(8)).each { node -> 
+      println " $node"
+    }
   }
   
   void AddInterferenceEdge(TempVar v1, TempVar v2) {
@@ -43,7 +48,33 @@ class InterferenceGraph {
     // We should only ever be adding this edge once.
     def newEdge = new LinkedHashSet<TempVar>([v1, v2])
     
-    assert(Edges != null)
-    Edges += new LinkedHashSet([newEdge])
+    assert(InterferenceEdges != null)
+    InterferenceEdges += new LinkedHashSet([newEdge])
+  }
+  
+  LinkedHashSet<TempVar> getNeighbors(TempVar v) {
+    assert(variables.contains(v))
+    LinkedHashSet<TempVar> answer = new LinkedHashSet<TempVar>()
+    
+    InterferenceEdges.each { edge -> 
+      if(edge.contains(v)) {
+        LinkedHashSet<TempVar> neighbor = edge - new LinkedHashSet<TempVar>([v])
+        answer += neighbor
+      }
+    }
+    
+    return answer
+  }
+  
+  LinkedHashSet<TempVar> getSignificantDegreeNodes(int sigDeg) {
+    LinkedHashSet<TempVar> answer = new LinkedHashSet<TempVar>()
+    
+    variables.each { v -> 
+      def neighbors = getNeighbors(v)
+      if(neighbors.size() >= sigDeg)
+        answer += new LinkedHashSet<TempVar>([v])
+    }
+    
+    return answer;
   }
 }
