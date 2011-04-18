@@ -105,10 +105,14 @@ class SparseConditionalConstantPropagation {
         def leftType = tmpToInstVal[node.leftTmpVar].latticeVal
         def rightType = tmpToInstVal[node.rightTmpVar].latticeVal
         if (leftType == LatticeType.CONST && tmpToInstVal[node.leftTmpVar].constVal == 0
-           && ! (rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0)) {
+           && !(rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0)) {
           result = new InstVal(0)
         } else {
-          result = calculate(node, {x, y -> new InstVal(x / y) })
+          try {
+            result = calculate(node, {x, y -> new InstVal(x / y) })
+          } catch (ArithmeticException e) {
+            throw new FatalException(msg: "During symbolic execution of constants in the program, we determined that division by zero is attempted. Please, change the program to avoid this.", code: 1)
+          }
         }
         break
       case BinOpType.MOD:
@@ -119,7 +123,11 @@ class SparseConditionalConstantPropagation {
            && ! (rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0)) {
           result = new InstVal(0)
         } else {
-          result = calculate(node, {x, y -> new InstVal(x % y) })
+          try {
+            result = calculate(node, {x, y -> new InstVal(x % y) })
+          } catch (ArithmeticException e) {
+            throw new FatalException(msg: "During symbolic execution of constants in the program, we determined that division by zero is attempted. Please, change the program to avoid this.", code: 1)
+          }
         }
         break
       case BinOpType.LT:

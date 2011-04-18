@@ -263,29 +263,33 @@ class HiIrGenerator {
 
   def getBinOpOrConst(left, op, right) {
     if (left instanceof IntLiteral && right instanceof IntLiteral) {
-      switch (op) {
-      case BinOpType.ADD:
-        return new IntLiteral(value: left.value + right.value)
-      case BinOpType.SUB:
-        return new IntLiteral(value: left.value - right.value)
-      case BinOpType.MUL:
-        return new IntLiteral(value: left.value * right.value)
-      case BinOpType.DIV:
-        return new IntLiteral(value: left.value / right.value)
-      case BinOpType.MOD:
-        return new IntLiteral(value: left.value % right.value)
-      case BinOpType.LT:
-        return new BooleanLiteral(value: left.value < right.value)
-      case BinOpType.GT:
-        return new BooleanLiteral(value: left.value > right.value)
-      case BinOpType.LTE:
-        return new BooleanLiteral(value: left.value <= right.value)
-      case BinOpType.GTE:
-        return new BooleanLiteral(value: left.value >= right.value)
-      case BinOpType.EQ:
-        return new BooleanLiteral(value: left.value == right.value)
-      case BinOpType.NEQ:
-        return new BooleanLiteral(value: left.value != right.value)
+      try {
+        switch (op) {
+        case BinOpType.ADD:
+          return new IntLiteral(value: left.value + right.value)
+        case BinOpType.SUB:
+          return new IntLiteral(value: left.value - right.value)
+        case BinOpType.MUL:
+          return new IntLiteral(value: left.value * right.value)
+        case BinOpType.DIV:
+          return new IntLiteral(value: left.value / right.value)
+        case BinOpType.MOD:
+          return new IntLiteral(value: left.value % right.value)
+        case BinOpType.LT:
+          return new BooleanLiteral(value: left.value < right.value)
+        case BinOpType.GT:
+          return new BooleanLiteral(value: left.value > right.value)
+        case BinOpType.LTE:
+          return new BooleanLiteral(value: left.value <= right.value)
+        case BinOpType.GTE:
+          return new BooleanLiteral(value: left.value >= right.value)
+        case BinOpType.EQ:
+          return new BooleanLiteral(value: left.value == right.value)
+        case BinOpType.NEQ:
+          return new BooleanLiteral(value: left.value != right.value)
+        }
+      } catch (ArithmeticException e) {
+        throw new FatalException(msg: "During symbolic execution of constants in the program, we determined that division by zero is attempted. Please, change the program to avoid this.", code: 1)
       }
     } else if (left instanceof BooleanLiteral && right instanceof BooleanLiteral) {
       switch (op) {
