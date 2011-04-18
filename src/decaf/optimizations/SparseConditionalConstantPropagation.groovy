@@ -7,7 +7,12 @@ import static decaf.graph.Traverser.eachNodeOf
 class SparseConditionalConstantPropagation {
 
   //setlattice value to UNDEF for all nodes
-  def tmpToInstVal = new LazyMap({new InstVal(LatticeType.UNDEF)}) //keys:tmpVars, value: InstValues
+  def tmpToInstVal = new LazyMap({ //keys:tmpVars, value: InstValues
+    if (it && it.type == TempVarType.PARAM)
+      return new InstVal(LatticeType.OVERDEF)
+    else
+      return new InstVal(LatticeType.UNDEF)
+  })
   def flowWL = new LinkedHashSet()
   //the ssaWL is initially empty
   def ssaWL = new LinkedHashSet()
