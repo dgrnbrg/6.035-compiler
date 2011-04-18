@@ -221,7 +221,7 @@ public class GroovyMain {
     }
     //TODO: add sccp after testing to all
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'cse', 'cp', 'sccp']
+      opts += ['ssa', 'dce', 'cse', 'cp', 'sccp', 'regalloc']
     }
   }
 
@@ -302,7 +302,6 @@ public class GroovyMain {
     depends(setupDot)
     depends(genLowIr)
 
-
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
       SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
@@ -321,6 +320,8 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
+    println "Optimizations are: $opts"
+    
     methodDescs.each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
@@ -332,7 +333,17 @@ public class GroovyMain {
         new DeadCodeElimination().run(methodDesc.lowir)
       if ('sccp' in opts)
         new SparseConditionalConstantPropagation().run(methodDesc)
+      if ('regalloc' in opts) {
+        println "Register Allocator running!"
+        RegisterAllocator ra = new RegisterAllocator(methodDesc)
+        println "--------------------------------------------------------------"
+        println "Running Register Allocation for the method: ${methodDesc.name}"
+        println "--------------------------------------------------------------"
+        ra.ComputeInterferenceGraph()
+      }
     }
+    
+    // Register Allocation
   }
 
   def codeGen = new CodeGenerator()
