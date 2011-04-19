@@ -1,0 +1,22 @@
+class Program {
+  boolean foocalled;
+  boolean barcalled;
+  boolean foo() {
+    foocalled = true;
+    return true; 
+  }
+  boolean bar() {
+    barcalled = true;
+    return true;
+  }
+  void main() {
+    foocalled = false;
+    barcalled = false;
+    if (foo() || bar()) {
+    }
+    callout("printf", "foocalled is %d\n", foocalled);
+    // EXPECTS foocalled is true
+    callout("printf", "barcalled is %d\n", barcalled);
+    // EXPECTS barcalled is true
+  }
+}

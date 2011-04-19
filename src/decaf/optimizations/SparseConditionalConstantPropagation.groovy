@@ -290,6 +290,7 @@ class SparseConditionalConstantPropagation {
           new LowIrBridge(new LowIrMov(src: node.leftTmpVar, dst:node.tmpVar)).insertBetween(node, node.successors[0])
           node.excise()
         }
+        //TODO: +- 0
       }
     }
     toUnlink.each {

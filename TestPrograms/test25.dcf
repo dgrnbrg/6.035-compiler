@@ -1,0 +1,21 @@
+class Program {
+  void main() {
+    int a;
+    int b;
+    a = 2;
+    b = 3;
+    a = a + b;
+    assert(a == 5);
+    if (a == 5) {
+      a = 22;
+    } else {
+      a = 1;
+    } 
+    for i=1, 10 {
+      a = 22;
+      assert(a == 22);
+    }
+    callout("printf", "a is %d\n", a);
+    // EXPECTS a is 22
+  }
+}
