@@ -280,17 +280,31 @@ class SparseConditionalConstantPropagation {
         def leftVar = tmpToInstVal[node.leftTmpVar]
         def rightVar = tmpToInstVal[node.rightTmpVar]
         def isConstOne = { it.latticeVal == LatticeType.CONST && it.constVal == 1}
+        def isConstZero = { it.latticeVal == LatticeType.CONST && it.constVal == 0}
         def isOverDef = {it.latticeVal == LatticeType.OVERDEF}
         if (node.op == BinOpType.MUL && isConstOne(leftVar) && isOverDef(rightVar)) {
           assert node.successors.size() == 1
-          new LowIrBridge(new LowIrMov(src: node.rightTmpVar, dst:node.tmpVar)).insertBetween(node, node.successors[0])
+          new LowIrBridge(new LowIrMov(src: node.rightTmpVar, dst:node.tmpVar)).
+            insertBetween(node, node.successors[0])
           node.excise()
         } else if (node.op == BinOpType.MUL && isConstOne(rightVar) && isOverDef(leftVar)) {
           assert node.successors.size() == 1
-          new LowIrBridge(new LowIrMov(src: node.leftTmpVar, dst:node.tmpVar)).insertBetween(node, node.successors[0])
+          new LowIrBridge(new LowIrMov(src: node.leftTmpVar, dst:node.tmpVar)).
+            insertBetween(node, node.successors[0])
           node.excise()
+        } else if (node.op == BinOpType.ADD || node.op == BinOpType.SUB) {
+          if (isConstZero(leftVar) && isOverDef(rightVar) && node.op != BinOpType.SUB) {
+            assert node.successors.size() == 1
+            new LowIrBridge(new LowIrMov(src: node.rightTmpVar, dst:node.tmpVar)).
+              insertBetween(node, node.successors[0])
+            node.excise() 
+          } else if (isConstZero(rightVar) && isOverDef(leftVar)) {
+            assert node.successors.size() == 1
+            new LowIrBridge(new LowIrMov(src: node.leftTmpVar, dst:node.tmpVar)).
+              insertBetween(node, node.successors[0])
+            node.excise()
+          }
         }
-        //TODO: +- 0
       }
     }
     toUnlink.each {
