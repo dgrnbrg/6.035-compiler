@@ -13,7 +13,7 @@ class Program {
     a = true;
     for i=1, 10 {
       b = not2(a);
-      assert(b == false)
+      assert(b == false);
       callout("printf", "b is %d\n", b);
       // EXPECTS b is false
     }
