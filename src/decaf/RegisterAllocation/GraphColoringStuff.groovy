@@ -18,6 +18,11 @@ class ColoringNode {
     nodes = new LinkedHashSet()
     color = c
   }
+
+  public ColoringNode(c, n) {
+    assert c; assert n;
+    color = c; nodes = n;
+  }
 }
 
 class ColoringEdge {
@@ -97,6 +102,28 @@ class ColorableGraph {
   void EraseAllColorFromGraph() {
     assert nodes
     nodes.each { it.color = null }
+  }
+
+  void CoalesceNodes(ColoringNode a, ColoringNode b) {
+    assert a; assert b    ;
+    assert nodes.contains(a) && nodes.contains(b)
+    nodes.remove(a)
+    nodes.remove(b)
+
+    ColoringNode c = new ColoringNode();
+    c.nodes = a.nodes + b.nodes
+    c.anno = a.anno + b.anno
+    
+    if(a.color == null && b.color == null) c.color = null
+    else if(a.color == null && b.color != null) c.color = b.color
+    else if(a.color != null && b.color == null) c.color = a.color
+    else {
+      // Must both be colors. they should be the same.
+      if(a.color != b.color)
+        assert false;
+    }
+
+    nodes += [c]
   }
 
   void UpdateAfterNodesModified() {

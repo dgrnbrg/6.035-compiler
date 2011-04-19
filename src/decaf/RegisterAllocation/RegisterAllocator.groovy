@@ -51,5 +51,7 @@ class RegisterAllocator {
     gc.cg.UpdateAfterEdgesModified()
 
     gc.NaiveColoring()
+
+    gc.tempVarToColor
   }
 }
