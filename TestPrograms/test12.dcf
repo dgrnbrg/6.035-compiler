@@ -1,0 +1,11 @@
+//EXPECTS smello worldhelloworld
+class Program {
+  void foot() {
+    callout("printf", "smello world");
+  }
+
+  void main() {
+    foot();
+    callout("printf","helloworld\n");
+  }
+}
