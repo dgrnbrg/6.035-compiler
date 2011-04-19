@@ -38,7 +38,11 @@ class IncompatibleEdge extends ColoringEdge {
   }
 }
 
-class PreferredEdge extends ColoringEdge {}
+class PreferredEdge extends ColoringEdge {
+  public PreferredEdge(ColoringNode a, ColoringNode b) {
+    super(a, b)
+  }
+}
 
 class NeighborTable {
   def neighbors = [:]
@@ -48,11 +52,10 @@ class NeighborTable {
     return neighbors[(cn)]
   }
 
-  void BuildFromEdges(LinkedHashSet<ColoringEdge> edges) {
+  void Build(LinkedHashSet<ColoringNode> nodes, LinkedHashSet<ColoringEdge> edges) {
     // Populate neighborTable
-    edges.each { edge -> 
-      neighbors[(edge.cn1)] = new LinkedHashSet<ColoringNode>()
-      neighbors[(edge.cn2)] = new LinkedHashSet<ColoringNode>()
+    nodes.each { n -> 
+      neighbors[(n)] = new LinkedHashSet<ColoringNode>()    
     }
 
     edges.each { edge -> 
@@ -118,12 +121,12 @@ class ColorableGraph {
   }
 
   void UpdateAfterEdgesModified() {
-    assert IncompatibleNeighbors
-    IncompatibleNeighbors.BuildFromEdges(incEdges)
+    assert nodes; assert IncompatibleNeighbors; assert (incEdges != null);
+    IncompatibleNeighbors.Build(nodes, incEdges)
     IncompatibleNeighbors.UpdateDegreeMap(nodes)
 
-    assert PreferredNeighbors    
-    PreferredNeighbors.BuildFromEdges(prefEdges)
+    assert PreferredNeighbors; assert (prefEdges != null);   
+    PreferredNeighbors.Build(nodes, prefEdges)
     PreferredNeighbors.UpdateDegreeMap(nodes)
   }
 }
