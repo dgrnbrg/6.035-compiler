@@ -40,8 +40,8 @@ class InterferenceGraph {
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       // Add the interference edges.
       def liveVars = node.anno['regalloc-liveness']
-      println "calculating interference edges for node: $node"
-      println "number of liveout = ${liveVars.size()}"
+      //println "calculating interference edges for node: $node"
+      //println "number of liveout = ${liveVars.size()}"
       liveVars.each { v1 -> 
         liveVars.each { v2 -> 
           if(v1 != v2) 

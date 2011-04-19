@@ -14,6 +14,7 @@ import decaf.graph.*
 class RegisterAllocator {
 	MethodDescriptor methodDesc;
   InterferenceGraph ig;
+  GraphColoring gc;
   
   public RegisterAllocator(MethodDescriptor md) {
     assert(md)
@@ -24,5 +25,31 @@ class RegisterAllocator {
   	ig = new InterferenceGraph(methodDesc)
   	ig.CalculateInterferenceGraph()
     ig.ColorGraph(16)
+  }
+
+  public DoGraphColoring() {
+    println "Doing Graph Coloring!"
+    gc = new GraphColoring()
+    
+    assert ig
+    def tempVarToColoringNode = [:]
+    ig.variables.each { v -> 
+      ColoringNode cn = new ColoringNode()
+      cn.nodes = new LinkedHashSet<ColoringNode>([v])
+      tempVarToColoringNode[(v)] = cn
+      gc.cg.nodes += [cn]
+    }
+
+    gc.cg.UpdateAfterNodesModified()
+
+    ig.InterferenceEdges.each { ie -> 
+      ColoringNode v1 = tempVarToColoringNode[((ie as List)[0])]
+      ColoringNode v2 = tempVarToColoringNode[((ie as List)[1])]
+      gc.cg.incEdges += [new IncompatibleEdge(v1, v2)]
+    }
+
+    gc.cg.UpdateAfterEdgesModified()
+
+    gc.NaiveColoring()
   }
 }

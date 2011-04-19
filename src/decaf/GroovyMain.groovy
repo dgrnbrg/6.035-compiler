@@ -254,12 +254,12 @@ public class GroovyMain {
     depends(genSymTable)
 
     // Force assert off here for RegAlloc Testing Purposes
-    if(argparser['assertEnabled'])
-      argparser['assertEnabled'] = null
+    //if(argparser['assertEnabled'])
+    //  argparser['assertEnabled'] = null
 
-    //if(argparser['assertEnabled'] != null) {
-    //  ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
-    //}
+    if(argparser['assertEnabled'] != null) {
+      ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
+    }
 
     ast.inOrderWalk(hiirGenerator.c)
     // Here is where the assert function should be added to the 
@@ -347,6 +347,7 @@ public class GroovyMain {
         println "Running Register Allocation for the method: ${methodDesc.name}"
         println "--------------------------------------------------------------"
         ra.ComputeInterferenceGraph()
+        ra.DoGraphColoring()
       }
     }
     
