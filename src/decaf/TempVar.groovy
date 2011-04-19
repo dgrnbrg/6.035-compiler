@@ -17,6 +17,10 @@ class TempVar {
 
 class RegisterTempVar extends TempVar {
   def registerName = ''
+
+  public RegisterTempVar() {
+    id = -1
+  }
 }
 
 class SpillTempVar extends TempVar {}

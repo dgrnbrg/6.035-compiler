@@ -18,16 +18,15 @@ class GraphColoring {
 
   void NaiveColoring() {
     // Setting up the ColorableGraph
-    cg.EraseAllColorFromGraph()
 
-    // Now create 14 extra nodes for registers
+    // Create the 14 extra nodes for registers
     LinkedHashSet<ColoringNode> registerNodes = 
       new LinkedHashSet<ColoringNode>(
         colors.collect { color -> 
           new ColoringNode(
             color, 
             new LinkedHashSet(
-              [new RegisterTempVar(registerName : color, type : TempVarType.REGISTER, id : -1)]
+              [new RegisterTempVar(registerName : color, type : TempVarType.REGISTER)]
             )
           ) 
         }
@@ -38,6 +37,12 @@ class GraphColoring {
     
     println "cg.nodes is now:"
     cg.nodes.each { node -> println "${node.nodes}, color = ${node.color}" }
+
+    // Now you have the ability to force the color of a node to be a particular value.
+    def forceColorOnNode = { node, color -> 
+    
+    }
+
     def maxDegree = cg.IncompatibleNeighbors.degreeMap.keySet().max()
     println "Max Degree = $maxDegree, degrees = ${cg.IncompatibleNeighbors.degreeMap.keySet().sort()}"
     assert maxDegree < colors.size()
@@ -90,14 +95,4 @@ class GraphColoring {
     println "Finished coloring."
   }
 }
-
-
-
-
-
-
-
-
-
-
 

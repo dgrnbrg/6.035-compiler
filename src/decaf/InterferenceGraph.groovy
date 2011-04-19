@@ -11,7 +11,7 @@ class InterferenceGraph {
   LivenessAnalysis la;
   def InterferenceEdges;
   def NodeToColor;
-  def NeighborTable;
+  def neighborTable;
 
   public InterferenceGraph(MethodDescriptor md) {
     assert(md)
@@ -41,10 +41,10 @@ class InterferenceGraph {
       // Add the interference edges.
       def liveVars = node.anno['regalloc-liveness']
       //println "calculating interference edges for node: $node"
-      //println "number of liveout = ${liveVars.size()}"
-      liveVars.each { v1 -> 
-        liveVars.each { v2 -> 
-          if(v1 != v2) 
+      println "number of liveout = ${liveVars.size()}"
+      liveVars.eachWithIndex { v1, i1 -> 
+        liveVars.eachWithIndex { v2, i2 -> 
+          if(i1 < i2 && v1 != v2) 
             AddInterferenceEdge(v1, v2)
         }
       }
@@ -64,8 +64,8 @@ class InterferenceGraph {
   void AddInterferenceEdge(TempVar v1, TempVar v2) {
     assert(v1)
     assert(v2)
-    assert(variables.contains(v1))
-    assert(variables.contains(v2))
+    //assert(variables.contains(v1))
+    //assert(variables.contains(v2))
 
     def newEdge = new LinkedHashSet<TempVar>([v1, v2])
     
@@ -100,14 +100,14 @@ class InterferenceGraph {
   }
 
   void BuildNeighborTable() {
-    NeighborTable = [:]
-    variables.each { v -> NeighborTable[(v)] = new LinkedHashSet() }
+    neighborTable = [:]
+    variables.each { v -> neighborTable[(v)] = new LinkedHashSet() }
 
     assert InterferenceEdges != null
     InterferenceEdges.each { edge -> 
       def nodes = edge.collect { it }
-      NeighborTable[(nodes[0])] += new LinkedHashSet([nodes[1]])
-      NeighborTable[(nodes[1])] += new LinkedHashSet([nodes[0]])
+      neighborTable[(nodes[0])] += new LinkedHashSet([nodes[1]])
+      neighborTable[(nodes[1])] += new LinkedHashSet([nodes[0]])
     }
   }
 
@@ -119,7 +119,7 @@ class InterferenceGraph {
     BuildNeighborTable();
 
     variables.each { v -> 
-      assert NeighborTable[(v)].size() < degree
+      assert neighborTable[(v)].size() < degree
     }
 
     // note that we are not considering the base pointer and stack pointer.

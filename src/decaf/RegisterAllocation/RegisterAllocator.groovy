@@ -27,7 +27,7 @@ class RegisterAllocator {
     ig.ColorGraph(16)
   }
 
-  public DoGraphColoring() {
+  void DoGraphColoring() {
     println "Doing Graph Coloring!"
     gc = new GraphColoring()
     
@@ -54,4 +54,43 @@ class RegisterAllocator {
 
     gc.tempVarToColor
   }
+
+  void ReplaceVars() {
+    assert tempVarToColor
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      assert (node instanceof LowIrNode)
+      /*switch(node) {
+        case 
+      }*/
+    }
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
