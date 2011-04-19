@@ -276,6 +276,21 @@ class SparseConditionalConstantPropagation {
           tmpToInstVal[node.condition].latticeVal == LatticeType.CONST) {
         toUnlink << node
       }
+      if (node instanceof LowIrBinOp) {
+        def leftVar = tmpToInstVal[node.leftTmpVar]
+        def rightVar = tmpToInstVal[node.rightTmpVar]
+        def isConstOne = { it.latticeVal == LatticeType.CONST && it.constVal == 1}
+        def isOverDef = {it.latticeVal == LatticeType.OVERDEF}
+        if (node.op == BinOpType.MUL && isConstOne(leftVar) && isOverDef(rightVar)) {
+          assert node.successors.size() == 1
+          new LowIrBridge(new LowIrMov(src: node.rightTmpVar, dst:node.tmpVar)).insertBetween(node, node.successors[0])
+          node.excise()
+        } else if (node.op == BinOpType.MUL && isConstOne(rightVar) && isOverDef(leftVar)) {
+          assert node.successors.size() == 1
+          new LowIrBridge(new LowIrMov(src: node.leftTmpVar, dst:node.tmpVar)).insertBetween(node, node.successors[0])
+          node.excise()
+        }
+      }
     }
     toUnlink.each {
       def br = null
