@@ -3,49 +3,70 @@ package decaf
 import groovy.util.*
 import decaf.*
 import decaf.graph.*
+import decaf.optimizations.*
 
 class InterferenceGraph {
   LinkedHashSet<TempVar> variables;
   MethodDescriptor methodDesc;
   LivenessAnalysis la;
   def InterferenceEdges;
-  
+  def NodeToColor;
+  def NeighborTable;
+
   public InterferenceGraph(MethodDescriptor md) {
     assert(md)
     methodDesc = md
   }
   
   void CalculateInterferenceGraph() {
-    la = new LivenessAnalysis(methodDesc);
-    la.RunLivenessAnalysis()
+    // Make sure results from previous liveness analysis don't interfere
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> node.anno.remove('regalloc-liveness') }
+
+    la = new LivenessAnalysis()
+    la.run(methodDesc.lowir)
     
-    variables = la.variables
+    variables = new LinkedHashSet<TempVar>()
+
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      variables += new LinkedHashSet<TempVar>(node.anno['regalloc-liveness'])
+      //println "Liveness Result for Node: $node"
+      //println node.anno['regalloc-liveness']
+    }
+
+    println "Finished running liveness analysis."
+
     InterferenceEdges = new LinkedHashSet()
     
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      if(la.liveOut[(node)] && node.getDef()) 
-        la.liveOut[(node)].each { v -> 
-          if(v != node.getDef())
-            AddInterferenceEdge(node.getDef(), v)
+      // Add the interference edges.
+      def liveVars = node.anno['regalloc-liveness']
+      println "calculating interference edges for node: $node"
+      println "number of liveout = ${liveVars.size()}"
+      liveVars.each { v1 -> 
+        liveVars.each { v2 -> 
+          if(v1 != v2) 
+            AddInterferenceEdge(v1, v2)
         }
+      }
     }
     
     println "The Interference Edges are: "
     InterferenceEdges.each { println "  $it" }
     
     println "The variables of significant degree for k = 8 are:"
-    (getSignificantDegreeNodes(8)).each { node -> 
-      println " $node"
-    }
+    //(getSignificantDegreeNodes(8)).each { node -> 
+    //  println " $node"
+    //}
+
+    DrawDotGraph();
   }
   
   void AddInterferenceEdge(TempVar v1, TempVar v2) {
-    assert(variables.contains(v1))
-    assert(variables.contains(v2))
     assert(v1)
     assert(v2)
-    
-    // We should only ever be adding this edge once.
+    assert(variables.contains(v1))
+    assert(variables.contains(v2))
+
     def newEdge = new LinkedHashSet<TempVar>([v1, v2])
     
     assert(InterferenceEdges != null)
@@ -76,5 +97,64 @@ class InterferenceGraph {
     }
     
     return answer;
+  }
+
+  void BuildNeighborTable() {
+    NeighborTable = [:]
+    variables.each { v -> NeighborTable[(v)] = new LinkedHashSet() }
+
+    assert InterferenceEdges != null
+    InterferenceEdges.each { edge -> 
+      def nodes = edge.collect { it }
+      NeighborTable[(nodes[0])] += new LinkedHashSet([nodes[1]])
+      NeighborTable[(nodes[1])] += new LinkedHashSet([nodes[0]])
+    }
+  }
+
+  void ColorGraph(int degree) {
+    // assuming that there are no spills. Do this by showing that every 
+    // variable has less edges than degree.
+    NodeToColor = [:]
+    
+    BuildNeighborTable();
+
+    variables.each { v -> 
+      assert NeighborTable[(v)].size() < degree
+    }
+
+    // note that we are not considering the base pointer and stack pointer.
+    def colors = ['rax', 'rbx', 'rcx', 'rdx', 
+              'rsi', 'rdi', 
+              'r8', 'r9', 'r10', 'r11', 
+              'r12', 'r13', 'r14', 'r15']
+
+    
+  }
+
+  void DrawDotGraph() {
+    def graphFile = "${methodDesc.name}", extension = 'pdf'
+    graphFile = graphFile + '.' + 'InterferenceGraph' + '.' + extension
+    println "Writing interference graph output to $graphFile"
+    assert graphFile
+
+    def dotCommand = "dot -T$extension -o $graphFile"
+
+    Process dot = dotCommand.execute()
+    def dotOut = new PrintStream(dot.outputStream)
+    //dot.consumeProcessErrorStream(System.err)
+
+    def varToLabel = { "TVz${it.id}z${it.type}" }
+    println 'digraph g {'
+    dotOut.println 'digraph g {'
+    InterferenceEdges.each { edge -> 
+      def pairOfVariables = edge.collect { it }
+      assert pairOfVariables.size() == 2      
+      def v1 = pairOfVariables[0], v2 = pairOfVariables[1]
+      println "${varToLabel(v1)} -> ${varToLabel(v2)}"
+      dotOut.println "${varToLabel(v1)} -> ${varToLabel(v2)}"
+    }
+    println '}'
+    dotOut.println '}'
+    dotOut.close()
   }
 }

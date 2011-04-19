@@ -23,5 +23,6 @@ class RegisterAllocator {
   public ComputeInterferenceGraph() {
   	ig = new InterferenceGraph(methodDesc)
   	ig.CalculateInterferenceGraph()
+    ig.ColorGraph(16)
   }
 }

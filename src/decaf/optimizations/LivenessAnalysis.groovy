@@ -11,18 +11,18 @@ class LivenessAnalysis extends Analizer {
   }
 
   final void lazyInit(node) {
-    if (node.anno['deadcode-liveness'] == null)
-      node.anno['deadcode-liveness'] = new HashSet()
+    if (node.anno['regalloc-liveness'] == null)
+      node.anno['regalloc-liveness'] = new HashSet()
   }
 
   void store(GraphNode node, Set data) {
     lazyInit(node)
-    node.anno['deadcode-liveness'] = data
+    node.anno['regalloc-liveness'] = data
   }
 
   Set load(GraphNode node) {
     lazyInit(node)
-    return node.anno['deadcode-liveness']
+    return node.anno['regalloc-liveness']
   }
 
   def gen(node) {
@@ -61,6 +61,7 @@ class LivenessAnalysis extends Analizer {
   }
 
   def run(startNode) {
+    println "Running Liveness Analysis!"
     analize(startNode)
   }
 }

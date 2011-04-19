@@ -15,6 +15,25 @@ class TempVar {
   }
 }
 
+class Reg0TempVar extends TempVar {}
+class Reg1TempVar extends TempVar {}
+class Reg2TempVar extends TempVar {}
+class Reg3TempVar extends TempVar {}
+class Reg4TempVar extends TempVar {}
+class Reg5TempVar extends TempVar {}
+class Reg6TempVar extends TempVar {}
+class Reg7TempVar extends TempVar {}
+class Reg8TempVar extends TempVar {}
+class Reg9TempVar extends TempVar {}
+class RegATempVar extends TempVar {}
+class RegBTempVar extends TempVar {}
+class RegCTempVar extends TempVar {}
+class RegDTempVar extends TempVar {}
+class RegETempVar extends TempVar {}
+class RegFTempVar extends TempVar {}
+
+class SpillTempVar extends TempVar {}
+
 enum TempVarType {
   LOCAL,
   PARAM

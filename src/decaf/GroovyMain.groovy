@@ -214,6 +214,9 @@ public class GroovyMain {
     if ('sccp' in argparser['opt']) {
       opts += ['ssa', 'sccp']
     }
+    if ('regalloc' in argparser['opt']) {
+      opts += ['ssa', 'regalloc']
+    }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
     } else {
@@ -250,9 +253,13 @@ public class GroovyMain {
   def genHiIr = {->
     depends(genSymTable)
 
-    if(argparser['assertEnabled'] != null) {
-      ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
-    }
+    // Force assert off here for RegAlloc Testing Purposes
+    if(argparser['assertEnabled'])
+      argparser['assertEnabled'] = null
+
+    //if(argparser['assertEnabled'] != null) {
+    //  ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
+    //}
 
     ast.inOrderWalk(hiirGenerator.c)
     // Here is where the assert function should be added to the 
@@ -343,7 +350,6 @@ public class GroovyMain {
       }
     }
     
-    // Register Allocation
   }
 
   def codeGen = new CodeGenerator()

@@ -4,7 +4,9 @@ import groovy.util.*
 import decaf.*
 import decaf.graph.*
 
-class LivenessAnalysis {
+// This is a recursive version of Liveness Analysis based on MICJ SSA Chap. 
+// It is modified to not rely on basic-blocks and handle phi-functions correctly
+class SSALivenessAnalysis {
 	MethodDescriptor methodDesc;
   LinkedHashSet<TempVar> M;
   def defToStmt;
@@ -13,7 +15,7 @@ class LivenessAnalysis {
   def liveIn;
   def liveOut;
   
-  public LivenessAnalysis(MethodDescriptor md) {
+  public SSALivenessAnalysis(MethodDescriptor md) {
   	assert(md)
   	methodDesc = md
   }
