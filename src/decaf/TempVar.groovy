@@ -17,9 +17,15 @@ class TempVar {
 
 class RegisterTempVar extends TempVar {
   def registerName = ''
-
+  
   public RegisterTempVar() {
     id = -1
+    type = TempVarType.REGISTER
+  }
+
+  public RegisterTempVar(String name) {
+    assert name
+    registerName = name
   }
 
   String toString() {
@@ -27,16 +33,11 @@ class RegisterTempVar extends TempVar {
   }
 }
 
-class SpillVar extends TempVar {
-  String toString() {
-    "SpillVar(I do not have an id yet!)"
-  }
-}
-
 enum TempVarType {
   LOCAL,
   PARAM,
-  REGISTER
+  REGISTER,
+  SPILLVAR
 }
 
 //Within a methoddesc, tracks temp var usage and contains the code to allocate tempvars on the hiir and symboltables
