@@ -21,9 +21,17 @@ class RegisterTempVar extends TempVar {
   public RegisterTempVar() {
     id = -1
   }
+
+  String toString() {
+    "RegisterTempVar($registerName)"
+  }
 }
 
-class SpillTempVar extends TempVar {}
+class SpillVar extends TempVar {
+  String toString() {
+    "SpillVar(I do not have an id yet!)"
+  }
+}
 
 enum TempVarType {
   LOCAL,

@@ -69,6 +69,7 @@ class CodeGenerator extends Traverser {
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
+
       def paramsOnStack = stmt.paramTmpVars.size() - paramRegs.size()
       if (paramsOnStack > 0){
         sub(8*paramsOnStack, rsp)
@@ -78,8 +79,9 @@ class CodeGenerator extends Traverser {
         if (index < paramRegs.size()) {
           movq(getTmp(tmpVar), paramRegs[index])
         } else {
-          movq(getTmp(tmpVar),r10)
-          movq(r10,rsp(8*(index - paramRegs.size())))
+          //movq(getTmp(tmpVar),r10)
+          //movq(r10,rsp(8*(index - paramRegs.size())))
+          movq(getTmp(tmpVar), rsp(8*(index - paramRegs.size())))
         }
       }
       if (stmt.name == 'printf') {
@@ -90,6 +92,7 @@ class CodeGenerator extends Traverser {
       if (paramsOnStack > 0){
 	add(8*paramsOnStack, rsp)
       }
+
       break
     case LowIrMethodCall:
       sub(8*stmt.paramTmpVars.size(), rsp)

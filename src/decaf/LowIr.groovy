@@ -469,6 +469,39 @@ class LowIrLoad extends LowIrValueNode {
   }
 }
 
+class LowIrStoreSpill extends LowIrNode {
+  TempVar value // This is what is stored
+  SpillVar storeLoc // This is where it is stored
+
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    assert false; // not yet implemented
+  }
+
+  Collection<TempVar> getUses() {
+    return [value]
+  }
+
+  String toString() {
+    "LowIrStoreSpill(value: $value, storeLoc: $storeLoc)"
+  }
+}
+
+class LowIrLoadSpill extends LowIrValueNode {
+  SpillVar loadLoc; // This is where the value is loaded from.
+  
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    assert false;
+  }
+
+  Collection<TempVar> getUses() {
+    return []
+  }
+
+  String toString() {
+    "LowIrLoadSpill(tmpVar: $tmpVar, loadLoc: $loadLoc)"
+  }
+}
+
 class LowIrPhi extends LowIrValueNode {
   TempVar[] args
 

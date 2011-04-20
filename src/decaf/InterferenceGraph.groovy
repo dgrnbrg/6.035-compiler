@@ -41,7 +41,7 @@ class InterferenceGraph {
       // Add the interference edges.
       def liveVars = node.anno['regalloc-liveness']
       //println "calculating interference edges for node: $node"
-      println "number of liveout = ${liveVars.size()}"
+      //println "number of liveout = ${liveVars.size()}"
       liveVars.eachWithIndex { v1, i1 -> 
         liveVars.eachWithIndex { v2, i2 -> 
           if(i1 < i2 && v1 != v2) 
