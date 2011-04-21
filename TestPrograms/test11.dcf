@@ -1,0 +1,9 @@
+class Program {
+  void foo(int a) {
+    a = 3;
+    assert(a == 3);
+  }
+  void main() {
+    foo(5);
+  }
+}
