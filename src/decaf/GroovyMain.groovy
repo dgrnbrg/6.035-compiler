@@ -223,7 +223,6 @@ public class GroovyMain {
     } else {
       lowirGen.inliningThreshold = 0
     }
-    //TODO: add sccp after testing to all
     if ('all' in argparser['opt']) {
       opts += ['ssa', 'dce', 'pre', 'cp', 'sccp']
     }

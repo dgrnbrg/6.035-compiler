@@ -233,7 +233,6 @@ class SSAComputer {
         if (defSite?.getDef() in phi.args) {
           mov = new LowIrMov(src: defSite.getDef(), dst: phi.tmpVar)
         } else {
-          //TODO: make these be inline
           mov = new LowIrIntLiteral(value: 0, tmpVar: phi.tmpVar)
         }
         new LowIrBridge(mov).insertBetween(pred, joinPoint)

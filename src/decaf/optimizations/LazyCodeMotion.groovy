@@ -44,7 +44,10 @@ class LazyCodeMotion {
       node.descriptor.getDescriptorsOfNestedStores().each{set.addAll(exprsContainingDesc[it])}
       break
     case LowIrStore:
-      //TODO: might be too conservative
+      //might be too conservative, in that we mess up the following:
+      //a[0] = 1;
+      //a[1] = 2; #here we kill a[0] = 1
+      //foo(a[0]); #we generate an extra load for a[0] here maybe?
       set += exprsContainingDesc[node.desc]
       break
     }

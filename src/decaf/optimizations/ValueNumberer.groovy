@@ -69,7 +69,7 @@ class ValueNumberer {
       break
     case LowIrPhi:
       if (visitedPhis.contains(node)) {
-        result = uniqueMap[node] //TODO: check that we get self-phis on loops correct
+        result = uniqueMap[node]
         uniqueToTmp[result] = node.tmpVar
         break
       }
