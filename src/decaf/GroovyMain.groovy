@@ -293,6 +293,8 @@ public class GroovyMain {
         methodHiIr.inOrderWalk(check)
       }
 */
+      methodHiIr.inOrderWalk(checker.arrayIndicesAreInts)
+      if (errors != []) throw new FatalException(code: 1)
       methodHiIr.inOrderWalk(checker.hyperblast)
     }
     
