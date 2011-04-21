@@ -1,6 +1,7 @@
 package decaf
 import decaf.graph.*
 import static decaf.BinOpType.*
+import static decaf.graph.Traverser.eachNodeOf
 
 class CodeGenerator extends Traverser {
   def asm = [text: ['.text'], strings: ['.data'], bss: ['.bss']]
@@ -16,6 +17,15 @@ class CodeGenerator extends Traverser {
     asmMacro('.globl', method.name)
     emit(method.name + ':')
     enter(8*(method.params.size() + method.tempFactory.tmpVarId),0)
+
+    //get set of all used tmpVars
+    def tmps = new LinkedHashSet()
+    eachNodeOf(method.lowir) { tmps.addAll(it.getUses()) }
+    //zero out all tmpVars
+    for (t in tmps.findAll{it.type == TempVarType.LOCAL}) {
+      movq(0,getTmp(t))
+    }
+
     // Part of pre-trace codegen
     // traverse(method.lowir)
     traverseWithTraces(method.lowir)
