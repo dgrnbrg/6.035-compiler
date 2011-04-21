@@ -50,6 +50,7 @@ class CodeGenerator extends Traverser {
       return
     }*/
 
+    //emit("// Visiting node ${stmt.label}")
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
