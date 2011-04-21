@@ -1,0 +1,6 @@
+//EXPECTS 0 1
+class Program {
+  void main() {
+    callout("printf","%d %d \n", callout("strcmp", "foo", "bar"), callout("strcmp","bazz", "bazz"));
+  }
+}

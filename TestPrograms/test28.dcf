@@ -1,0 +1,21 @@
+class Program {
+  boolean not2(boolean a) {
+    boolean b;
+    b = true;
+    if (a) {
+      b=false;
+    }    
+    return b;
+  }
+  void main() {
+    boolean a;
+    boolean b;
+    a = true;
+    for i=1, 10 {
+      b = not2(a);
+      assert(b == false);
+      callout("printf", "b is %d\n", b);
+      // EXPECTS b is false
+    }
+  }
+}

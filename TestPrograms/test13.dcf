@@ -1,0 +1,10 @@
+class Program {
+  int tep() {
+    return 22;
+  }
+
+  void main() {
+    callout("printf","hello %d \n",tep());
+    //EXPECTS hello 22
+  }
+}
