@@ -82,6 +82,7 @@ enum InstrType {
   ROR('ror',2),
   CMP('cmp',2),
   XOR('xor',2),
+  CQO('cqo',0), //sign extend rax to rdx:rax
 
 //DEBUG
   INT3('int3',0);

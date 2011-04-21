@@ -237,7 +237,7 @@ class CodeGenerator extends Traverser {
         break
       case DIV:
         movq(getTmp(stmt.leftTmpVar),rax)
-        movq(0,rdx)
+        cqo() //sign extend rax into rdx:rax
         movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
         movq(rax,getTmp(stmt.tmpVar))
