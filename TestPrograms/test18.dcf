@@ -1,0 +1,8 @@
+// EXPECTS 22
+class Program {
+  void main() {
+    int x;
+    x = 22;
+    callout("printf", "%d\n", x);
+  }
+}

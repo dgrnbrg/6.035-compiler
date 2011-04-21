@@ -1,0 +1,12 @@
+class Program {
+  void main() {
+    int a;
+    int b;
+    for i=1, 10 {
+      a = i*0;
+      assert(a == 0);
+      callout("printf", "a is %d\n", a);
+      // EXPECTS a is 0
+    }
+  }
+}

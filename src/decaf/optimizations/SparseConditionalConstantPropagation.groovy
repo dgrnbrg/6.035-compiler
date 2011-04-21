@@ -7,7 +7,12 @@ import static decaf.graph.Traverser.eachNodeOf
 class SparseConditionalConstantPropagation {
 
   //setlattice value to UNDEF for all nodes
-  def tmpToInstVal = new LazyMap({new InstVal(LatticeType.UNDEF)}) //keys:tmpVars, value: InstValues
+  def tmpToInstVal = new LazyMap({ //keys:tmpVars, value: InstValues
+    if (it && it.type == TempVarType.PARAM)
+      return new InstVal(LatticeType.OVERDEF)
+    else
+      return new InstVal(LatticeType.UNDEF)
+  })
   def flowWL = new LinkedHashSet()
   //the ssaWL is initially empty
   def ssaWL = new LinkedHashSet()
@@ -90,13 +95,45 @@ class SparseConditionalConstantPropagation {
         result = calculate(node, {x, y -> new InstVal(x - y) })
         break
       case BinOpType.MUL:
-        result = calculate(node, {x, y -> new InstVal(x * y) })
+        //check whether either of the operands is a const and is zero -- if so, the expression is zero
+        def leftType = tmpToInstVal[node.leftTmpVar].latticeVal
+        def rightType = tmpToInstVal[node.rightTmpVar].latticeVal
+        if ((leftType == LatticeType.CONST && tmpToInstVal[node.leftTmpVar].constVal == 0)
+             || rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0) {
+          result = new InstVal(0)
+        } else {
+          result = calculate(node, {x, y -> new InstVal(x * y) })
+        }
         break
       case BinOpType.DIV:
-        result = calculate(node, {x, y -> new InstVal(x / y) })
+        //check whether the dividend is a const and zero -- if so, the expression is zero
+        def leftType = tmpToInstVal[node.leftTmpVar].latticeVal
+        def rightType = tmpToInstVal[node.rightTmpVar].latticeVal
+        if (leftType == LatticeType.CONST && tmpToInstVal[node.leftTmpVar].constVal == 0
+           && !(rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0)) {
+          result = new InstVal(0)
+        } else {
+          try {
+            result = calculate(node, {x, y -> new InstVal(x / y) })
+          } catch (ArithmeticException e) {
+            throw new FatalException(msg: "During symbolic execution of constants in the program, we determined that division by zero is attempted. Please, change the program to avoid this.", code: 1)
+          }
+        }
         break
       case BinOpType.MOD:
-        result = calculate(node, {x, y -> new InstVal(x % y) })
+        //check whether the dividend is a const and zero -- if so, the expression is zero
+        def leftType = tmpToInstVal[node.leftTmpVar].latticeVal
+        def rightType = tmpToInstVal[node.rightTmpVar].latticeVal
+        if (leftType == LatticeType.CONST && tmpToInstVal[node.leftTmpVar].constVal == 0
+           && ! (rightType == LatticeType.CONST && tmpToInstVal[node.rightTmpVar].constVal == 0)) {
+          result = new InstVal(0)
+        } else {
+          try {
+            result = calculate(node, {x, y -> new InstVal(x % y) })
+          } catch (ArithmeticException e) {
+            throw new FatalException(msg: "During symbolic execution of constants in the program, we determined that division by zero is attempted. Please, change the program to avoid this.", code: 1)
+          }
+        }
         break
       case BinOpType.LT:
         result = calculate(node, {x,y -> new InstVal( x < y ? 1 : 0) })
@@ -238,6 +275,36 @@ class SparseConditionalConstantPropagation {
       if (node instanceof LowIrCondJump &&
           tmpToInstVal[node.condition].latticeVal == LatticeType.CONST) {
         toUnlink << node
+      }
+      if (node instanceof LowIrBinOp) {
+        def leftVar = tmpToInstVal[node.leftTmpVar]
+        def rightVar = tmpToInstVal[node.rightTmpVar]
+        def isConstOne = { it.latticeVal == LatticeType.CONST && it.constVal == 1}
+        def isConstZero = { it.latticeVal == LatticeType.CONST && it.constVal == 0}
+        def isOverDef = {it.latticeVal == LatticeType.OVERDEF}
+        if (node.op == BinOpType.MUL && isConstOne(leftVar) && isOverDef(rightVar)) {
+          assert node.successors.size() == 1
+          new LowIrBridge(new LowIrMov(src: node.rightTmpVar, dst:node.tmpVar)).
+            insertBetween(node, node.successors[0])
+          node.excise()
+        } else if (node.op == BinOpType.MUL && isConstOne(rightVar) && isOverDef(leftVar)) {
+          assert node.successors.size() == 1
+          new LowIrBridge(new LowIrMov(src: node.leftTmpVar, dst:node.tmpVar)).
+            insertBetween(node, node.successors[0])
+          node.excise()
+        } else if (node.op == BinOpType.ADD || node.op == BinOpType.SUB) {
+          if (isConstZero(leftVar) && isOverDef(rightVar) && node.op != BinOpType.SUB) {
+            assert node.successors.size() == 1
+            new LowIrBridge(new LowIrMov(src: node.rightTmpVar, dst:node.tmpVar)).
+              insertBetween(node, node.successors[0])
+            node.excise() 
+          } else if (isConstZero(rightVar) && isOverDef(leftVar)) {
+            assert node.successors.size() == 1
+            new LowIrBridge(new LowIrMov(src: node.leftTmpVar, dst:node.tmpVar)).
+              insertBetween(node, node.successors[0])
+            node.excise()
+          }
+        }
       }
     }
     toUnlink.each {

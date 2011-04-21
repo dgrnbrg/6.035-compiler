@@ -1,0 +1,11 @@
+class Program {
+  int tep(int x) {
+    //callout("printf","hello aysylu\n");
+    return x*2;
+  }
+
+  void main() {
+    callout("printf","hello world! %d\n", tep(11));
+    // EXPECTS hello world! 22
+  }
+}
