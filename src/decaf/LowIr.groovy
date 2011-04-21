@@ -414,6 +414,30 @@ class LowIrMov extends LowIrNode {
   }
 }
 
+class LowIrBoundsCheck extends LowIrNode {
+  TempVar testVar
+  int lowerBound, upperBound
+
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    if (testVar == oldVar) {
+      testVar = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+
+  Collection<TempVar> getUses() {
+    return [testVar]
+  }
+
+  String toString() {
+    "LowIrBoundsCheck($lowerBound <= $testVar < $upperBound)"
+  }
+}
+
 class LowIrStore extends LowIrNode {
   VariableDescriptor desc
   TempVar index

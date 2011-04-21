@@ -57,7 +57,15 @@ abstract class Traverser {
       assert(curNode.anno["traceMarker"])
       def curTraceMarker = curNode.anno["traceMarker"]
 
+      //println curNode.anno["trace"]["falseStart"]
+      if(curNode.anno["trace"]["falseStart"]) {
+        //println "False Start!!!" + curNode.label
+        newTraceStarts = newTraceStarts.tail()
+        continue
+      }
+
       while(curNode != null) {
+        //println "visiting node " + curNode.label
         visitNode(curNode);
 
         switch(curNode.getSuccessors().size()) {

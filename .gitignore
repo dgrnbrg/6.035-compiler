@@ -3,7 +3,7 @@ dist
 java
 *.pdf
 *.png
-*.dcf
+*.s
 nbproject
 cobertura.ser
 .settings

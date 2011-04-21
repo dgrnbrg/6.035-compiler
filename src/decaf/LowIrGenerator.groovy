@@ -266,8 +266,11 @@ class LowIrGenerator {
     def bodyBridge = destruct(forloop.block).seq(incBridge)
     forLoopBreakContinueStack.pop()
 
+    def landingPad = new LowIrNode(metaText: 'landing pad')
+    LowIrNode.link(landingPad, bodyBridge.begin)
+
     def cmpNode = shortcircuit(cmpBridge, bodyBridge.begin, endNode)
-    def bypassNode = shortcircuit(bypassBridge, bodyBridge.begin, endNode)
+    def bypassNode = shortcircuit(bypassBridge, landingPad, endNode)
     LowIrNode.link(incBridge.end, cmpNode)
     LowIrNode.link(initBridge.end, bypassNode)
     return new LowIrBridge(initBridge.begin, endNode)
@@ -285,9 +288,9 @@ class LowIrGenerator {
     return new LowIrBridge(breakNode, new LowIrNode(metaText: 'break spurious node'))
   }
 
-  LowIrBridge dieWithMessage(String msg) {
+  LowIrBridge dieWithMessage(String msg, args = []) {
     def msgStr = new LowIrStringLiteral(value: "RUNTIME ERROR: $msg", tmpVar: desc.tempFactory.createLocalTemp())
-    def printf = new LowIrCallOut(name: 'printf', paramTmpVars: [msgStr.tmpVar], tmpVar: desc.tempFactory.createLocalTemp())
+    def printf = new LowIrCallOut(name: 'printf', paramTmpVars: [msgStr.tmpVar] + args, tmpVar: desc.tempFactory.createLocalTemp())
     def constOne = new LowIrIntLiteral(value: 1, tmpVar: desc.tempFactory.createLocalTemp())
     def exit = new LowIrCallOut(name: 'exit', paramTmpVars: [constOne.tmpVar], tmpVar: desc.tempFactory.createLocalTemp())
     return new LowIrBridge([msgStr,printf,constOne,exit])
@@ -295,29 +298,10 @@ class LowIrGenerator {
 
   LowIrBridge boundsCheck(VariableDescriptor arrDesc, TempVar indexVar) {
     assert arrDesc.arraySize != null
-    //if too high, die, else low. if too low, die, else done
-    def highTmp = desc.tempFactory.createLocalTemp()
-    def cmpResult = desc.tempFactory.createLocalTemp()
-    def highBridge = new LowIrBridge([
-      new LowIrIntLiteral(value: arrDesc.arraySize, tmpVar: highTmp),
-      new LowIrBinOp(leftTmpVar: indexVar, rightTmpVar: highTmp, op: BinOpType.GTE, tmpVar: cmpResult),
-      new LowIrCondJump(condition: cmpResult)
-    ])
-    def lowTmp = desc.tempFactory.createLocalTemp()
-    def lowBridge = new LowIrBridge([
-      new LowIrIntLiteral(value: 0, tmpVar: lowTmp),
-      new LowIrBinOp(leftTmpVar: indexVar, rightTmpVar: lowTmp, op: BinOpType.LT, tmpVar: cmpResult),
-      new LowIrCondJump(condition: cmpResult)
-    ])
-    def outOfBoundsBridge = dieWithMessage("Array out of bounds")
-    highBridge.end.trueDest = outOfBoundsBridge.begin
-    highBridge.end.falseDest = lowBridge.begin
-    LowIrNode.link(highBridge.end, outOfBoundsBridge.begin)
-    LowIrNode.link(highBridge.end, lowBridge.begin)
-    lowBridge.end.trueDest = outOfBoundsBridge.begin
-    lowBridge.end.falseDest = new LowIrNode(metaText: 'bounds check end')
-    LowIrNode.link(lowBridge.end, outOfBoundsBridge.begin)
-    LowIrNode.link(lowBridge.end, lowBridge.end.falseDest)
-    return new LowIrBridge(highBridge.begin, lowBridge.end.falseDest)
+    return new LowIrBridge(new LowIrBoundsCheck(
+      lowerBound: 0,
+      upperBound: arrDesc.arraySize,
+      testVar: indexVar
+    ))
   }
 }

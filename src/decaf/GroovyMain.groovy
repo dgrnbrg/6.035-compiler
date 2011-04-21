@@ -212,6 +212,9 @@ public class GroovyMain {
     if ('dce' in argparser['opt']) {
       opts += ['ssa', 'dce']
     }
+    if ('pre' in argparser['opt']) {
+      opts += ['ssa', 'pre']
+    }
     if ('sccp' in argparser['opt']) {
       opts += ['ssa', 'sccp']
     }
@@ -220,9 +223,8 @@ public class GroovyMain {
     } else {
       lowirGen.inliningThreshold = 0
     }
-    //TODO: add sccp after testing to all
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'cse', 'cp', 'sccp']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp']
     }
   }
 
@@ -291,6 +293,8 @@ public class GroovyMain {
         methodHiIr.inOrderWalk(check)
       }
 */
+      methodHiIr.inOrderWalk(checker.arrayIndicesAreInts)
+      if (errors != []) throw new FatalException(code: 1)
       methodHiIr.inOrderWalk(checker.hyperblast)
     }
     
@@ -325,14 +329,26 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
-      if ('cse' in opts)
-        new CommonSubexpressionElimination().run(methodDesc)
+//      if ('cse' in opts)
+//        new CommonSubexpressionElimination().run(methodDesc)
+      if ('sccp' in opts)
+        new SparseConditionalConstantPropagation().run(methodDesc)
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
-      if ('sccp' in opts)
-        new SparseConditionalConstantPropagation().run(methodDesc)
+      if ('pre' in opts) {
+        def repeats = 0
+        def stillGoing = true
+        while (repeats < 2 && stillGoing) {
+          def lcm = new LazyCodeMotion()
+          lcm.run(methodDesc)
+          new CopyPropagation().propagate(methodDesc.lowir)
+          new DeadCodeElimination().run(methodDesc.lowir)
+          stillGoing = lcm.insertCnt != lcm.deleteCnt
+          repeats++
+        }
+      }
     }
   }
 

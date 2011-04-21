@@ -9,8 +9,10 @@ class SSAComputer {
   def compute(MethodDescriptor desc) {
     this.tempFactory = desc.tempFactory
     def startNode = desc.lowir
+    destroyAllMyBeautifulHardWork(startNode)
     doDominanceComputations(startNode)
     placePhiFunctions(startNode)
+    deleteDUChains(startNode)
     rename(startNode)
   }
 
@@ -22,7 +24,7 @@ class SSAComputer {
   /**
   This implements Place-\Phi-Functions on page 407 of modern compiler impl. in java
   */
-  def placePhiFunctions(LowIrNode startNode) {
+  def placePhiFunctions(LowIrNode startNode, filterTmps = null) {
     //A_orig is just the tmpVar of a LowIrValueNode, or empty
     def defsites = [:]
     def a_phi = [:]
@@ -38,6 +40,7 @@ class SSAComputer {
         tmpVar = node.dst
         break
       }
+      if (filterTmps != null && !(tmpVar in filterTmps)) tmpVar = null
       return tmpVar
     }
 
@@ -52,6 +55,9 @@ class SSAComputer {
           defsites[tmpVar] << node
         }
       }
+      //clean up old annotations
+      node.anno['phi-functions'] = null
+      node.anno['phi-functions-to-visit'] = null
     }
 
     def insertBeforeMap = [:]
@@ -155,6 +161,42 @@ class SSAComputer {
     }
   }
 
+  static void updateDUChains(LowIrNode startNode) {
+    def clearedUses = new HashSet()
+    eachNodeOf(startNode) { node ->
+      if (node.getDef() != null) {
+        node.getDef().defSite = node
+        if (!(node.getDef() in clearedUses)) {
+          clearedUses << node.getDef()
+          node.getDef().useSites = []
+        }
+      }
+      for (use in node.getUses()) {
+        if (!(use in clearedUses)) {
+          clearedUses << use
+          use.useSites = [node]
+        }
+        use.useSites << node
+      }
+    }
+  }
+
+  static void deleteDUChains(LowIrNode startNode) {
+    def tmps = new LinkedHashSet()
+    eachNodeOf(startNode) { node ->
+      def newStuff = node.getUses()
+      if (node.getDef()) newStuff << node.getDef()
+      for (tmp in newStuff) {
+        tmps << tmp
+      }
+    }
+    for (tmp in tmps) {
+      if (!tmp) continue
+      tmp.useSites = []
+      tmp.defSite = null
+    }
+  }
+
   /**
   Find all phi functions, then search through the predecessors to the join point
   Insert a move for each possibility at the join point, then delete the phi function
@@ -191,7 +233,6 @@ class SSAComputer {
         if (defSite?.getDef() in phi.args) {
           mov = new LowIrMov(src: defSite.getDef(), dst: phi.tmpVar)
         } else {
-          //TODO: make these be inline
           mov = new LowIrIntLiteral(value: 0, tmpVar: phi.tmpVar)
         }
         new LowIrBridge(mov).insertBetween(pred, joinPoint)
