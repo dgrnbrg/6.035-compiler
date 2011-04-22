@@ -1,0 +1,27 @@
+// EXPECTS 5
+// EXPECTS 0
+
+class Program {
+  int get_int(int x) {
+    return x;
+  }
+
+  void main() {
+    int a, b, c, d;
+    int x;
+    int i;
+
+    a = get_int(2);
+    b = get_int(3);
+    x = get_int(4);
+    c = 0; d = 0;
+
+    c = a + b;
+    for i = 5, x {
+      d = a + b;
+    }
+
+    callout("printf", "%d\n", c);
+    callout("printf", "%d\n", d);
+  }
+}
