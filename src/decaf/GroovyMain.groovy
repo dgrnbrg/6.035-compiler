@@ -212,6 +212,9 @@ public class GroovyMain {
     if ('dce' in argparser['opt']) {
       opts += ['ssa', 'dce']
     }
+    if ('dse' in argparser['opt']) {
+      opts += ['ssa', 'dse']
+    }
     if ('pre' in argparser['opt']) {
       opts += ['ssa', 'pre']
     }
@@ -224,7 +227,7 @@ public class GroovyMain {
       lowirGen.inliningThreshold = 0
     }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse']
     }
   }
 
@@ -337,6 +340,8 @@ public class GroovyMain {
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
+      if ('dse' in opts)
+        new DeadStoreElimination().run(methodDesc.lowir)
       if ('pre' in opts) {
         def repeats = 0
         def stillGoing = true
@@ -348,6 +353,7 @@ public class GroovyMain {
           stillGoing = lcm.insertCnt != lcm.deleteCnt
           repeats++
         }
+        new DeadStoreElimination().run(methodDesc.lowir)
       }
     }
   }

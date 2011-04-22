@@ -146,6 +146,7 @@
       <arg value="sccp"/>
       <arg value="dce"/>
       <arg value="cp"/>
+      <arg value="dse"/>
     </java>
   </target>
 
