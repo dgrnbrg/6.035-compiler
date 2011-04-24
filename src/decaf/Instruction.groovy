@@ -77,12 +77,17 @@ enum InstrType {
   SUB('sub',2),
   IMUL('imul',2),
   IDIV('idiv',1),
-  SHR('shr',1),
-  SHL('shl',1),
+  SHR('shr',2),
+  SHL('shl',2),
   ROR('ror',2),
   CMP('cmp',2),
   XOR('xor',2),
   CQO('cqo',0), //sign extend rax to rdx:rax
+  CDQ('cdq',0), //sign extend rax to rdx:rax
+  NEG('neg',1),
+  SBB('sbb',2),
+  SAR('sar',2),
+  AND('and',2),
 
 //DEBUG
   INT3('int3',0);
@@ -105,6 +110,10 @@ class Operand {
   Operand(int val) {
     this.type = OperType.IMM
     this.val = val
+  }
+
+  Operand(long val) {
+    this((int) val)
   }
 
   Operand(Reg val) {

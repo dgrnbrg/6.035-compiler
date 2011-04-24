@@ -2,6 +2,7 @@ package decaf
 import decaf.graph.*
 import static decaf.BinOpType.*
 import static decaf.graph.Traverser.eachNodeOf
+import decaf.optimizations.*
 
 class CodeGenerator extends Traverser {
   def asm = [text: ['.text'], strings: ['.data'], bss: ['.bss']]
@@ -238,13 +239,17 @@ class CodeGenerator extends Traverser {
       case DIV:
         movq(getTmp(stmt.leftTmpVar),rax)
         cqo() //sign extend rax into rdx:rax
-        movq(getTmp(stmt.rightTmpVar),r10)
-        idiv(r10)
+        if (stmt.rightTmpVar.constVal == null) {
+          movq(getTmp(stmt.rightTmpVar),r10)
+          idiv(r10)
+        } else {
+          new Peephole(codegen:this).divByConst(stmt.rightTmpVar.constVal)
+        }
         movq(rax,getTmp(stmt.tmpVar))
         break
       case MOD:
         movq(getTmp(stmt.leftTmpVar),rax)
-        movq(0,rdx)
+        cqo()
         movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
         movq(rdx,getTmp(stmt.tmpVar))

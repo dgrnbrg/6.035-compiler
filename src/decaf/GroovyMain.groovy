@@ -6,6 +6,7 @@ import decaf.graph.*
 import static decaf.DecafScannerTokenTypes.*
 import antlr.collections.AST as AntlrAST
 import decaf.test.HiIrBuilder
+import static decaf.graph.Traverser.eachNodeOf
 import decaf.optimizations.*
 
 class LowIrDotTraverser extends Traverser {
@@ -349,6 +350,7 @@ public class GroovyMain {
           repeats++
         }
       }
+      eachNodeOf(methodDesc.lowir) { if (it instanceof LowIrIntLiteral) it.getDef().constVal = it.value }
     }
   }
 
