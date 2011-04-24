@@ -64,6 +64,69 @@ class RegisterAllocator {
       }*/
     }
   }
+
+  // Run this function to fixed point. It implements the flow-diagram in 
+  // MCIJ in 11.2
+  boolean RegColorIteration() {
+  
+    Build(graph);
+  
+    def foundPotentialSpill = false;
+
+  while(true) {
+
+    // Simplify removes a single node each call
+    // returning false if nothign to simplify.
+    boolean didSimplifyHappen = Simplify();
+    while(Simplify()); // Keep running until nothing left to simplify
+
+    // Coalesce coalesces a single node each call,
+    // returning false if nothing to coalesce
+    boolean didCoalesce = Coalesce();
+    while(Coalesce());
+
+    // Simplify and coalesce are repeated until only significant degree or 
+    // move related nodes remainl.
+    if(!OnlySigDegOrMoveRelated())
+      continue;
+
+    if(!didCoalesce && !didCoalesce) {
+      while(Freeze()):
+      continue;
+    }
+
+    def potSpills = []
+
+    while(true) {
+      def ps = PotentialSpill(ig)
+      if(ps)
+        potSpills += [ps]
+      else 
+        continue
+    }
+
+    break;
+  }
+
+  assert(!OnlySigDegOrMoveRelated())
+  
+  // Try assigning colors to the graph
+  if(!TryAssignColors()) {
+    // Spill required
+    HandleSpill()
+    return false;
+  } 
+
+  // No sigDeg spills required, now check for required spills.
+  if(HandleHighDegSpills()) {
+    // A spill occured, we handled it and then we have to rebuild!
+    return false;
+  }
+
+  // No spills... so we're done!
+  return true;  
+}
+
 }
 
 
