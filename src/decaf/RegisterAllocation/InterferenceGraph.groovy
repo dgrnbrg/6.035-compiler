@@ -18,23 +18,23 @@ class InterferenceGraph {
     methodDesc = md
   }
   
-  void CalculateInterferenceGraph() {
-    // Make sure results from previous liveness analysis don't interfere
-    Traverser.eachNodeOf(methodDesc.lowir) { node -> node.anno.remove('regalloc-liveness') }
-
+  void RunLivenessAnalysis() {
     la = new LivenessAnalysis()
     la.run(methodDesc.lowir)
-    
+  }
+
+  void SetupVariables() {
     variables = new LinkedHashSet<TempVar>()
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       variables += new LinkedHashSet<TempVar>(node.anno['regalloc-liveness'])
       //println "Liveness Result for Node: $node"
       //println node.anno['regalloc-liveness']
+      println "Finished running liveness analysis."
     }
+  }
 
-    println "Finished running liveness analysis."
-
+  void AddInterferenceEdges() {
     InterferenceEdges = new LinkedHashSet()
     
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
@@ -49,28 +49,29 @@ class InterferenceGraph {
         }
       }
     }
+  }
+
+  void CalculateInterferenceGraph() {
+    // Make sure results from previous liveness analysis don't interfere
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> node.anno.remove('regalloc-liveness') }
+
+    RunLivenessAnalysis()
+    SetupVariables()
+    AddInterferenceEdges()
     
     println "The Interference Edges are: "
     InterferenceEdges.each { println "  $it" }
-    
-    println "The variables of significant degree for k = 8 are:"
-    //(getSignificantDegreeNodes(8)).each { node -> 
-    //  println " $node"
-    //}
 
     DrawDotGraph();
   }
   
   void AddInterferenceEdge(TempVar v1, TempVar v2) {
-    assert(v1)
-    assert(v2)
+    assert(v1); assert(v2);
     //assert(variables.contains(v1))
     //assert(variables.contains(v2))
-
-    def newEdge = new LinkedHashSet<TempVar>([v1, v2])
-    
     assert(InterferenceEdges != null)
-    InterferenceEdges += new LinkedHashSet([newEdge])
+    
+    InterferenceEdges += [new LinkedHashSet<TempVar>([v1, v2])]
   }
   
   LinkedHashSet<TempVar> getNeighbors(TempVar v) {

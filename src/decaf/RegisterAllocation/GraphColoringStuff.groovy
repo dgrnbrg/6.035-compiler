@@ -7,6 +7,7 @@ import decaf.graph.*
 class ColoringNode {
   def color;
   LinkedHashSet nodes;
+  def movRelated = false
   def anno = [:];
 
   public ColoringNode() {
@@ -103,19 +104,68 @@ class ColorableGraph {
   }
 
   void EraseAllColorFromGraph() {
-    assert nodes
+    assert false; // Do we really need this function?
+    assert nodes;
     nodes.each { it.color = null }
   }
 
+  def GetAvailableColors = { node -> 
+    assert nodes.contains(node);
+
+    LinkedHashSet takenColors = []
+    cg.IncompatibleNeighbors.neighbors[(node)].each { cn -> 
+      if(cn.color) takenColors += [cn.color]
+    }
+
+    return colors - takenColors
+  }
+
+  void addNodes(coloringNodes) {
+    assert coloringNodes;
+    coloringNodes.each { assert !nodes.contains(it)}
+    nodes += new LinkedHashSet<ColoringNode>(coloringNodes)
+  }
+
+  void removeNode(ColoringNode cn) {
+    assert cn; assert nodes.contains(cn);
+    nodes.remove(cn);
+    UpdateAfterNodesModified();
+  }
+
+  int sigDeg() {
+    return 14;
+  }
+
+  int getDegree(ColoringNode node) {
+    assert node; assert IncompatibleNeighbors.degreeMap[(node)];
+    return IncompatibleNeighbors.degreeMap[(node)]
+  }
+
+  LinkedHashSet<ColoringNode> getNeighbors(ColoringNode node) {
+    assert node; assert IncompatibleNeighbors.neighborMap[(node)];
+    return IncompatibleNeighbors.neighborMap[(node)]
+  }
+
+  boolean CanCoalesceNodes(ColoringNode a, ColoringNode b) {
+    assert a; assert b; 
+    assert nodes.contains(a) && nodes.contains(b);
+    assert a.isMoveRelated() && b.isMoveRelated();
+
+    LinkedHashSet<ColoringNode> sumNeighbors = getNeighbors(a) + getNeighbors(b);
+    return (sumNeighbors.size() < sigDeg())
+  }
+
   void CoalesceNodes(ColoringNode a, ColoringNode b) {
-    assert a; assert b    ;
+    assert a; assert b;
     assert nodes.contains(a) && nodes.contains(b)
-    nodes.remove(a)
-    nodes.remove(b)
+    assert CanCoalesceNodes(a, b);
+
+    nodes.remove(a);
+    nodes.remove(b);
 
     ColoringNode c = new ColoringNode();
-    c.nodes = a.nodes + b.nodes
-    c.anno = a.anno + b.anno
+    c.nodes = a.nodes + b.nodes;
+    c.anno = a.anno + b.anno;
     
     if(a.color == null && b.color == null) c.color = null
     else if(a.color == null && b.color != null) c.color = b.color
@@ -127,6 +177,17 @@ class ColorableGraph {
     }
 
     nodes += [c]
+
+    // Now we have to make sure to have transferred the interference edges.
+    assert false
+  }
+
+  void AddIncompatibleEdges(theNewIncEdges) {
+    assert theNewIncEdges
+    theNewIncEdges.each { assert !incEdges.contains(it) }
+    
+    incEdges += theNewIncEdges
+    UpdateAfterEdgesModified()
   }
 
   void UpdateAfterNodesModified() {
