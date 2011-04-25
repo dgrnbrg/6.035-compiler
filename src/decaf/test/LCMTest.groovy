@@ -116,8 +116,6 @@ class Program {
 
   void testLoadPartialRedundancy() {
     def gm
-/*
-//We don't optimize this (yet)
     def prog1 = '''
 class Program {
   int k;
@@ -136,7 +134,6 @@ class Program {
     gm = GroovyMain.runMain('genLowIr', prog1, ['opt': ['pre']])
     assertEquals(1, countLowir(gm, 'main', {it instanceof LowIrStore}))
     assertEquals(0, countLowir(gm, 'main', {it instanceof LowIrLoad}))
-*/
 
     def prog2 = '''
 class Program {
