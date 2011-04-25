@@ -1,13 +1,22 @@
 package decaf.optimizations
 import decaf.*
+import decaf.graph.*
 import static decaf.graph.Traverser.eachNodeOf
 
 class CopyPropagation {
   def propagate(LowIrNode startNode) {
+    def domComps = new DominanceComputations()
+    domComps.computeDominators(startNode)
+
     eachNodeOf(startNode) { node ->
       if (node instanceof LowIrMov) {
+        def dominated = {
+          def cur = it
+          while (cur != null && cur != node) cur = domComps.idom[cur]
+          return cur == node
+        }
         def u = new LinkedHashSet(node.getDef().useSites)
-        def results = u*.replaceUse(node.dst, node.src)
+        def results = u.findAll{dominated(it)}*.replaceUse(node.dst, node.src)
         assert results.every{ it > 0 }
 /* On page 429 of Modern Comp impl in Java, it seems to indicate that the following optimization
 is invalid because it would break the dominance property of the SSA graph. Therefore I'll disable
