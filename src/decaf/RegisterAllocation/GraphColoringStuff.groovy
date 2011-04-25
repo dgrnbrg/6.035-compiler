@@ -6,23 +6,55 @@ import decaf.graph.*
 
 class ColoringNode {
   def color;
-  LinkedHashSet nodes;
-  def movRelated = false
+  def representative;
+  def frozen = false;
+  LinkedHashSet otherNodes;
+  LinkedHashSet movRelatedNodes;
   def anno = [:];
 
-  public ColoringNode() {
-    nodes = new LinkedHashSet()
-    color = null
+  public ColoringNode() {}
+
+  ColoringNode CoalesceWith(ColoringNode b) {
+    ColoringNode c = new ColoringNode();
+    c.otherNodes = nodes + b.otherNodes + new LinkedHashSet([b.representative])
+    c.representative = representative;
+    c.anno = anno + b.anno;
+    
+    if(color == null && b.color == null) c.color = null
+    else if(color == null && b.color != null) c.color = b.color
+    else if(color != null && b.color == null) c.color = a.color
+    else 
+      // Both are colors, so they should be the same.
+      if(color != b.color)
+        assert false;
+
+    c.movRelatedNodes = movRelatedNodes + b.movRelatedNodes;
+    c.UpdateMoveRelatedNodes();
+
+    return c;
   }
 
-  public ColoringNode(c) {
-    nodes = new LinkedHashSet()
-    color = c
+  public String toString() {
+    return "[ColoringNode. Rep = $representative, color = $color]"
   }
 
-  public ColoringNode(c, n) {
-    assert c; assert n;
-    color = c; nodes = n;
+  LinkedHashSet getAllRepresentedNodes() {
+    return (new LinkedHashSet([representative])) + (otherNodes ? otherNodes : [])
+  }
+
+  boolean isMovRelated() {
+    assert movRelatedNodes;
+    if(frozen) 
+      return false;
+    return (movRelatedNodes.size() > 0)
+  }
+
+  void UpdateMoveRelatedNodes() {
+    getAllRepresentedNodes().each { movRelatedNodes.remove(it) }
+  }
+
+  void AddMovRelation(TempVar tv) {
+    otherNodes += [tv]
   }
 }
 
@@ -31,22 +63,9 @@ class ColoringEdge {
   ColoringNode cn2;
 
   public ColoringEdge(ColoringNode a, ColoringNode b) {
-    assert a
-    assert b
-    cn1 = a
-    cn2 = b
-  }
-}
-
-class IncompatibleEdge extends ColoringEdge {
-  public IncompatibleEdge(ColoringNode a, ColoringNode b) {
-    super(a, b)
-  }
-}
-
-class PreferredEdge extends ColoringEdge {
-  public PreferredEdge(ColoringNode a, ColoringNode b) {
-    super(a, b)
+    assert a; assert b;
+    cn1 = a;
+    cn2 = b;
   }
 }
 
@@ -57,11 +76,26 @@ class NeighborTable {
   // (using whatever graph structure the Build function takes in).
   def degreeMap = [:]
 
+  public NeighborTable(nodes, edges) {
+    assert nodes; assert edges;
+    Build(nodes, edges)
+  }
+
   LinkedHashSet<ColoringNode> GetNeighbors(ColoringNode cn) {
+    assert neighbors != null;
+    assert neighbors[(cn)];
     return neighbors[(cn)]
   }
 
+  int GetDegree(ColoringNode cn) {
+    assert neighbors != null;
+    assert neighbors[(cn)];
+    return neighbors[(cn)].size();
+  }
+
   void Build(LinkedHashSet<ColoringNode> nodes, LinkedHashSet<ColoringEdge> edges) {
+    neighbors = [:];
+
     // Populate neighborTable
     nodes.each { n -> 
       neighbors[(n)] = new LinkedHashSet<ColoringNode>()    
@@ -71,9 +105,11 @@ class NeighborTable {
       neighbors[(edge.cn1)] += [edge.cn2]
       neighbors[(edge.cn2)] += [edge.cn1]
     }
+
+    BuildDegreeMap(nodes);
   }
 
-  void UpdateDegreeMap(LinkedHashSet<ColoringNode> nodes) {
+  void BuildDegreeMap(LinkedHashSet<ColoringNode> nodes) {
     degreeMap = [:]
 
     nodes.each { node -> 
@@ -87,42 +123,32 @@ class NeighborTable {
 }
 
 class ColorableGraph {
+  def dbgOut = { str -> assert str; println str; }
+
   LinkedHashSet<ColoringNode> nodes;
+  LinkedHashSet<ColoringEdge> edges;
+  NeighborTable neighborTable;
+  def coloringStack = []
 
-  LinkedHashSet<IncompatibleEdge> incEdges;
-  LinkedHashSet<PreferredEdge> prefEdges;
-
-  NeighborTable IncompatibleNeighbors;
-  NeighborTable PreferredNeighbors;
-  
   public ColorableGraph() {
-    nodes = []
-    incEdges = []
-    prefEdges = []
-    IncompatibleNeighbors = new NeighborTable()
-    PreferredNeighbors = new NeighborTable()
-  }
-
-  void EraseAllColorFromGraph() {
-    assert false; // Do we really need this function?
-    assert nodes;
-    nodes.each { it.color = null }
+    coloringStack = [];
+    nodes = new LinkedHashSet()
+    edges = new LinkedHashSet()
+    neighborTable = new NeighborTable()
   }
 
   def GetAvailableColors = { node -> 
-    assert nodes.contains(node);
-
     LinkedHashSet takenColors = []
-    cg.IncompatibleNeighbors.neighbors[(node)].each { cn -> 
-      if(cn.color) takenColors += [cn.color]
+    cg.neighborTable.GetNeighbors(node).each { cn -> 
+      if(cn.color) 
+        takenColors += [cn.color]
     }
 
     return colors - takenColors
   }
 
-  void addNodes(coloringNodes) {
-    assert coloringNodes;
-    coloringNodes.each { assert !nodes.contains(it)}
+  void addNode(ColoringNode cn) {
+    assert cn;
     nodes += new LinkedHashSet<ColoringNode>(coloringNodes)
   }
 
@@ -131,14 +157,23 @@ class ColorableGraph {
     nodes.remove(cn);
     UpdateAfterNodesModified();
   }
+  
+  void addEdge(ColoringEdge ce) {
+    assert ce; assert !edges.contains(ce); 
+    edges += [ce];
+  }
+
+  void removeEdge(ColoringEdge ce) {
+    assert ce; assert edges.contains(ce);
+    edges.remove(ce);
+  }
 
   int sigDeg() {
-    return 14;
+    assert false;
   }
 
   int getDegree(ColoringNode node) {
-    assert node; assert IncompatibleNeighbors.degreeMap[(node)];
-    return IncompatibleNeighbors.degreeMap[(node)]
+    return neighborTable.degreeMap[(node)]
   }
 
   LinkedHashSet<ColoringNode> getNeighbors(ColoringNode node) {
@@ -146,79 +181,113 @@ class ColorableGraph {
     return IncompatibleNeighbors.neighborMap[(node)]
   }
 
-  boolean CanCoalesceNodes(ColoringNode a, ColoringNode b) {
+  boolean CanCoalesceNodes(ColoringNode a, ColoringNode b, NeighborTable nt) {
     assert a; assert b; 
     assert nodes.contains(a) && nodes.contains(b);
+
+    assert false; // Need to refactor the following line:
     assert a.isMoveRelated() && b.isMoveRelated();
 
-    LinkedHashSet<ColoringNode> sumNeighbors = getNeighbors(a) + getNeighbors(b);
+    LinkedHashSet<ColoringNode> sumNeighbors = nt.GetNeighbors(a) + nt.GetNeighbors(b);
     return (sumNeighbors.size() < sigDeg())
   }
 
-  void CoalesceNodes(ColoringNode a, ColoringNode b) {
+  void CoalesceNodes(ColoringNode a, ColoringNode b, NeighborTable nt) {
     assert a; assert b;
     assert nodes.contains(a) && nodes.contains(b)
-    assert CanCoalesceNodes(a, b);
+    assert CanCoalesceNodes(a, b, nt);
 
     nodes.remove(a);
     nodes.remove(b);
 
-    ColoringNode c = new ColoringNode();
-    c.nodes = a.nodes + b.nodes;
-    c.anno = a.anno + b.anno;
-    
-    if(a.color == null && b.color == null) c.color = null
-    else if(a.color == null && b.color != null) c.color = b.color
-    else if(a.color != null && b.color == null) c.color = a.color
-    else {
-      // Must both be colors. they should be the same.
-      if(a.color != b.color)
-        assert false;
+    ColoringNode c = a.CoalesceWith(b);
+    addNode(c);
+
+    // Now we have to make sure to have transferred the edges.
+    def edgesToAdd = []
+    edges.each { e -> 
+      def newCN1 = e.cn1, newCN2 = e.cn2;
+      if(newCN1 == a || newCN1 == b) newCN1 = c;
+      if(newCN2 == a || newCN2 == b) newCN2 = c;
+      if(newCN1 == c || newCN2 == c) 
+        edgesToAdd += [new ColoringEdge(newCN1, newCN2)];
     }
 
-    nodes += [c]
+    edgesToAdd.each { addEdge(it) }
 
-    // Now we have to make sure to have transferred the interference edges.
-    assert false
-  }
-
-  void AddIncompatibleEdges(theNewIncEdges) {
-    assert theNewIncEdges
-    theNewIncEdges.each { assert !incEdges.contains(it) }
-    
-    incEdges += theNewIncEdges
-    UpdateAfterEdgesModified()
+    UpdateAfterNodesModified();
   }
 
   void UpdateAfterNodesModified() {
     // remove edges that have nodes that don't exist
-    assert incEdges != null
-    LinkedHashSet<ColoringEdge> edgesToRemove = new LinkedHashSet<ColoringEdge>()
-    incEdges.each { edge -> 
+    edges.each { edge -> 
       if(!(nodes.contains(edge.cn1) && nodes.contains(edge.cn2))) 
-        edgesToRemove += [edge]
+        removeEdge(edge);
     }
-    edgesToRemove.each { incEdges.remove(it) }
-
-    assert prefEdges != null
-    edgesToRemove = new LinkedHashSet<ColoringEdge>()
-    prefEdges.each { edge -> 
-      if(!(nodes.contains(edge.cn1) && nodes.contains(edge.cn2))) 
-        edgesToRemove += [edge]
-    }
-    edgesToRemove.each { prefEdges.remove(it) }
 
     UpdateAfterEdgesModified()
   }
 
   void UpdateAfterEdgesModified() {
-    assert nodes; assert IncompatibleNeighbors; assert (incEdges != null);
-    IncompatibleNeighbors.Build(nodes, incEdges)
-    IncompatibleNeighbors.UpdateDegreeMap(nodes)
+    neighborMap.Build(nodes, edges)
+  }
+  
+  def BuildNodeToColoringNodeMap() {
+    def tempVarToColoringNode = [:]
 
-    assert PreferredNeighbors; assert (prefEdges != null);   
-    PreferredNeighbors.Build(nodes, prefEdges)
-    PreferredNeighbors.UpdateDegreeMap(nodes)
+    nodes.each { cn -> 
+      cn.getAllRepresentedNodes.each { n -> 
+        tempVarToColoringNode[(v)] = cn
+      }
+    }
+
+    return tempVarToColoringNode
+  }
+
+  void DrawDotGraph(String fileName) {
+    def extension = 'pdf'
+    def graphFile = filename + '.' + 'ColorGraph' + '.' + extension
+    dbgOut "Writing colorable graph output to $graphFile"
+
+    def dotCommand = "dot -T$extension -o $graphFile"
+    Process dot = dotCommand.execute()
+    def dotOut = new PrintStream(dot.outputStream)
+
+    def varToLabel = { "TVz${it.id}z${it.type}" }
+    dbgOut 'digraph g {'
+    dotOut.println 'digraph g {'
+    edges.each { edge -> 
+      def pairOfVariables = edge.collect { it }
+      assert pairOfVariables.size() == 2      
+      def v1 = pairOfVariables[0], v2 = pairOfVariables[1]
+      dbgOut "${varToLabel(v1)} -> ${varToLabel(v2)}"
+      dotOut.println "${varToLabel(v1)} -> ${varToLabel(v2)}"
+    }
+    dbgOut '}'
+    dotOut.println '}'
+    dotOut.close()
+  }
+
+  void VerifyNoDuplicates() {
+    dbgOut "Verifying that there are no duplicates throughout the colorable graph."
+    def allRepresentedNodes = []
+    nodes.each { n -> 
+      n.getAllRepresentedNodes().each { 
+        allRepresentedNodes += [it]
+      }
+    }
+
+    assert (allRepresentedNodes.size() == new LinkedHashSet(allRepresentedNodes))
+  }
+
+  void VerifyMoveRelations() {
+    def moveRelatedCNs = nodes.findAll { cn -> cn.isMovRelated() }
+    def n2cnMap = BuildNodeToColoringNodeMap();
+
+    moveRelatedCNs.each { cn -> 
+      cn.getAllRepresentedNodes().each { n -> 
+        
+    
   }
 }
 

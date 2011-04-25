@@ -4,22 +4,11 @@ import groovy.util.*
 import decaf.*
 import decaf.graph.*
 
-
-/* ASSUMPTIONS:
-	1. I assume that all parameter tempVars will be explicitly loaded 
-			from memory into a register. To do this, I essentially auto-spill 
-			all the paramTempVars.
-*/
-
 class RegisterAllocator {
-  def dbgOut = { str -> 
-    assert str
-    println str;
-  }
+  def dbgOut = { str -> assert str; println str; }
 
 	MethodDescriptor methodDesc;
   InterferenceGraph ig;
-  ColorableGraph cg;
 
   LinkedHashSet colors = new LinkedHashSet(
       ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
@@ -28,41 +17,6 @@ class RegisterAllocator {
   public RegisterAllocator(MethodDescriptor md) {
     assert(md)
     methodDesc = md
-  }
-  
-  public ComputeInterferenceGraph() {
-  	ig = new InterferenceGraph(methodDesc)
-  	ig.CalculateInterferenceGraph()
-    ig.ColorGraph(16)
-  }
-
-  
-
-  void DoGraphColoring() {
-    println "Doing Graph Coloring!"
-    gc = new GraphColoring()
-    
-    assert ig
-    
-    ig.variables.each { v -> 
-      ColoringNode cn = new ColoringNode()
-      cn.nodes = new LinkedHashSet<ColoringNode>([v])
-      gc.cg.nodes += [cn]
-    }
-
-    gc.cg.UpdateAfterNodesModified()
-
-    ig.InterferenceEdges.each { ie -> 
-      ColoringNode v1 = tempVarToColoringNode[((ie as List)[0])]
-      ColoringNode v2 = tempVarToColoringNode[((ie as List)[1])]
-      gc.cg.incEdges += [new IncompatibleEdge(v1, v2)]
-    }
-
-    gc.cg.UpdateAfterEdgesModified()
-
-    gc.NaiveColoring()
-
-    gc.tempVarToColor
   }
 
   void ReplaceVars() {
@@ -76,7 +30,8 @@ class RegisterAllocator {
   }
 
   void RunRegAllocToFixedPoint() {
-    while(RegAllocationIteration());
+    while(ig.nodes.size() > 0)
+      RegAllocationIteration();
   }
 
   // Run this function to fixed point. It implements the flow-diagram in MCIJ in 11.2
@@ -84,22 +39,20 @@ class RegisterAllocator {
     dbgOut "Now running an iteration of the register allocator."
     Build();
   
-    def foundPotentialSpill = false;
+    boolean foundPotentialSpill = false;
 
     while(true) {
       boolean didSimplifyHappen = Simplify();
-      while(Simplify()); // Keep running until nothing left to simplify
+      while(Simplify());
 
       boolean didCoalesce = Coalesce();
       while(Coalesce());
 
-      // Simplify and coalesce are repeated until only significant degree or 
-      // move related nodes remainl.
       if(!OnlySigDegOrMoveRelated())
         continue;
 
       if(!didCoalesce && !didCoalesce) {
-        while(Freeze()):
+        while(Freeze());
         continue;
       }
 
@@ -120,8 +73,7 @@ class RegisterAllocator {
 
     // Try assigning colors to the graph
     if(!Select()) {
-      // Spill required
-      HandleSpill()
+      HandleSpill();
       return false;
     } 
 
@@ -134,79 +86,51 @@ class RegisterAllocator {
     return true;  
   }
 
-  def BuildTempVarToColoringNodeMap() {
-    def tempVarToColoringNode = [:]
-    ig.variables.each { v -> tempVarToColoringNode[(v)] = cn }
-    return tempVarToColoringNode
-  }
-
-  void AddInterferenceEdges() {
-    assert ig
-    def tv2CN = BuildTempVarToColoringNodeMap()
-
-    cg.AddIncompatibleEdges(
-      ig.InterferenceEdges.collect { ie -> 
-        ColoringNode v1 = tv2CN[((ie as List)[0])]
-        ColoringNode v2 = tv2CN[((ie as List)[1])]
-        return new IncompatibleEdge(v1, v2);
-      }
-    )
-  }
-
   void CreateRegisterNodes() {
     // Create the 14 extra nodes for registers
-    LinkedHashSet<ColoringNode> registerNodes = 
-      new LinkedHashSet<ColoringNode> (
-        colors.collect { color -> 
-          new ColoringNode(
-            color, 
-            new LinkedHashSet(
-              [new RegisterTempVar(registerName : color, type : TempVarType.REGISTER)]
-            ))})
-
-    cg.nodes += registerNodes
-    cg.UpdateAfterNodesModified()
+    colors.each { color -> 
+      ig.addNode(
+        new ColoringNode(
+          color: color, 
+          representative: new RegisterTempVar(registerName: color, type: TempVarType.REGISTER),
+          nodes: new LinkedHashSet()))
+    }
+    ig.UpdateAfterNodesModified()
   }
 
-  InterferenceGraph Build() {
+  void Build() {
     debOut "Now running Build()."
 
     // Build the interference graph.
     cg = new ColorableGraph();
     ig = new InterferenceGraph(methodDesc);
-    ig.CalculateInterferenceGraph();
 
     CreateRegisterNodes();
 
-    // First we'll calculate the move-related variables
-    def movRelatedNodes = new LinkedHashSet()
+    def tv2CN = BuildNodeToColoringNodeMap()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      if(node instanceof LowIrMov)
-        movRelatedNodes += [node.src, node.dst]
-    }
-
-    cg.addNodes( ig.variables.collect { v -> 
-        def newNode = new ColoringNode(color: null, nodes = new LinkedHashSet(v))
-        if(movRelatedNodes.contains(newNode)) newNode.movRelated = true
-        return newNode
+      if(node instanceof LowIrMov) {
+        tv2CN[(node.src)].AddMovRelation(node.dst);
+        tv2CN[(node.dst)].AddMovRelation(node.src);
       }
-    )
-
-    AddInterferenceEdges();
+    }
   }
 
   // Simplify tries to simplify a single node. (hence run to fixed-point)
   boolean Simplify() {
     debOut "Now running Simplify()."
 
-    // Determine is there is a non-move-related node of low (< K) degree in the interference graph.
-    if(assert(false)) {
-      // Remove the node from the interference graph
-      assert false;
-      return true;
+    // Determine is there is a non-move-related node of low (< K) degree in the graph.
+    def nodeToSimplify = nodes.find { cn -> 
+      (!cn.isMovRelated() && ig.neighborTable.getDegree(cn) < sigDeg())
     }
 
-    return false;
+    if(nodeToSimplify == null) 
+      return false;
+    
+    ig.removeNode(nodeToSimplify);
+    ig.coloringStack.push(nodeToSimplify);
+    return true;
   }
 
   // Coalesce coalesces a single node each call returning false if nothing to coalesce
@@ -217,6 +141,8 @@ class RegisterAllocator {
 
     // Iterate through all the pairs of move-related nodes and try and coalesce
     // the first one found
+
+    // Make a list of all the 
     assert false
 
     return false;
@@ -242,7 +168,7 @@ class RegisterAllocator {
     return false;
   }
 
-  ColoringNode PotentialSpill(InterferenceGraph ig) {
+  ColoringNode PotentialSpill() {
     dbgOut "Now calculating potential spills."
 
     ig.getNodes.each { cn -> 
@@ -259,7 +185,14 @@ class RegisterAllocator {
 
   boolean Select() {
     dbgOut "Now running select." 
+
+    // Successful coloring!
     assert false;
+    return true;
+
+    // Have to spill. :(
+    assert false;
+    return false;
   }
 
   void HandleSpill(ColoringNode spilledNode) {
@@ -271,14 +204,16 @@ class RegisterAllocator {
 
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       // Determine if this node uses the spilled var.
-      if(assert(false)) {
+      assert(false) // see line below
+      if(true) {
         // If so, add in a LowIrLoadSpillVar
         dbgOut "Adding LowIrLoadSpillVar: Detected use at $node"
         assert false
       }
 
       // Determine if this node defines the spilled var.
-      if(assert(false)) {
+      assert false; // See the condition on line below.
+      if(true) {
         // If so, add in a LowIrStoreSpillVar
         dbgOut "Adding LowIrStoreSpillVar: Detected def at $node"
         assert false
