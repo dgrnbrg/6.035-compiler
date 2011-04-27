@@ -91,6 +91,14 @@ class InterferenceGraph extends ColorableGraph {
     nodes.removeNodes([a, b]);    
     addNode(c);
 
+    nodes.each { n -> 
+      if(n.movRelatedNodes.contains(a) || n.movRelatedNodes.contains(b)) {
+        n.RemoveMovRelation(a);
+        n.RemoveMovRelation(b);
+        n.AddMovRelation(c);
+      }
+    }
+
     // Now we have to make sure to have transferred the edges.
     def edgesToAdd = []
     def needToUpdate = { curNode -> curNode == a || curNode == b }
@@ -114,7 +122,7 @@ class InterferenceGraph extends ColorableGraph {
     assert variables;
     nodes.each { 
       assert it instanceof InterferenceNode;
-      it.Validaet();
+      it.Validate();
     }
     edges.each {
       assert it instanceof InterferenceEdge;

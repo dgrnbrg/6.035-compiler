@@ -1,11 +1,18 @@
 package decaf
 
 class SpillVar extends TempVar {
-  SpillVar() {
-    id = -2
-    type = TempVarType.SPILLVAR
+  def static nextSpillID = 0;
+
+  def static getNextID() {
+    nextSpillId += 1;
+    return nextSpillId;
   }
 
+  SpillVar() {
+    id = getNextID();
+    type = TempVarType.SPILLVAR
+  }
+  
   String toString() {
     "SpillVar(I do not have an id yet!)"
   }

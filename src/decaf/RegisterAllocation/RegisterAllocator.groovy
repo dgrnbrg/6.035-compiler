@@ -80,7 +80,7 @@ class RegisterAllocator {
   }
 
   void Build() {
-    debOut "Now running Build()."
+    dbgOut "Now running Build()."
 
     ig = new InterferenceGraph(methodDesc);
     CreateRegisterNodes();
@@ -92,6 +92,7 @@ class RegisterAllocator {
         tv2CN[(node.dst)].AddMovRelation(node.src);
       }
     }
+    dbgOut "Finished running Build()."
   }
 
   void AddNodeToColoringStack(InterferenceNode node) {
@@ -100,28 +101,26 @@ class RegisterAllocator {
     // 2. Push it onto the coloringStack.
   }
 
-  // Simplify tries to simplify a single node. (hence run to fixed-point)
   boolean Simplify() {
     debOut "Now running Simplify()."
 
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
-    def nodeToSimplify = nodes.find { cn -> 
-      (!cn.isMovRelated() && ig.neighborTable.getDegree(cn) < sigDeg())
-    }
+    def nodeToSimplify = nodes.find { cn -> (!cn.isMovRelated() && ig.isSigDeg(cn)) }
 
-    if(nodeToSimplify == null) 
+    if(nodeToSimplify == null) {
+      dbgOut "Could not find a node to simplify."
       return false;
+    }
     
     AddNodeToColoringStack(nodeToSimplify);
+    dbgOut "Simplify() removed a node: $nodeToSimplify."
     return true;
   }
 
-  // Coalesce coalesces a single node each call returning false if nothing to coalesce
   boolean Coalesce() {
     dbgOut "Now running Coalescing."
 
-    // Perform conservative coalescing. Iterate through all the pairs of 
-    // move-related nodes and try and coalesce the first one found.
+    // Perform conservative coalescing. Nothing fancy here.
     [ig.nodes, ig.nodes].combinations().each { pair -> 
       if(pair[0] != pair[1])
         if(ig.CanCoalesceNodes(pair[0], pair[1])) {
@@ -147,11 +146,12 @@ class RegisterAllocator {
         n.movRelatedNodes.each { mrn -> 
           tv2CNMap[(mrn)].RemoveMovRelation(n.representative)
         }
-        n.movRelatedNodes.removeAll { true }
+        n.movRelatedNodes = new LinkedHashSet();
         return true;
       }
     }
 
+    dbgOut "No freeze-able nodes found."
     return false;
   }
 
@@ -195,29 +195,85 @@ class RegisterAllocator {
   }
 
   void Spill() {
-    dbgOut "Now handling a spilled node: $spilledNode"
     InterferenceNode spilledNode = SelectNodeToSpill();
     assert ig.isSigDeg(spilledNode)
+    dbgOut "Now handling a spilled node: $spilledNode"
 
     SpillVar sv = new SpillVar();
 
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       // Determine if this node uses the spilled var.
-      assert(false) // see line below
-      if(true) {
-        // If so, add in a LowIrLoadSpillVar
-        dbgOut "Adding LowIrLoadSpillVar: Detected use at $node"
-        assert false
+      node.getUses().intersect(spilledNode.nodes).each { use -> 
+        TempVar tv = methodDesc.tempFactory.createLocalTemp();
+        node.SwapUsesUsingMap([(use) : tv])
+        PlaceSpillLoadBeforeNode(node, sv, tv);
       }
 
       // Determine if this node defines the spilled var.
-      assert false; // See the condition on line below.
-      if(true) {
-        // If so, add in a LowIrStoreSpillVar
-        dbgOut "Adding LowIrStoreSpillVar: Detected def at $node"
-        assert false
+      if(spilledNode.nodes.contains(node.getDef())) { 
+        TempVar tv = methodDesc.tempFactory.createLocalTemp();
+        node.SwapDefUsingMap([(node.getDef()) : tv])
+        PlaceSpillStoreAfterNode(node, sv, tv);
+      }
+    }
+
+    dbgOut "Finished spilling the node."
+  }
+
+  void PlaceSpillStoreAfterNode(LowIrNode siteOfSpill, SpillVar sv, TempVar tv) {
+    assert siteOfSpill; assert tv; assert sv;
+    assert siteOfSpill.getSuccessors().size() == 1;
+
+    LowIrLoadSpill nodeToPlace = new LowIrStoreSpill(tmpVar : tv, loadLoc : sv);
+    
+    LowIrNode.link(siteOfSpill, nodeToPlace);
+    LowIrNode.link(nodeToPlace, siteOfSpill.getSuccessors().first())
+    LowIrNode.unlink(siteOfSpill, siteOfSpill.getSuccessors().first())
+  }
+
+  void PlaceSpillLoadBeforeNode(LowIrNode siteOfSpill, SpillVar sv, TempVar tv) {
+    assert siteOfSpill; assert tv; assert sv;
+    assert siteOfSpill.getPredecessors().size() > 0;
+
+    LowIrStoreSpill nodeToPlace = new LowIrStoreSpill(value : tv, storeLoc : sv);
+    
+    LowIrNode.link(nodeToPlace, siteOfSpill);
+    def pred = siteOfSpill.getPredecessors();
+    pred.each { p -> 
+      LowIrNode.unlink(p, siteOfSpill);
+      LowIrNode.link(p, nodeToPlace);
+      if(p instanceof LowIrCond) {
+        if(p.trueDest == siteOfSpill)
+          p.trueDest = nodeToPlace;
+        if(p.falseDest == siteOfSpiill)
+          p.falseDest = nodeToPlace;
       }
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
