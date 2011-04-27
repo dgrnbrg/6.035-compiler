@@ -65,5 +65,7 @@ class SpillVarManager {
     assert svLocMap.keySet().size() == lineup.size()
   }
 
-  
+  int getNumSpillVarsToAllocate() {
+    assert false;
+  }
 }

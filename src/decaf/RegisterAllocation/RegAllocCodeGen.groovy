@@ -27,7 +27,7 @@ class RegAllocCodeGen extends CodeGenerator {
       assert false // TODO
     case TempVarType.REGISTER:
       assert tmp instanceof RegisterTempVar
-      switch(registerName) {
+      switch(tmp.registerName) {
       case 'rax':
         return rax;
       case 'rbx':
@@ -248,13 +248,6 @@ class RegAllocCodeGen extends CodeGenerator {
     default:
       assert false
     }
-
-    // Part of pre-trace CodeGen.
-    /*if (successors.size() == 1) {
-      jmp(successors[0].label)
-    } else if (successors.size() == 0) {
-      jmp(method.name + '_end')
-    }*/
 
     if(stmt.anno["trace"]["FalseJmpSrc"]) {
       jmp(stmt.falseDest.label)

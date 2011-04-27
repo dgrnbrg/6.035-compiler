@@ -9,6 +9,7 @@ class RegisterAllocator {
 
 	MethodDescriptor methodDesc;
   InterferenceGraph ig;
+  LinkedHashSet<InterferenceNode> spillWorklist;
 
   LinkedHashSet colors = new LinkedHashSet(
       ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
@@ -19,27 +20,22 @@ class RegisterAllocator {
     methodDesc = md
   }
 
-  void ReplaceVars() {
-    assert tempVarToColor
-    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      assert (node instanceof LowIrNode)
-      /*switch(node) {
-        case 
-      }*/
-    }
+  void RunRegAllocToFixedPoint() {
+    while(RegAllocationIteration());
+
+    DoColoring();
   }
 
-  void RunRegAllocToFixedPoint() {
-    while(ig.nodes.size() > 0)
-      RegAllocationIteration();
+  void DoColoring() {
+    assert false;
   }
 
   // Run this function to fixed point. It implements the flow-diagram in MCIJ in 11.2
   boolean RegAllocationIteration() {
     dbgOut "Now running an iteration of the register allocator."
     Build();
-  
-    boolean foundPotentialSpill = false;
+
+    spillWorkList = new LinkedHashSet<InterferenceNode>();
 
     while(true) {
       boolean didSimplifyHappen = Simplify();
@@ -51,60 +47,42 @@ class RegisterAllocator {
       if(!OnlySigDegOrMoveRelated())
         continue;
 
-      if(!didCoalesce && !didCoalesce) {
-        while(Freeze());
+      if(!didCoalesce && !didCoalesce)
+        if(!Freeze())
+          continue;
+
+      if(PotentialSpill(ig))
         continue;
-      }
-
-      def potSpills = []
-
-      while(true) {
-        def ps = PotentialSpill(ig)
-        if(ps)
-          potSpills += [ps]
-        else 
-          continue
-      }
 
       break;
     }
 
     assert(!OnlySigDegOrMoveRelated())
+    ig.nodes.each { assert it.isMoveRelated() == false }
 
-    // Try assigning colors to the graph
     if(!Select()) {
-      HandleSpill();
-      return false;
-    } 
+      Spill();
+      return true;
+    }
 
-    // No sigDeg spills required, now check for required spills.
-    if(HandleHighDegSpills())
-      // A spill occured, we handled it and then we have to rebuild!
-      return false;
-
-    // No spills... so we're done!
-    return true;  
+    return false;
   }
 
   void CreateRegisterNodes() {
     // Create the 14 extra nodes for registers
     colors.each { color -> 
       ig.addNode(
-        new ColoringNode(
+        new InterferenceNode(
           color: color, 
           representative: new RegisterTempVar(registerName: color, type: TempVarType.REGISTER),
           nodes: new LinkedHashSet()))
     }
-    ig.UpdateAfterNodesModified()
   }
 
   void Build() {
     debOut "Now running Build()."
 
-    // Build the interference graph.
-    cg = new ColorableGraph();
     ig = new InterferenceGraph(methodDesc);
-
     CreateRegisterNodes();
 
     def tv2CN = BuildNodeToColoringNodeMap()
@@ -114,6 +92,12 @@ class RegisterAllocator {
         tv2CN[(node.dst)].AddMovRelation(node.src);
       }
     }
+  }
+
+  void AddNodeToColoringStack(InterferenceNode node) {
+    assert false;
+    // 1. Remove it from ig.
+    // 2. Push it onto the coloringStack.
   }
 
   // Simplify tries to simplify a single node. (hence run to fixed-point)
@@ -128,54 +112,59 @@ class RegisterAllocator {
     if(nodeToSimplify == null) 
       return false;
     
-    ig.removeNode(nodeToSimplify);
-    ig.coloringStack.push(nodeToSimplify);
+    AddNodeToColoringStack(nodeToSimplify);
     return true;
   }
 
   // Coalesce coalesces a single node each call returning false if nothing to coalesce
   boolean Coalesce() {
-    debOut "Now running Coalescing."
+    dbgOut "Now running Coalescing."
 
-    // Perform conservative coalescing.
+    // Perform conservative coalescing. Iterate through all the pairs of 
+    // move-related nodes and try and coalesce the first one found.
+    [ig.nodes, ig.nodes].combinations().each { pair -> 
+      if(pair[0] != pair[1])
+        if(ig.CanCoalesceNodes(pair[0], pair[1])) {
+          dbgOut "Found a pair of nodes to coalesce: $pair"
+          ig.CoalesceNodes(pair[0], pair[1]);
+          return true;
+        }
+    }
 
-    // Iterate through all the pairs of move-related nodes and try and coalesce
-    // the first one found
-
-    // Make a list of all the 
-    assert false
-
+    dbgOut "Finished trying to coalesce (no more coalesces found!)."
     return false;
   }
 
   boolean Freeze() {
     dbgOut "Now running Freeze()."
 
-    // Determine if there is a move-related node of low-degree.
-    def mrnld = ig.moveRelatedNodes.findAll { 
-      ig.getDegree(it) < ig.sigDeg()
-    }
-
-    mrnld.each { cn -> 
-      if(cn.isMoveRelated()) {
-        // Freeze the node.
-        dbgOut "mrnld.size() = ${mrnld.size()}, Freezing the node: $cn"
-        assert false
-        return true
+    ig.nodes.each { n -> 
+      if(n.isMovRelated() && !ig.isSigDeg()) {
+        // Found a freeze-able node.
+        dbgOut "Foudn a freeze-able node: $n"
+        n.frozen = true;
+        def tv2CNMap = ig.BuildNodeToColoringNodeMap();
+        n.movRelatedNodes.each { mrn -> 
+          tv2CNMap[(mrn)].RemoveMovRelation(n.representative)
+        }
+        n.movRelatedNodes.removeAll { true }
+        return true;
       }
     }
 
     return false;
   }
 
-  ColoringNode PotentialSpill() {
+  boolean PotentialSpill() {
     dbgOut "Now calculating potential spills."
 
-    ig.getNodes.each { cn -> 
-      if(ig.getDegree(cn) == ig.sigDeg()) {
-        // This is a potential spill!
-        dbgOut "Found potential spill: $cn"
-        return cn
+    // need to check that there are no low-degree 
+    ig.nodes.each { node -> 
+      if(ig.isSigDeg(node)) {
+        dbgOut "Found potential spill: $node"
+        spillWorklist += [node]
+        AddNodeToColoringStack(node);
+        return node;
       }
     }
     
@@ -183,22 +172,32 @@ class RegisterAllocator {
     return null
   }
 
+  boolean PopNodeAndTryToColor() {
+    assert false;
+  }
+
   boolean Select() {
     dbgOut "Now running select." 
 
-    // Successful coloring!
-    assert false;
-    return true;
+    // Need to pop each node off the stack and try and color it.
+    while(coloringStack.size() > 0) {
+      if(!PopNodeAndTryToColor())
+        return false;
+    }
 
-    // Have to spill. :(
-    assert false;
-    return false;
+    assert spillWorklist.size() == 0;
+    return true;
   }
 
-  void HandleSpill(ColoringNode spilledNode) {
+  InterferenceNode SelectNodeToSpill() {
+    // Obviously you want something better than this.
+    spillWorklist.asList().first();
+  }
+
+  void Spill() {
     dbgOut "Now handling a spilled node: $spilledNode"
-    assert spilledNode;
-    assert spilledNode.nodes.size() == 1
+    InterferenceNode spilledNode = SelectNodeToSpill();
+    assert ig.isSigDeg(spilledNode)
 
     SpillVar sv = new SpillVar();
 
@@ -221,32 +220,4 @@ class RegisterAllocator {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
