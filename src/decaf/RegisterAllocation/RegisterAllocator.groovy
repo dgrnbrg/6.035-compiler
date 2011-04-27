@@ -10,14 +10,22 @@ class RegisterAllocator {
 	MethodDescriptor methodDesc;
   InterferenceGraph ig;
   LinkedHashSet<InterferenceNode> spillWorklist;
+  LinkedHashSet<RegisterTempVar> registerNodes;
 
-  LinkedHashSet colors = new LinkedHashSet(
+  LinkedHashSet<String> colors = new LinkedHashSet(
       ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
        'r9',  'r10', 'r11', 'r12', 'r13', 'r14', 'r15'])
 
   public RegisterAllocator(MethodDescriptor md) {
     assert(md)
     methodDesc = md
+    ig = null;
+
+    // Create the 14 extra nodes for registers
+    registerNodes = new LinkedHashSet<RegisterTempVar>();
+    colors.each { color -> 
+      registerNodes += [new InterferenceNode(new RegisterTempVar(color))]
+    }
   }
 
   void RunRegAllocToFixedPoint() {
@@ -68,22 +76,18 @@ class RegisterAllocator {
     return false;
   }
 
-  void CreateRegisterNodes() {
+  void InsertRegisterNodes() {
+    ig.registerNodes = registerNodes;
+
     // Create the 14 extra nodes for registers
-    colors.each { color -> 
-      ig.addNode(
-        new InterferenceNode(
-          color: color, 
-          representative: new RegisterTempVar(registerName: color, type: TempVarType.REGISTER),
-          nodes: new LinkedHashSet()))
-    }
+    ig.registerNodes.each { rn -> ig.addNode(rn); }
   }
 
   void Build() {
     dbgOut "Now running Build()."
 
     ig = new InterferenceGraph(methodDesc);
-    CreateRegisterNodes();
+    InsertRegisterNodes();
 
     def tv2CN = BuildNodeToColoringNodeMap()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
@@ -242,7 +246,7 @@ class RegisterAllocator {
     pred.each { p -> 
       LowIrNode.unlink(p, siteOfSpill);
       LowIrNode.link(p, nodeToPlace);
-      if(p instanceof LowIrCond) {
+      if(p instanceof LowIrCondJump) {
         if(p.trueDest == siteOfSpill)
           p.trueDest = nodeToPlace;
         if(p.falseDest == siteOfSpiill)

@@ -13,6 +13,10 @@ class InterferenceNode extends ColoringNode {
 
   public InterferenceNode(TempVar tv) {
     super(tv);
+    if(tv instanceof RegisterTempVar) {
+      assert tv.registerName;
+      color = tv.registerName;
+    }
   }
 
   public InterferenceNode ResultOfCoalescingWith(InterferenceNode b) {

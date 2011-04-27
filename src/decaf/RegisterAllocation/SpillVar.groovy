@@ -3,7 +3,7 @@ package decaf
 class SpillVar extends TempVar {
   def static nextSpillID = 0;
 
-  def static getNextID() {
+  int getNextID() {
     nextSpillId += 1;
     return nextSpillId;
   }

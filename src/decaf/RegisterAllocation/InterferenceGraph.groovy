@@ -9,6 +9,7 @@ class InterferenceGraph extends ColorableGraph {
   LinkedHashSet<TempVar> variables;
   MethodDescriptor methodDesc;
   LivenessAnalysis la;
+  LinkedHashSet<RegisterTempVar> registerNodes;
 
   public InterferenceGraph(MethodDescriptor md) {
     assert(md)
@@ -43,6 +44,13 @@ class InterferenceGraph extends ColorableGraph {
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       variables += new LinkedHashSet<TempVar>(node.anno['regalloc-liveness'])
     }
+
+    // Now add an interference node for each variable (unless it's a registerTempVar)
+    variables.each { v -> 
+      if(!(v instanceof RegisterTempVar))
+        addNode(new InterferenceNode(v))
+    }
+
     dbgOut "Finished extracting variables. Number of variables = ${variables.size()}"
   }
 
@@ -50,12 +58,48 @@ class InterferenceGraph extends ColorableGraph {
     dbgOut "Now computing interference edges."
     edges = new LinkedHashSet()
 
+    def n2CN = BuildNodeToColoringNodeMap();
+
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       // Add the interference edges.
       def liveVars = node.anno['regalloc-liveness']
-      liveVars.each { v -> 
-        if(node.getDef() != v) 
-          addEdge(new InterferenceEdge(v, node.getDef()))
+
+      if(node.getDef()) {
+        liveVars.each { v -> 
+          assert n2CN[(v)];
+          if(node.getDef() != v)
+            addEdge(new InterferenceEdge(n2CN[(v)], n2CN[(node.getDef())]))
+        }
+      }
+
+      // Now we need to handle modulo and division blocking.
+      if(node instanceof LowIrBinOp) {
+        RegisterTempVar blockedReg;
+
+        if(node.op == BinOpType.DIV)
+          blockedReg = registerNodes.find { rn -> rn.color == 'rdx' }
+        else if(node.op == BinOpType.MOD)
+          blockedReg = registerNodes.find { rn -> rn.color == 'rax' }
+        assert blockedReg;
+        liveVars.each { addEdge(new InterferenceEdge(blockedReg, n2CN[(it)])) }
+      }
+
+      // Finally we need to handle method calls and callouts.
+      if(node instanceof LowIrMethodCall || node instanceof LowIrCallOut) {
+        // We have to color the first parameters as follows:
+        def argNumToColor = 
+          [1 : 'rdi', 
+           2 : 'rsi', 
+           3 : 'rdx',
+           4 : 'rcx',
+           5 : 'r8',
+           6 : 'r9'] 
+        
+        node.paramTmpVars.eachWithIndex { ptv, i -> 
+          assert n2CN[(ptv)];
+          if(i < 6)            
+            ForceNodeColor(n2CN[(ptv)], argNumToColor[(i + 1)]);
+        }
       }
     }
 
@@ -113,6 +157,25 @@ class InterferenceGraph extends ColorableGraph {
 
     edgesToAdd.each { addEdge(it) }
     UpdateAfterNodesModified();
+  }
+
+  public void ForceNodeColor(InterferenceNode nodeToForce, String color) {
+    registerNodes.each { rn -> 
+      if(rn.color != color)
+        addEdge(new InterferenceEdge(nodeToForce, n));
+    }
+
+    UpdateAfterEdgesModified();
+  }
+
+  public void ForceNodeNotColor(InterferenceNode nodeToForce, String color) {
+    registerNodes.each { rn -> 
+      if(rn.color == color) {
+        addEdge(new InterferenceEdge(nodeToForce, n));
+        UpdateAfterEdgesModified();
+        return;
+      }
+    }
   }
 
   public void Validate() {
