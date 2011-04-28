@@ -18,6 +18,24 @@ class RegAllocCodeGen extends CodeGenerator {
     traverseWithTraces(method.lowir)
   }
 
+  def registerNameToOperand = 
+    ['rax' : rax,
+     'rbx' : rbx,
+     'rcx' : rcx,
+     'rdx' : rdx,
+     'rsp' : rsp,
+     'rbp' : rbp,
+     'rsi' : rsi,
+     'rdi' : rdi,
+     'r8'  : r8,
+     'r9'  : r9,
+     'r10' : r10,
+     'r11' : r11,
+     'r12' : r12,
+     'r13' : r13,
+     'r14' : r14,
+     'r15' : r15];
+
   Operand getTmp(TempVar tmp){
     assert (tmp instanceof SpillVar || tmp instanceof RegisterTempVar)
     switch (tmp.type) {
@@ -27,18 +45,10 @@ class RegAllocCodeGen extends CodeGenerator {
       assert false // TODO
     case TempVarType.REGISTER:
       assert tmp instanceof RegisterTempVar
-      switch(tmp.registerName) {
-      case 'rax':
-        return rax;
-      case 'rbx':
-        return rbx;
-      case 'rcx':
-        return rcx
-      default:
-        assert false
-      }
+      assert registerNameToOperand[(tmp.registerName)];
+      return registerNameToOperand[(tmp.registerName)];
     case TempVarType.LOCAL: 
-      assert false      
+      assert false; // We no longer have "locals" only registers and spillvars.
       //return rbp(-8 * (tmp.id+1))
     default:
       assert false
@@ -50,7 +60,6 @@ class RegAllocCodeGen extends CodeGenerator {
   }
 
   void visitNode(GraphNode stmt) {
-
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
@@ -203,18 +212,26 @@ class RegAllocCodeGen extends CodeGenerator {
       case DIV:
         assert stmt.tmpVar.registerName == 'rax'
         movq(0, rdx)
-        movq(getTmp(stmt.leftTmpVar),rax)
-        movq(getTmp(stmt.rightTmpVar),r10)
+        // these redundant move checks should be removed once we write the 
+        // peep-hole optimization for it.
+        if(stmt.leftTmpVar.registerName != 'rax')
+          movq(getTmp(stmt.leftTmpVar),rax)
+        if(stmt.rightTmpVar.registerName != 'r10')
+          movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
-        movq(rax,getTmp(stmt.tmpVar))
+        if(stmt.tmpVar.registerName != 'rax')
+          movq(rax,getTmp(stmt.tmpVar))
         break
       case MOD:
         assert stmt.tmpVar.registerName == 'rdx'
         movq(0, rdx)
-        movq(getTmp(stmt.leftTmpVar), rax)
-        movq(getTmp(stmt.rightTmpVar), r10)
+        if(stmt.leftTmpVar.registerName != 'rax')
+          movq(getTmp(stmt.leftTmpVar),rax)
+        if(stmt.rightTmpVar.registerName != 'r10')
+          movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
-        movq(rdx, getTmp(stmt.tmpVar))
+        if(stmt.tmpVar.registerName != 'rdx')
+          movq(rdx, getTmp(stmt.tmpVar))
         break
       default:
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
