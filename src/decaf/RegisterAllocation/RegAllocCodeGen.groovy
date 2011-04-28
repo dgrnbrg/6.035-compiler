@@ -223,10 +223,10 @@ class RegAllocCodeGen extends CodeGenerator {
     case LowIrPhi:
       break
     case LowIrStoreSpill:
-      assert false;
+      movq(getTmp(stmt.value), getTmp(stmt.storeLoc));
       break;
     case LowIrLoadSpill:
-      assert false;
+      movq(getTmp(stmt.storeLoc), getTmp(stmt.tmpVar));
       break;
     case LowIrNode: //this is a noop
       assert stmt.getClass() == LowIrNode.class || stmt.getClass() == LowIrValueNode.class
