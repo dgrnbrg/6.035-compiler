@@ -146,10 +146,11 @@ class LazyCodeMotion {
     joinFn: {edge -> 
       def preds = edge.fst.predecessors
       if (preds) {
-        return preds.inject(load(new LCMEdge(preds[0], edge.fst))){set, pred ->
-          set.retainAll(load(new LCMEdge(pred, edge.fst)))
-          return set
+        def out = new LinkedHashSet()
+        for (pred in preds) {
+          out += load(pred)
         }
+        return out
       } else {
         return new HashSet()
       }
