@@ -7,7 +7,7 @@ import decaf.graph.*
 abstract class ColoringNode {
   String color = null;
   def representative = null;
-  def nodes = new LinkedHashSet();
+  LinkedHashSet nodes = new LinkedHashSet();
 
   public ColoringNode() {}
 

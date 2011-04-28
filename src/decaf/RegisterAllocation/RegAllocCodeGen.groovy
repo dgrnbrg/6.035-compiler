@@ -74,7 +74,6 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
-
       def paramsOnStack = stmt.paramTmpVars.size() - paramRegs.size()
       if (paramsOnStack > 0)
         sub(8*paramsOnStack, rsp)
@@ -115,13 +114,13 @@ class RegAllocCodeGen extends CodeGenerator {
       ret()
       break
     case LowIrCondJump:
-      movq(getTmp(stmt.condition), r11)
-      cmp(1, r11)
+      cmp(1, getTmp(stmt.condition))
       je(stmt.trueDest.label)
       break
     case LowIrLoad:
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
+        assert false; // How do we handle the line below (the r11 part)
         def arrOp = r11(stmt.desc.name + '_globalvar', 8)
         movq(arrOp, r10)
       } else {
@@ -140,101 +139,82 @@ class RegAllocCodeGen extends CodeGenerator {
       }
       break
     case LowIrMov:
-      movq(getTmp(stmt.src), r10)
-      movq(r10, getTmp(stmt.dst))
+      if(stmt.src.registerName != stmt.dst.registerName)
+        movq(getTmp(stmt.src), getTmp(stmt.dst))
       break
     case LowIrBinOp:
+      assert stmt.tmpVar instanceof RegisterTempVar;
       switch (stmt.op) {
       case GT:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovg(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
+	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(0, getTmp(stmt.tmpVar))
+	      cmovg(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      break
       case LT:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovl(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
+	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(0, getTmp(stmt.tmpVar))
+	      cmovl(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      break
       case LTE:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovle(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
+	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(0, getTmp(stmt.tmpVar))
+	      cmovle(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      break
       case GTE:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovge(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
+	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(0, getTmp(stmt.tmpVar))
+	      cmovge(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      break
       case EQ:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmove(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
+	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(0, getTmp(stmt.tmpVar))
+	      cmove(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      break
       case NEQ:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovne(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
+	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(0, getTmp(stmt.tmpVar))
+	      cmovne(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      break
       case NOT:
-        movq(getTmp(stmt.leftTmpVar), r10)
-	xor(1, r10)
-	movq(r10, getTmp(stmt.tmpVar))
-	break
+        movq(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      xor(1, getTmp(stmt.tmpVar))
+	      break
       case ADD:
-        movq(getTmp(stmt.leftTmpVar),r10)
-        movq(getTmp(stmt.rightTmpVar),r11)
-        add(r10,r11)
-        movq(r11,getTmp(stmt.tmpVar))
+        if(stmt.leftTmpVar != stmt.tmpVar)
+          movq(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar));
+        add(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
         break
       case SUB:
-        movq(getTmp(stmt.leftTmpVar),r10)
-        movq(getTmp(stmt.rightTmpVar),r11)
-        sub(r11,r10)
-        movq(r10,getTmp(stmt.tmpVar))
+        if(stmt.leftTmpVar != stmt.tmpVar)
+          movq(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar));
+        sub(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
         break
       case MUL:
-        movq(getTmp(stmt.leftTmpVar),r10)
-        movq(getTmp(stmt.rightTmpVar),r11)
-        imul(r10,r11)
-        movq(r11,getTmp(stmt.tmpVar))
+        if(stmt.leftTmpVar != stmt.tmpVar)
+          movq(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar));
+        imul(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
         break
       case DIV:
+        assert stmt.tmpVar.registerName == 'rax'
+        movq(0, rdx)
         movq(getTmp(stmt.leftTmpVar),rax)
-        movq(0,rdx)
         movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
         movq(rax,getTmp(stmt.tmpVar))
         break
       case MOD:
-        movq(getTmp(stmt.leftTmpVar),rax)
-        movq(0,rdx)
-        movq(getTmp(stmt.rightTmpVar),r10)
+        assert stmt.tmpVar.registerName == 'rdx'
+        movq(0, rdx)
+        movq(getTmp(stmt.leftTmpVar), rax)
+        movq(getTmp(stmt.rightTmpVar), r10)
         idiv(r10)
-        movq(rdx,getTmp(stmt.tmpVar))
+        movq(rdx, getTmp(stmt.tmpVar))
         break
       default:
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
@@ -242,6 +222,12 @@ class RegAllocCodeGen extends CodeGenerator {
       break
     case LowIrPhi:
       break
+    case LowIrStoreSpill:
+      assert false;
+      break;
+    case LowIrLoadSpill:
+      assert false;
+      break;
     case LowIrNode: //this is a noop
       assert stmt.getClass() == LowIrNode.class || stmt.getClass() == LowIrValueNode.class
       break

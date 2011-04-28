@@ -177,6 +177,9 @@ class RegisterAllocator {
   }
 
   boolean PopNodeAndTryToColor() {
+    // Note here, or in Select() (or both), we need to add code that tries 
+    // to color (a b -> x) such that b = x. Specifically, consider 
+    // add src, dest. Then this is (src dest -> dest).
     assert false;
   }
 

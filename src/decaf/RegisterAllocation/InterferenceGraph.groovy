@@ -76,12 +76,14 @@ class InterferenceGraph extends ColorableGraph {
       if(node instanceof LowIrBinOp) {
         RegisterTempVar blockedReg;
 
-        if(node.op == BinOpType.DIV)
+        if(node.op == BinOpType.DIV || node.op == BinOpType.MOD) {
           blockedReg = registerNodes.find { rn -> rn.color == 'rdx' }
-        else if(node.op == BinOpType.MOD)
+          assert blockedReg;
+          liveVars.each { addEdge(new InterferenceEdge(blockedReg, n2CN[(it)])) }
           blockedReg = registerNodes.find { rn -> rn.color == 'rax' }
-        assert blockedReg;
-        liveVars.each { addEdge(new InterferenceEdge(blockedReg, n2CN[(it)])) }
+          assert blockedReg;
+          liveVars.each { addEdge(new InterferenceEdge(blockedReg, n2CN[(it)])) }
+        }
       }
 
       // Finally we need to handle method calls and callouts.
