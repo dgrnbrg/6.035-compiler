@@ -4,7 +4,7 @@ import groovy.util.*
 import decaf.*
 import decaf.graph.*
 
-abstract class ColoringNode {
+class ColoringNode {
   String color = null;
   def representative = null;
   LinkedHashSet nodes = new LinkedHashSet();
@@ -22,7 +22,7 @@ abstract class ColoringNode {
   }
 }
 
-abstract class ColoringEdge {
+class ColoringEdge {
   ColoringNode cn1;
   ColoringNode cn2;
 
@@ -36,6 +36,7 @@ abstract class ColoringEdge {
 class NeighborTable {
   // map from coloring node to the set of it's neighbors
   def neighbors = [:]
+
   // map from a degree value (integer) to the coloring nodes with that degree
   // (using whatever graph structure the Build function takes in).
   def degreeMap = [:]

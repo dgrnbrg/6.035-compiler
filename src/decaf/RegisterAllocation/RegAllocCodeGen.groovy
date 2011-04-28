@@ -4,62 +4,91 @@ import static decaf.BinOpType.*
 
 class RegAllocCodeGen extends CodeGenerator {
 
+  List<String> callerSaveRegisters = ['rcx', 'rdx', 'rsi', 'rdi', 'r8', 'r9', 'r10', 'r11'];
+  List<String> calleeSaveRegisters = ['rbx', 'r12', 'r13', 'r14', 'r15'];
+
   RegAllocCodeGen() {
     paramRegs = [rdi, rsi, rdx, rcx, r8, r9]
   }
 
   void handleMethod(MethodDescriptor method) {
     this.method = method
+    this.method.svManager.ConstructFinalLineup();
     asmMacro('.globl', method.name)
     emit(method.name + ':')
-    enter(8*(method.params.size() + method.tempFactory.tmpVarId),0)
-    // Part of pre-trace codegen
-    // traverse(method.lowir)
+    enter(8*(method.params.size() + method.svManager.getNumSpillVarsToAllocate()),0)
     traverseWithTraces(method.lowir)
   }
 
   def registerNameToOperand = 
-    ['rax' : rax,
-     'rbx' : rbx,
-     'rcx' : rcx,
-     'rdx' : rdx,
-     'rsp' : rsp,
-     'rbp' : rbp,
-     'rsi' : rsi,
-     'rdi' : rdi,
-     'r8'  : r8,
-     'r9'  : r9,
-     'r10' : r10,
-     'r11' : r11,
-     'r12' : r12,
-     'r13' : r13,
-     'r14' : r14,
-     'r15' : r15];
+    ['rax' : rax, 'rbx' : rbx,
+     'rcx' : rcx, 'rdx' : rdx,
+     'rsp' : rsp, 'rbp' : rbp,
+     'rsi' : rsi, 'rdi' : rdi,
+     'r8'  : r8,  'r9'  : r9,
+     'r10' : r10, 'r11' : r11,
+     'r12' : r12, 'r13' : r13,
+     'r14' : r14, 'r15' : r15];
 
-  Operand getTmp(TempVar tmp){
+  Operand getTmp(TempVar tmp) {
     assert (tmp instanceof SpillVar || tmp instanceof RegisterTempVar)
     switch (tmp.type) {
     case TempVarType.PARAM:
       return rbp(8 * (tmp.id+2))
     case TempVarType.SPILLVAR:
-      assert false // TODO
+      assert tmp instanceof SpillVar;
+      return rbp(-8 * (1 + method.svManager.getLocOfSpillVar(tmp)));
     case TempVarType.REGISTER:
-      assert tmp instanceof RegisterTempVar
+      assert tmp instanceof RegisterTempVar;
       assert registerNameToOperand[(tmp.registerName)];
       return registerNameToOperand[(tmp.registerName)];
     case TempVarType.LOCAL: 
-      assert false; // We no longer have "locals" only registers and spillvars.
-      //return rbp(-8 * (tmp.id+1))
+      assert false; // We no longer have "locals".
     default:
       assert false
     }
   }
 
-  Operand getSpillVar(SpillVar sv) {
-    assert false; // Not yet implemented
+  void PreserveRegister(String regName) {
+    movq(registerNameToOperand[(regName)], getTmp(method.svManager.getPreservedRegister(regName)));
   }
 
-  void visitNode(GraphNode stmt) {
+  void RestoreRegister(String regName) {
+    movq(getTmp(method.svManager.getPreservedRegister(regName)), registerNameToOperand[(regName)]);
+  }
+
+  void PreserveCallerRegisters() {
+    callerSaveRegisters.each { PreserveRegister(it); }
+  }
+
+  void RestoreCallerRegisters() {
+    callerSaveRegisters.each { RestoreRegister(it); }
+  }
+
+  void PreserveCalleeRegisters() {
+    calleeSaveRegisters.each { PreserveRegister(it); }
+  }
+
+  void RestoreCalleeRegisters() {
+    calleeSaveRegisters.each { RestoreRegister(it); }
+  }
+
+  void ValidateFirstSixArgumentsAndReturnRegisters(LowIrNode stmt) {
+    assert (stmt instanceof LowIrMethodCall) || (stmt instanceof LowIrCallOut);
+    int numRegParams = 6;
+    if(stmt.paramTmpVars.size() < numRegParams)
+      numRegParams = stmt.paramTmpVars.size();
+    stmt.paramTmpVars.eachWithIndex { ptv, i -> 
+      if(i < numRegParams) {
+        assert ptv instanceof RegisterTempVar;
+        assert paramRegs[i] == registerNameToOperand[(ptv.registerName)];
+      } 
+    }
+    assert stmt.getDef() instanceof RegisterTempVar;
+    assert stmt.getDef().registerName == 'rax';
+  }
+
+  void visitNode(LowIrNode stmt) {
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
@@ -83,36 +112,35 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
-      def paramsOnStack = stmt.paramTmpVars.size() - paramRegs.size()
-      if (paramsOnStack > 0)
-        sub(8*paramsOnStack, rsp)
-
-      stmt.paramTmpVars.eachWithIndex {tmpVar, index ->
-        if (index < paramRegs.size()) {
-          movq(getTmp(tmpVar), paramRegs[index])
-        } else {
-          movq(getTmp(tmpVar),r10)
-          movq(r10,rsp(8*(index - paramRegs.size())))
+    case LowIrMethodCall:
+      // Both CallOuts and MethodCalls use same convention.
+      int numRegParams = paramRegs.size();
+      ValidateFirstSixArgumentsAndReturnRegisters(stmt);
+      PreserveCallerRegisters();
+      if(stmt.paramTmpVars.size() - numRegParams > 0)
+        sub(8*stmt.paramTmpVars.size(), rsp);
+      stmt.paramTmpVars.eachWithIndex { it, index ->
+        if(index >= numRegParams) {
+          movq(getTmp(it), r10)
+          movq(r10, rsp(8*(index - numRegParams)))
         }
       }
-      if (stmt.name == 'printf') {
-        movq(0,rax)
+      // We need to restore r10 since we've been clobbering it.
+      RestoreRegister('r10');
+      if(stmt instanceof LowIrMethodCall) {
+        if (stmt.name == 'printf') {
+          // Set to 0 since printf uses rax value to determine how many SSE 
+          // registers hold arguments (since printf has varargs).
+          movq(0,rax)
+        }
+        call(stmt.name);
+      } else {
+        call(stmt.descriptor.name)
       }
-      call(stmt.name)
       movq(rax,getTmp(stmt.tmpVar))
-      if (paramsOnStack > 0)
-	      add(8*paramsOnStack, rsp)
-
-      break
-    case LowIrMethodCall:
-      sub(8*stmt.paramTmpVars.size(), rsp)
-      stmt.paramTmpVars.eachWithIndex { it, index ->
-        movq(getTmp(it), r10)
-        movq(r10, rsp(8*index))
-      }
-      call(stmt.descriptor.name)
-      movq(rax,getTmp(stmt.tmpVar))
-      add(8*stmt.paramTmpVars.size(), rsp)
+      RestoreCallerRegisters();
+      if(stmt.paramTmpVars.size() - 6 > 0)
+        add(8*stmt.paramTmpVars.size(), rsp)
       break
     case LowIrReturn:
       if (stmt.tmpVar != null)
@@ -123,6 +151,7 @@ class RegAllocCodeGen extends CodeGenerator {
       ret()
       break
     case LowIrCondJump:
+      assert stmt.condition instanceof RegisterTempVar;
       cmp(1, getTmp(stmt.condition))
       je(stmt.trueDest.label)
       break
@@ -148,11 +177,24 @@ class RegAllocCodeGen extends CodeGenerator {
       }
       break
     case LowIrMov:
-      if(stmt.src.registerName != stmt.dst.registerName)
+      if(stmt.src instanceof SpillVar || stmt.dest instanceof SpillVar) {
+        assert false; // we should never be moving directly between spillvars.
+      } else if(stmt.src instanceof SpillVar || stmt.dest instanceof SpillVar) {
         movq(getTmp(stmt.src), getTmp(stmt.dst))
-      break
+        break;
+      } else if(stmt.src instanceof RegisterTempVar && stmt.dest instanceof RegisterTempVar) {
+        if(stmt.src.registerName != stmt.dst.registerName)
+          movq(getTmp(stmt.src), getTmp(stmt.dst));
+        break;
+      } else {
+        assert false; // We should never reach this point.
+      }
+      break;
     case LowIrBinOp:
       assert stmt.tmpVar instanceof RegisterTempVar;
+      assert stmt.leftTmpVar instanceof RegisterTempVar;
+      if(stmt.rightTmpVar != null) 
+        assert stmt.rightTmpVar instanceof RegisterTempVar;
       switch (stmt.op) {
       case GT:
 	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))

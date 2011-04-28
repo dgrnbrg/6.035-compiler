@@ -28,14 +28,25 @@ class RegisterAllocator {
     }
   }
 
-  void RunRegAllocToFixedPoint() {
+  void RunRegAllocToFixedPointAndColor() {
     while(RegAllocationIteration());
 
     DoColoring();
   }
 
   void DoColoring() {
-    assert false;
+    // Build the map from tmpVar to color
+    tmpVarToRegTempVar = [:]
+    LinkedHashMap tvs = ig.BuildNodeToColorNodeMap()
+    tvs.keySet().each { tv -> 
+      assert colors.contains(tvs[(tv)].color);
+      tmpVarToRegTempVar[(tv)] = new RegisterTempVar(tvs[(tv)].color);
+    }
+
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      node.SwapUsesUsingMap(tmpVarToRegTempVar)
+      node.SwapDefUsingMap(tmpVarToRegTempVar);
+    }
   }
 
   // Run this function to fixed point. It implements the flow-diagram in MCIJ in 11.2
@@ -206,7 +217,7 @@ class RegisterAllocator {
     assert ig.isSigDeg(spilledNode)
     dbgOut "Now handling a spilled node: $spilledNode"
 
-    SpillVar sv = new SpillVar();
+    SpillVar sv = methodDesc.svManager.requestNewSpillVar();
 
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       // Determine if this node uses the spilled var.
@@ -250,7 +261,7 @@ class RegisterAllocator {
       LowIrNode.unlink(p, siteOfSpill);
       LowIrNode.link(p, nodeToPlace);
       if(p instanceof LowIrCondJump) {
-        if(p.trueDest == siteOfSpill)
+        if(p.trueDest == siteOfSpill) 
           p.trueDest = nodeToPlace;
         if(p.falseDest == siteOfSpiill)
           p.falseDest = nodeToPlace;
@@ -258,29 +269,3 @@ class RegisterAllocator {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

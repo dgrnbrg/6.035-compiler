@@ -346,16 +346,18 @@ public class GroovyMain {
         println "--------------------------------------------------------------"
         println "Running Register Allocation for the method: ${methodDesc.name}"
         println "--------------------------------------------------------------"
-        ra.ComputeInterferenceGraph()
-        ra.DoGraphColoring()
+        ra.RunRegAllocToFixedPointAndColor()
       }
     }
     
   }
 
-  def codeGen = new CodeGenerator()
+  CodeGenerator codeGen;
 
   def genTmpVars = {->
+    // Here we pick which type of code generator we will use. Should probably move this 
+    // somewhere else in groovy main.
+    codeGen = ('regalloc' in opts) ? (new RegAllocCodeGen()) : (new CodeGenerator());
     depends(inter)
     //locals, temps, and params
     methodDescs.each { MethodDescriptor methodDesc ->

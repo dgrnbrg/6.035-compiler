@@ -86,6 +86,13 @@ class InterferenceGraph extends ColorableGraph {
         }
       }
 
+      // We need to handle forcing the first 6 parameters to be appropriately 
+      // colored.
+      assert false; // yet to be implemented.
+
+      // We need to force the return use to be colored 'rax'
+      assert false; // yet to be implemented.
+
       // Finally we need to handle method calls and callouts.
       if(node instanceof LowIrMethodCall || node instanceof LowIrCallOut) {
         // We have to color the first parameters as follows:
@@ -110,7 +117,7 @@ class InterferenceGraph extends ColorableGraph {
   }
 
   int sigDeg() {
-    return 14;
+    return 14; // We aren't coloring with rsp and rbp.
   }
 
   boolean isSigDeg(InterferenceNode node) {
@@ -146,7 +153,7 @@ class InterferenceGraph extends ColorableGraph {
     }
 
     // Now we have to make sure to have transferred the edges.
-    def edgesToAdd = []
+    List<InterferenceEdge> edgesToAdd = []
     def needToUpdate = { curNode -> curNode == a || curNode == b }
     edges.each { e -> 
       if(needToUpdate(e.cn1) || needToUpdate(e.cn2)) {
@@ -173,7 +180,7 @@ class InterferenceGraph extends ColorableGraph {
   public void ForceNodeNotColor(InterferenceNode nodeToForce, String color) {
     registerNodes.each { rn -> 
       if(rn.color == color) {
-        addEdge(new InterferenceEdge(nodeToForce, n));
+        addEdge(new InterferenceEdge(nodeToForce, rn));
         UpdateAfterEdgesModified();
         return;
       }
@@ -196,7 +203,7 @@ class InterferenceGraph extends ColorableGraph {
     variables.each { assert it instanceof TempVar; }
 
     // now verify there are no duplicates between tempvars
-    def allRepresentedNodes = []
+    List<InterferenceNode> allRepresentedNodes = []
     nodes.each { allRepresentedNodes += (it.nodes as List) }
     assert (allRepresentedNodes.size() == new LinkedHashSet(allRepresentedNodes))
   }

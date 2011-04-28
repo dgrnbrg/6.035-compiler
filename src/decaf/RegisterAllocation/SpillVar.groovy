@@ -1,9 +1,14 @@
 package decaf
 
-class SpillVar extends TempVar {
-  def static nextSpillID = 0;
+import groovy.util.*
+import decaf.*
+import decaf.graph.*
+import decaf.optimizations.*
 
-  int getNextID() {
+class SpillVar extends TempVar {
+  static int nextSpillId = 0;
+
+  static int getNextID() {
     nextSpillId += 1;
     return nextSpillId;
   }
@@ -14,65 +19,48 @@ class SpillVar extends TempVar {
   }
   
   String toString() {
-    "SpillVar(I do not have an id yet!)"
+    return "[SpillVar. id = $id]"
   }
 }
 
 class SpillVarManager {
-  def numSpillVars = 0;
-  def lineup = [] // These are the spill vars for whom space will be allocated on the stack.
-  def svLocMap = [:];
-  def lowirLineup;
-  def preservedRegSlots = null;
+  List<SpillVar> lineup = [] // These are the spill vars for whom space will be allocated on the stack.
+  LinkedHashMap svLocMap = [:];
+  LinkedHashMap preservedRegSlots;
 
-  SpillVarManager() {
+  public SpillVarManager() {
     // Important: Here is where we create our registers
-    preservedRegSlots = 
-      ['rax', 'rbx', 'rcx', 'rdx', 
-       'rsi', 'rdi', 'r8', 'r9', 
-       'r10', 'r11', 'r12', 'r13', 'r14', 'r15'].collect { regName -> 
-      new RegisterTempVar(regName)
+    def preservedRegNames = 
+      ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
+       'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15'];
+    preservedRegSlots = [:];
+    lineup = [];
+    svLocMap = [:];
+
+    preservedRegNames.each { prn -> 
+      preservedRegSlots[(prn)] = requestNewSpillVar();
     }
   }
 
-  void addSpillVarToLineup(SpillVar sv) {
-    assert sv
-    assert lineup.contains(sv) == false
+  SpillVar requestNewSpillVar() {
+    SpillVar sv = new SpillVar();
+    svLocMap[(sv)] = lineup.size();
     lineup += [sv]
-  }
-
-  void PopulateLowIrLineup(LowIrNode start) {
-    lowirLineup = new LinkedHashSet<SpillVar>();
-
-    Traverser.eachNodeOf(start) { node -> 
-      lowirLineup += [start.getDef()]
-      lowirLineup += start.getUses()
-    }
-  }
-
-  void ConstructFinalLineup() {
-    svLocMap = [:]
-    lineup = []
-
-    // Now add spill var's for each register (for now we're just adding a slot 
-    // for each of them to make life easier when preserving registers across 
-    // method calls / callouts.
-    assert preservedRegSlots
-    perservedRegSlots.each { prs -> 
-      svLocMap[(prs)] = lineup.size();
-      lineup += [prs]
-    }
-
-    assert lowirLineup
-    (lowirLineup as List).each { sv -> 
-      svLocMap[(sv)] = lineup.size();
-      lineup += [sv];
-    }
-
-    assert svLocMap.keySet().size() == lineup.size()
+    assert lineup.size() == svLocMap.keySet().size();
+    return sv;
   }
 
   int getNumSpillVarsToAllocate() {
-    assert false;
+    return lineup.size();
+  }
+
+  int getLocOfSpillVar(SpillVar sv) {
+    assert sv; assert svLocMap[(sv)] != null;
+    return svLocMap[(sv)];
+  }
+
+  SpillVar getPreservedSpillVarFor(String regName) {
+    assert regName; assert preservedRegSlots.keySet().contains(regName);
+    return preservedRegSlots[(regName)];
   }
 }

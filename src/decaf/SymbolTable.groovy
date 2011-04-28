@@ -103,6 +103,7 @@ public class MethodDescriptor {
   FileInfo fileInfo
   LowIrNode lowir
   TempVarFactory tempFactory = new TempVarFactory(this)
+  SpillVarManager svManager = new SpillVarManager()
 
   @Lazy Set<VariableDescriptor> localLoadSet = {->
     Set loads = new LinkedHashSet()

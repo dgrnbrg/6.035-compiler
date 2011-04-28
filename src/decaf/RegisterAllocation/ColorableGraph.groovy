@@ -4,29 +4,27 @@ import groovy.util.*
 import decaf.*
 import decaf.graph.*
 
-abstract class ColorableGraph {
+class ColorableGraph {
   def dbgOut = { str -> assert str; println str; }
 
   LinkedHashSet<ColoringNode> nodes;
   LinkedHashSet<ColoringEdge> edges;
   NeighborTable neighborTable;
-  def coloringStack = []
 
   public ColorableGraph() {
-    coloringStack = [];
-    nodes = new LinkedHashSet()
-    edges = new LinkedHashSet()
-    neighborTable = new NeighborTable()
+    nodes = new LinkedHashSet<ColoringNode>([]);
+    edges = new LinkedHashSet<ColoringEdge>([]);
+    neighborTable = new NeighborTable();
   }
 
-  def GetAvailableColors = { node -> 
+  LinkedHashSet GetIllegalColors = { node -> 
     LinkedHashSet takenColors = []
     cg.neighborTable.GetNeighbors(node).each { cn -> 
       if(cn.color) 
         takenColors += [cn.color]
     }
 
-    return colors - takenColors
+    return takenColors
   }
 
   void addNode(ColoringNode cn) {
@@ -40,7 +38,7 @@ abstract class ColorableGraph {
     UpdateAfterNodesModified();
   }
 
-  def removeNodes = { nodesToRemove -> 
+  void removeNodes(List<ColoringNode> nodesToRemove) { 
     assert nodesToRemove;
     nodesToRemove.each { nodes.remove(it) }
     UpdateAfterNodesModified();
@@ -52,7 +50,7 @@ abstract class ColorableGraph {
     UpdateAfterEdgesModified();
   }
 
-  def addEdges = { ces -> 
+  void addEdges(Collection<ColoringEdge> ces) { 
     assert ces; 
     edges += ces;
     UpdateAfterEdgesModified();
@@ -64,7 +62,7 @@ abstract class ColorableGraph {
     UpdateAfterEdgesModified();
   }
 
-  def removeEdges = { ces -> 
+  void removeEdges(Collection<ColoringEdge> ces) { 
     assert ces;
     ces.each { edges.remove(it) }
     UpdateAfterEdgesModified();
@@ -89,8 +87,8 @@ abstract class ColorableGraph {
     neighborMap.Build(nodes, edges)
   }
   
-  def BuildNodeToColoringNodeMap() {
-    def tempVarToColoringNode = [:]
+  LinkedHashMap BuildNodeToColoringNodeMap() {
+    def tempVarToColoringNode = new LinkedHashMap();
 
     nodes.each { cn -> 
       cn.getAllRepresentedNodes.each { n -> 
