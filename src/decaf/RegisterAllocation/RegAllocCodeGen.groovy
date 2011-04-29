@@ -4,9 +4,6 @@ import static decaf.BinOpType.*
 
 class RegAllocCodeGen extends CodeGenerator {
 
-  List<String> callerSaveRegisters = ['rcx', 'rdx', 'rsi', 'rdi', 'r8', 'r9', 'r10', 'r11'];
-  List<String> calleeSaveRegisters = ['rbx', 'r12', 'r13', 'r14', 'r15'];
-
   RegAllocCodeGen() {
     paramRegs = [rdi, rsi, rdx, rcx, r8, r9]
   }
@@ -20,16 +17,6 @@ class RegAllocCodeGen extends CodeGenerator {
     traverseWithTraces(method.lowir)
   }
 
-  def registerNameToOperand = 
-    ['rax' : rax, 'rbx' : rbx,
-     'rcx' : rcx, 'rdx' : rdx,
-     'rsp' : rsp, 'rbp' : rbp,
-     'rsi' : rsi, 'rdi' : rdi,
-     'r8'  : r8,  'r9'  : r9,
-     'r10' : r10, 'r11' : r11,
-     'r12' : r12, 'r13' : r13,
-     'r14' : r14, 'r15' : r15];
-
   Operand getTmp(TempVar tmp) {
     assert (tmp instanceof SpillVar || tmp instanceof RegisterTempVar)
     switch (tmp.type) {
@@ -40,8 +27,7 @@ class RegAllocCodeGen extends CodeGenerator {
       return rbp(-8 * (1 + method.svManager.getLocOfSpillVar(tmp)));
     case TempVarType.REGISTER:
       assert tmp instanceof RegisterTempVar;
-      assert registerNameToOperand[(tmp.registerName)];
-      return registerNameToOperand[(tmp.registerName)];
+      return (new RegColor(tmp.registerName)).getOperand();
     case TempVarType.LOCAL: 
       assert false; // We no longer have "locals".
     default:
@@ -49,39 +35,37 @@ class RegAllocCodeGen extends CodeGenerator {
     }
   }
 
-  void PreserveRegister(String regName) {
-    movq(registerNameToOperand[(regName)], getTmp(method.svManager.getPreservedRegister(regName)));
+  void PreserveRegister(RegColor rc) {
+    movq(rc.getOperand(), getTmp(method.svManager.getPreservedRegister(regName)));
   }
 
-  void RestoreRegister(String regName) {
-    movq(getTmp(method.svManager.getPreservedRegister(regName)), registerNameToOperand[(regName)]);
+  void RestoreRegister(RegColor rc) {
+    movq(getTmp(method.svManager.getPreservedRegister(regName)), rc.getOperand());
   }
 
   void PreserveCallerRegisters() {
-    callerSaveRegisters.each { PreserveRegister(it); }
+    RegColor.callerSaveRegisters.each { PreserveRegister(it); }
   }
 
   void RestoreCallerRegisters() {
-    callerSaveRegisters.each { RestoreRegister(it); }
+    RegColor.callerSaveRegisters.each { RestoreRegister(it); }
   }
 
   void PreserveCalleeRegisters() {
-    calleeSaveRegisters.each { PreserveRegister(it); }
+    RegColor.calleeSaveRegisters.each { PreserveRegister(it); }
   }
 
   void RestoreCalleeRegisters() {
-    calleeSaveRegisters.each { RestoreRegister(it); }
+    RegColor.calleeSaveRegisters.each { RestoreRegister(it); }
   }
 
   void ValidateFirstSixArgumentsAndReturnRegisters(LowIrNode stmt) {
     assert (stmt instanceof LowIrMethodCall) || (stmt instanceof LowIrCallOut);
-    int numRegParams = 6;
-    if(stmt.paramTmpVars.size() < numRegParams)
-      numRegParams = stmt.paramTmpVars.size();
+    int numRegParams = Math.min(stmt.paramTmpVars.size(), 6)
     stmt.paramTmpVars.eachWithIndex { ptv, i -> 
       if(i < numRegParams) {
         assert ptv instanceof RegisterTempVar;
-        assert paramRegs[i] == registerNameToOperand[(ptv.registerName)];
+        assert RegColor.parameterRegisters.contains(new RegColor(ptv.registerName));
       } 
     }
     assert stmt.getDef() instanceof RegisterTempVar;
@@ -93,14 +77,11 @@ class RegAllocCodeGen extends CodeGenerator {
     def successors = stmt.getSuccessors()
 
     //assert no X nodes, only ^ (branch) or V nodes (join) 
-    if (predecessors.size() > 1)
-      assert successors.size() <= 1
-    if (successors.size() > 1)
-      assert predecessors.size() <= 1
+    if(predecessors.size() > 1) assert successors.size()   <= 1
+    if(successors.size()   > 1) assert predecessors.size() <= 1
 
-    if(stmt.anno["trace"]["start"] || stmt.anno["trace"]["JmpDest"]) {
+    if(stmt.anno["trace"]["start"] || stmt.anno["trace"]["JmpDest"])
       emit(stmt.label + ':')
-    }
 
     switch (stmt) {
     case LowIrStringLiteral:
@@ -113,12 +94,11 @@ class RegAllocCodeGen extends CodeGenerator {
       break
     case LowIrCallOut:
     case LowIrMethodCall:
-      // Both CallOuts and MethodCalls use same convention.
-      int numRegParams = paramRegs.size();
+      // Both CallOuts and MethodCalls use same calling convention.
       ValidateFirstSixArgumentsAndReturnRegisters(stmt);
       PreserveCallerRegisters();
-      if(stmt.paramTmpVars.size() - numRegParams > 0)
-        sub(8*stmt.paramTmpVars.size(), rsp);
+      if(stmt.paramTmpVars.size() - 6 > 0)
+        sub(8*(stmt.paramTmpVars.size() - 6), rsp);
       stmt.paramTmpVars.eachWithIndex { it, index ->
         if(index >= numRegParams) {
           movq(getTmp(it), r10)
@@ -140,7 +120,7 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(rax,getTmp(stmt.tmpVar))
       RestoreCallerRegisters();
       if(stmt.paramTmpVars.size() - 6 > 0)
-        add(8*stmt.paramTmpVars.size(), rsp)
+        add(8*(stmt.paramTmpVars.size() - 6), rsp)
       break
     case LowIrReturn:
       if (stmt.tmpVar != null)
@@ -282,10 +262,12 @@ class RegAllocCodeGen extends CodeGenerator {
     case LowIrPhi:
       break
     case LowIrStoreSpill:
+      assert stmt.storeLoc instanceof SpillVar
       movq(getTmp(stmt.value), getTmp(stmt.storeLoc));
       break;
     case LowIrLoadSpill:
-      movq(getTmp(stmt.storeLoc), getTmp(stmt.tmpVar));
+      assert stmt.loadLoc instanceof SpillVar;
+      movq(getTmp(stmt.loadLoc), getTmp(stmt.tmpVar));
       break;
     case LowIrNode: //this is a noop
       assert stmt.getClass() == LowIrNode.class || stmt.getClass() == LowIrValueNode.class
@@ -294,10 +276,9 @@ class RegAllocCodeGen extends CodeGenerator {
       assert false
     }
 
-    if(stmt.anno["trace"]["FalseJmpSrc"]) {
+    if(stmt.anno["trace"]["FalseJmpSrc"])
       jmp(stmt.falseDest.label)
-    } else if(stmt.anno["trace"]["JmpSrc"]) {
+    else if(stmt.anno["trace"]["JmpSrc"])
       jmp(stmt.anno["trace"]["JmpSrc"])
-    }
   }
 }

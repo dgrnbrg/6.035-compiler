@@ -10,11 +10,13 @@ class ColorableGraph {
   LinkedHashSet<ColoringNode> nodes;
   LinkedHashSet<ColoringEdge> edges;
   NeighborTable neighborTable;
+  LinkedHashMap nodeToColoringNode;
 
   public ColorableGraph() {
-    nodes = new LinkedHashSet<ColoringNode>([]);
-    edges = new LinkedHashSet<ColoringEdge>([]);
+    nodes = new LinkedHashSet<ColoringNode>();
+    edges = new LinkedHashSet<ColoringEdge>();
     neighborTable = new NeighborTable();
+    tempVarToColoringNode = null;
   }
 
   LinkedHashSet GetIllegalColors = { node -> 
@@ -29,35 +31,42 @@ class ColorableGraph {
 
   void addNode(ColoringNode cn) {
     assert cn;
-    nodes += new LinkedHashSet<ColoringNode>(coloringNodes)
+    cn.Validate();
+    assert !nodes.contains(cn);
+    nodes << coloringNode;
+    UpdateAfterNodesModified();
   }
 
   void removeNode(ColoringNode cn) {
-    assert cn; assert nodes.contains(cn);
+    assert cn; 
+    cn.Validate();
+    assert nodes.contains(cn);
     nodes.remove(cn);
     UpdateAfterNodesModified();
   }
 
   void removeNodes(List<ColoringNode> nodesToRemove) { 
     assert nodesToRemove;
-    nodesToRemove.each { nodes.remove(it) }
-    UpdateAfterNodesModified();
+    nodesToRemove.each { addNode(it) }
   }
   
   void addEdge(ColoringEdge ce) {
-    assert ce; assert !edges.contains(ce); 
-    edges += [ce];
+    assert ce; 
+    ce.Validate();
+    assert !edges.contains(ce);
+    edges << ce;
     UpdateAfterEdgesModified();
   }
 
   void addEdges(Collection<ColoringEdge> ces) { 
     assert ces; 
-    edges += ces;
-    UpdateAfterEdgesModified();
+    ces.each { addEdge(it) }
   }
 
   void removeEdge(ColoringEdge ce) {
-    assert ce; assert edges.contains(ce);
+    assert ce; 
+    ce.Validate();
+    assert edges.contains(ce);
     edges.remove(ce);
     UpdateAfterEdgesModified();
   }
@@ -80,6 +89,7 @@ class ColorableGraph {
   void UpdateAfterNodesModified() {
     // remove edges that have nodes that don't exist
     edges.retainAll { e -> nodes.contains(e.cn1) && nodes.contains(e.cn2) }
+    BuildNodeToColoringNodeMap();
     UpdateAfterEdgesModified()
   }
 
@@ -88,15 +98,17 @@ class ColorableGraph {
   }
   
   LinkedHashMap BuildNodeToColoringNodeMap() {
-    def tempVarToColoringNode = new LinkedHashMap();
+    nodeToColoringNode = new LinkedHashMap();
 
     nodes.each { cn -> 
       cn.getAllRepresentedNodes.each { n -> 
-        tempVarToColoringNode[(v)] = cn
+        nodeToColoringNode[v] = cn
       }
     }
+  }
 
-    return tempVarToColoringNode
+  ColoringNode GetColoringNode(def node) {
+    assert false;
   }
 
   void DrawDotGraph(String fileName) {
@@ -121,6 +133,10 @@ class ColorableGraph {
     dbgOut '}'
     dotOut.println '}'
     dotOut.close()
+  }
+
+  public void Validate() {
+    assert false;
   }
 }
 

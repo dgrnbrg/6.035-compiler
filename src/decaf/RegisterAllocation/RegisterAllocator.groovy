@@ -20,12 +20,6 @@ class RegisterAllocator {
     assert(md)
     methodDesc = md
     ig = null;
-
-    // Create the 14 extra nodes for registers
-    registerNodes = new LinkedHashSet<RegisterTempVar>();
-    colors.each { color -> 
-      registerNodes += [new InterferenceNode(new RegisterTempVar(color))]
-    }
   }
 
   void RunRegAllocToFixedPointAndColor() {
@@ -37,10 +31,9 @@ class RegisterAllocator {
   void DoColoring() {
     // Build the map from tmpVar to color
     tmpVarToRegTempVar = [:]
-    LinkedHashMap tvs = ig.BuildNodeToColorNodeMap()
-    tvs.keySet().each { tv -> 
-      assert colors.contains(tvs[(tv)].color);
-      tmpVarToRegTempVar[(tv)] = new RegisterTempVar(tvs[(tv)].color);
+    ig.BuildNodeToColorNodeMap();
+    ig.variables().each { v -> 
+      tmpVarToRegTempVar[(tv)] = RegColor.getRegColorFromName(ig.GetColoringNode(v).color);
     }
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
@@ -66,7 +59,7 @@ class RegisterAllocator {
       if(!OnlySigDegOrMoveRelated())
         continue;
 
-      if(!didCoalesce && !didCoalesce)
+      if(!didSimplifyHappen && !didCoalesce)
         if(!Freeze())
           continue;
 
@@ -87,24 +80,17 @@ class RegisterAllocator {
     return false;
   }
 
-  void InsertRegisterNodes() {
-    ig.registerNodes = registerNodes;
-
-    // Create the 14 extra nodes for registers
-    ig.registerNodes.each { rn -> ig.addNode(rn); }
-  }
-
   void Build() {
     dbgOut "Now running Build()."
 
     ig = new InterferenceGraph(methodDesc);
-    InsertRegisterNodes();
+    RegColor.eachRegNode { rn -> ig.addNode(rn); }
 
-    def tv2CN = BuildNodeToColoringNodeMap()
+    ig.BuildNodeToColoringNodeMap()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       if(node instanceof LowIrMov) {
-        tv2CN[(node.src)].AddMovRelation(node.dst);
-        tv2CN[(node.dst)].AddMovRelation(node.src);
+        ig.GetColoringNode(node.src).AddMovRelation(node.dst);
+        ig.GetColoringNode(node.dst).AddMovRelation(node.src);
       }
     }
     dbgOut "Finished running Build()."
@@ -120,7 +106,7 @@ class RegisterAllocator {
     debOut "Now running Simplify()."
 
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
-    def nodeToSimplify = nodes.find { cn -> (!cn.isMovRelated() && ig.isSigDeg(cn)) }
+    InterferenceNode nodeToSimplify = nodes.find { cn -> (!cn.isMovRelated() && ig.isSigDeg(cn)) }
 
     if(nodeToSimplify == null) {
       dbgOut "Could not find a node to simplify."
@@ -156,11 +142,12 @@ class RegisterAllocator {
       if(n.isMovRelated() && !ig.isSigDeg()) {
         // Found a freeze-able node.
         dbgOut "Foudn a freeze-able node: $n"
-        n.frozen = true;
-        def tv2CNMap = ig.BuildNodeToColoringNodeMap();
+        n.Freeze();
+        ig.BuildNodeToColoringNodeMap();
         n.movRelatedNodes.each { mrn -> 
-          tv2CNMap[(mrn)].RemoveMovRelation(n.representative)
+          GetColoringNode(mrn).RemoveMovRelation(n.representative)
         }
+        assert n.movRelatedNodes.size() == 0;
         n.movRelatedNodes = new LinkedHashSet();
         return true;
       }
@@ -170,14 +157,14 @@ class RegisterAllocator {
     return false;
   }
 
-  boolean PotentialSpill() {
+  InterferenceNode PotentialSpill() {
     dbgOut "Now calculating potential spills."
 
     // need to check that there are no low-degree 
     ig.nodes.each { node -> 
       if(ig.isSigDeg(node)) {
         dbgOut "Found potential spill: $node"
-        spillWorklist += [node]
+        spillWorklist << node;
         AddNodeToColoringStack(node);
         return node;
       }

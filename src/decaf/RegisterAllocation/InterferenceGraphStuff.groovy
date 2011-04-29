@@ -7,7 +7,7 @@ import decaf.optimizations.*
 
 class InterferenceNode extends ColoringNode {
   LinkedHashSet movRelatedNodes;
-  def frozen = false;
+  private boolean frozen = false;
   
   public InterferenceNode() { }
 
@@ -15,21 +15,20 @@ class InterferenceNode extends ColoringNode {
     super(tv);
     if(tv instanceof RegisterTempVar) {
       assert tv.registerName;
-      color = tv.registerName;
+      color = RegColor.getRegColorFromName(tv.registerName);
     }
   }
 
   public InterferenceNode ResultOfCoalescingWith(InterferenceNode b) {
-    assert !(color != null && b.color != null && color != b.color);
+    a.Validate(); b.Validate();
+    assert color != b.color;
 
-    InterferenceNode c = 
-      new InterferenceNode(
-        representative : representative, 
-        nodes : nodes + b.nodes, 
-        movRelatedNodes : movRelatedNodes + b.movRelatedNodes,
-        color : (color != null) ? color : b.color);
+    InterferenceNode c = new InterferenceNode(representative);
+    c.nodes = nodes + b.nodes
+    c.movRelatedNodes = movRelatedNodes + b.movRelatedNodes
     c.UpdateMoveRelatedNodes();
-
+    c.color = (color != null) ? color : b.color;
+    c.Validate();
     return c;
   }
 
@@ -43,14 +42,22 @@ class InterferenceNode extends ColoringNode {
     nodes.each { movRelatedNodes.remove(it) }
   }
 
-  void AddMovRelation(n) {
-    assert n; assert n instanceof TempVar;
-    movRelatedNodes += [n];
+  void AddMovRelation(TempVar n) {
+    assert n;
+    movRelatedNodes << n;
+    UpdateMoveRelatedNodes();
   }
 
-  void RemoveMovRelation(n) {
+  void RemoveMovRelation(TempVar n) {
     assert n; assert movRelatedNodes.contains(n);
     movRelatedNodes.remove(n);
+    UpdateMoveRelatedNodes();
+  }
+
+  void Freeze() {
+    assert !frozen;
+    frozen = true;
+    assert isMovRelated() == false;
   }
 
   public String toString() {
@@ -66,6 +73,8 @@ class InterferenceNode extends ColoringNode {
     assert movRelatedNodes;
     movRelatedNodes.each { assert it instanceof TempVar }
     assert (movRelatedNodes.intersect(nodes)).size() == 0;
+    if(color != null) 
+      assert color instanceof RegColor
   }
 }
 

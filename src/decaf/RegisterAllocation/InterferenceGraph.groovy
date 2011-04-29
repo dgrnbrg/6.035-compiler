@@ -42,7 +42,7 @@ class InterferenceGraph extends ColorableGraph {
     dbgOut "Now extracting all variables from method: ${methodDesc.name}"
     variables = new LinkedHashSet<TempVar>()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      variables += new LinkedHashSet<TempVar>(node.anno['regalloc-liveness'])
+      node.anno['regalloc-liveness'].each { variables << it }
     }
 
     // Now add an interference node for each variable (unless it's a registerTempVar)
@@ -58,7 +58,7 @@ class InterferenceGraph extends ColorableGraph {
     dbgOut "Now computing interference edges."
     edges = new LinkedHashSet()
 
-    def n2CN = BuildNodeToColoringNodeMap();
+    BuildNodeToColoringNodeMap();
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       // Add the interference edges.
@@ -66,50 +66,34 @@ class InterferenceGraph extends ColorableGraph {
 
       if(node.getDef()) {
         liveVars.each { v -> 
-          assert n2CN[(v)];
           if(node.getDef() != v)
-            addEdge(new InterferenceEdge(n2CN[(v)], n2CN[(node.getDef())]))
+            addEdge(new InterferenceEdge(GetColoringNode(v), GetColoringNode(node.getDef())))
         }
       }
 
       // Now we need to handle modulo and division blocking.
-      if(node instanceof LowIrBinOp) {
-        RegisterTempVar blockedReg;
-
-        if(node.op == BinOpType.DIV || node.op == BinOpType.MOD) {
-          blockedReg = registerNodes.find { rn -> rn.color == 'rdx' }
-          assert blockedReg;
-          liveVars.each { addEdge(new InterferenceEdge(blockedReg, n2CN[(it)])) }
-          blockedReg = registerNodes.find { rn -> rn.color == 'rax' }
-          assert blockedReg;
-          liveVars.each { addEdge(new InterferenceEdge(blockedReg, n2CN[(it)])) }
+      switch(node) {
+      case LowIrBinOp:
+        if(node.op == BinOpType.DIV || node.op == BinOpType.MOD)
+          liveVars.each { 
+            addEdge(new InterferenceEdge(RegColor.RDX.getRetTempVar(), GetColoringNode(it))) 
+            addEdge(new InterferenceEdge(RegColor.RAX.getRetTempVar(), GetColoringNode(it))) 
+          }
+        break;
+      case LowIrMethodCall:
+      case LowIrCallOut:  
+        node.paramTmpVars.eachWithIndex { ptv, i -> 
+          if(i < 6) ForceNodeColor(GetColoringNode(ptv), RegColor.getRegOfArgNum(i + 1));
         }
+        break;
+      default:
+        // Nothing else here at the time.
+        break;
       }
-
-      // We need to handle forcing the first 6 parameters to be appropriately 
-      // colored.
-      assert false; // yet to be implemented.
 
       // We need to force the return use to be colored 'rax'
       assert false; // yet to be implemented.
-
-      // Finally we need to handle method calls and callouts.
-      if(node instanceof LowIrMethodCall || node instanceof LowIrCallOut) {
-        // We have to color the first parameters as follows:
-        def argNumToColor = 
-          [1 : 'rdi', 
-           2 : 'rsi', 
-           3 : 'rdx',
-           4 : 'rcx',
-           5 : 'r8',
-           6 : 'r9'] 
-        
-        node.paramTmpVars.eachWithIndex { ptv, i -> 
-          assert n2CN[(ptv)];
-          if(i < 6)            
-            ForceNodeColor(n2CN[(ptv)], argNumToColor[(i + 1)]);
-        }
-      }
+      
     }
 
     UpdateAfterEdgesModified();
@@ -121,18 +105,21 @@ class InterferenceGraph extends ColorableGraph {
   }
 
   boolean isSigDeg(InterferenceNode node) {
+    assert node;
     return node.getDegree() >= sigDeg();
   }
 
   boolean CanCoalesceNodes(InterferenceNode a, InterferenceNode b) {
     assert a; assert b;
 
-    if(!a.isMovRelated() || !b.isMovRelated())
-      return false;
-    assert a.movRelatedNodes.contains(b.representative)
-    assert a.movRelatedNodes.contains(a.representative)
+    if(a.isMovRelated() || b.isMovRelated()) {
+      assert a.movRelatedNodes.contains(b.representative)
+      assert a.movRelatedNodes.contains(a.representative)
+      int numNewNeighbors = (neighborTable.GetNeighbors(a) + neighborTable.GetNeighbors(b)).size()
+      return (numNewNeighbors < sigDeg());
+    }
 
-    return (neighborTable.GetNeighbors(a) + neighborTable.GetNeighbors(b)).size() < sigDeg()
+    return false;
   }
 
   void CoalesceNodes(InterferenceNode a, InterferenceNode b) {
@@ -141,8 +128,25 @@ class InterferenceGraph extends ColorableGraph {
     assert CanCoalesceNodes(a, b);
 
     InterferenceNode c = a.CoalesceWith(b);
-    nodes.removeNodes([a, b]);    
     addNode(c);
+
+    // Now we have to make sure to have transferred the edges.
+    List<InterferenceEdge> edgesToAdd = []
+    def needToUpdate = { curNode -> curNode == a || curNode == b }
+    edges.each { e -> 
+      if(needToUpdate(e.cn1) || needToUpdate(e.cn2)) {
+        InterferenceEdge updatedEdge = new InterferenceEdge(e.cn1, e.cn2);
+        updatedEdge.cn1 = needToUpdate(e.cn1) ? c : e.cn1;
+        updatedEdge.cn2 = needToUpdate(e.cn2) ? c : e.cn2;
+        updatedEdge.Validate();
+        edgesToAdd << updatedEdge;
+      }
+    }
+
+    edgesToAdd.each { addEdge(it) }
+
+    nodes.removeNode(a);
+    nodes.removeNode(b);    
 
     nodes.each { n -> 
       if(n.movRelatedNodes.contains(a) || n.movRelatedNodes.contains(b)) {
@@ -152,39 +156,25 @@ class InterferenceGraph extends ColorableGraph {
       }
     }
 
-    // Now we have to make sure to have transferred the edges.
-    List<InterferenceEdge> edgesToAdd = []
-    def needToUpdate = { curNode -> curNode == a || curNode == b }
-    edges.each { e -> 
-      if(needToUpdate(e.cn1) || needToUpdate(e.cn2)) {
-        InterferenceEdge updatedEdge = new InterferenceEdge(e.cn1, e.cn2)
-        updatedEdge.cn1 = needToUpdate(e.cn1) ? c : e.cn1
-        updatedEdge.cn2 = needToUpdate(e.cn2) ? c : e.cn2
-        edgesToAdd += [updatedEdge]
-      }
-    }
-
-    edgesToAdd.each { addEdge(it) }
-    UpdateAfterNodesModified();
+    
   }
 
-  public void ForceNodeColor(InterferenceNode nodeToForce, String color) {
-    registerNodes.each { rn -> 
-      if(rn.color != color)
-        addEdge(new InterferenceEdge(nodeToForce, n));
+  public void ForceNodeColor(InterferenceNode nodeToForce, RegColor color) {
+    RegColor.eachRegNode { rn -> 
+      if(rn != color) addEdge(new InterferenceEdge(nodeToForce, n));
     }
-
-    UpdateAfterEdgesModified();
   }
 
-  public void ForceNodeNotColor(InterferenceNode nodeToForce, String color) {
-    registerNodes.each { rn -> 
-      if(rn.color == color) {
-        addEdge(new InterferenceEdge(nodeToForce, rn));
-        UpdateAfterEdgesModified();
-        return;
-      }
-    }
+  public void ForceNodeNotColor(InterferenceNode nodeToForce, RegColor color) {
+    addEdge(new InterferenceEdge(nodeToForce, color));
+  }
+
+  InterferenceNode GetColoringNode(TempVar tv) {
+    assert tv;
+    assert nodeToColoringNode;
+    assert nodeToColoringMap.keySet().contains(tv);
+    assert nodeToColoringMap[node].nodes.contains(tv);
+    return nodeToColoringMap[node];
   }
 
   public void Validate() {
@@ -206,5 +196,9 @@ class InterferenceGraph extends ColorableGraph {
     List<InterferenceNode> allRepresentedNodes = []
     nodes.each { allRepresentedNodes += (it.nodes as List) }
     assert (allRepresentedNodes.size() == new LinkedHashSet(allRepresentedNodes))
+
+    assert nodeToColoringNode.keySet() == variables;
+    BuildNodeToColoringNodeMap();
+    assert nodeToColoringNode.keySet() == variables;
   }
 }

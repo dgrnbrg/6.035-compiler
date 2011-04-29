@@ -5,7 +5,7 @@ import decaf.*
 import decaf.graph.*
 
 class ColoringNode {
-  String color = null;
+  def color = null;
   def representative = null;
   LinkedHashSet nodes = new LinkedHashSet();
 
@@ -20,6 +20,10 @@ class ColoringNode {
   public String toString() {
     return "[ColoringNode. Rep = $representative, color = $color]"
   }
+
+  public void Validate() {
+    assert false;
+  }
 }
 
 class ColoringEdge {
@@ -30,6 +34,10 @@ class ColoringEdge {
     assert a; assert b;
     cn1 = a;
     cn2 = b;
+  }
+
+  public void Validate() {
+    assert false;
   }
 }
 

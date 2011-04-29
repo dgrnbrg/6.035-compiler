@@ -164,11 +164,11 @@ class LowIrNode implements GraphNode{
     return []
   }
 
-  def void SwapUsesUsingMap(mapToApply) { 
+  void SwapUsesUsingMap(mapToApply) { 
     assert mapToApply != null
   }
 
-  def void SwapDefUsingMap(mapToApply) { 
+  void SwapDefUsingMap(mapToApply) { 
     assert mapToApply != null
   }
 
@@ -225,7 +225,7 @@ class LowIrCondJump extends LowIrNode {
     "LowIrCondJump(condition: $condition)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     assert mapToApply != null;
     if(mapToApply[(condition)]) 
       condition = mapToApply[(condition)]
@@ -258,7 +258,7 @@ class LowIrCallOut extends LowIrValueNode {
     "LowIrCallOut(method: $name, tmpVar: $tmpVar, params: $paramTmpVars)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     paramTmpVars = paramTmpVars.collect { tv -> 
       return (mapToApply[(tv)] ? mapToApply[(tv)] : tv)
     }
@@ -292,7 +292,7 @@ class LowIrMethodCall extends LowIrValueNode {
     "LowIrMethodCall(method: $descriptor.name, tmpVar: $tmpVar, params: $paramTmpVars)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     paramTmpVars = paramTmpVars.collect { tv -> 
       return (mapToApply[(tv)] ? mapToApply[(tv)] : tv)
     }
@@ -327,7 +327,7 @@ class LowIrReturn extends LowIrNode {
     "LowIrReturn(tmpVar: $tmpVar)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     assert mapToApply != null
     if(mapToApply[(tmpVar)])
       tmpVar = mapToApply[(tmpVar)]
@@ -359,7 +359,7 @@ class LowIrValueNode extends LowIrNode{
     "LowIrValueNode($metaText, tmpVar: $tmpVar)"
   }
 
-  def void SwapDefUsingMap(mapToApply) {
+  void SwapDefUsingMap(mapToApply) {
     assert mapToApply != null
     if(mapToApply[(tmpVar)])
       tmpVar = mapToApply[(tmpVar)]
@@ -413,7 +413,7 @@ class LowIrBinOp extends LowIrValueNode {
     "LowIrBinOp(op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar, tmpVar: $tmpVar)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     assert mapToApply != null; assert leftTmpVar;
     if(mapToApply[(leftTmpVar)])
       leftTmpVar = mapToApply[(leftTmpVar)]
@@ -459,13 +459,13 @@ class LowIrMov extends LowIrNode {
     "LowIrMov(src: $src, dst: $dst)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     assert mapToApply != null
     if(mapToApply[(src)])
       src = mapToApply[(src)]
   }
 
-  def void SwapDefUsingMap(mapToApply) {
+  void SwapDefUsingMap(mapToApply) {
     assert mapToApply != null
     if(mapToApply[(dest)])
       dest = mapToApply[(dest)]
@@ -502,7 +502,7 @@ class LowIrStore extends LowIrNode {
     "LowIrStore(value: $value, desc: $desc, index: $index)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     assert mapToApply != null
     if(mapToApply[(value)])
       value = mapToApply[(value)]
@@ -534,7 +534,7 @@ class LowIrLoad extends LowIrValueNode {
     "LowIrLoad(desc: $desc, index: $index, tmpVar: $tmpVar)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     assert mapToApply != null
     if(mapToApply[(index)])
       index = mapToApply[(index)]
@@ -557,7 +557,7 @@ class LowIrStoreSpill extends LowIrNode {
     "LowIrStoreSpill(value: $value, storeLoc: $storeLoc)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     assert mapToApply != null
     if(mapToApply[(value)])
       value = mapToApply[(value)]
@@ -605,11 +605,11 @@ class LowIrPhi extends LowIrValueNode {
     "LowIrPhi(tmpVar: $tmpVar, args: $args)"
   }
 
-  def void SwapUsesUsingMap(mapToApply) {
+  void SwapUsesUsingMap(mapToApply) {
     assert false
   }
 
-  def void SwapDefUsingMap(mapToApply) {
+  void SwapDefUsingMap(mapToApply) {
     assert false
   }
 }
