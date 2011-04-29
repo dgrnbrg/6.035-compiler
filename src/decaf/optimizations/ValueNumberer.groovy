@@ -1,6 +1,7 @@
 package decaf.optimizations
 import decaf.*
 import decaf.graph.*
+import static decaf.BinOpType.*
 
 //This class figures out what expression corresponds to a node
 //It memoizes the results, but it doesn't do a one-pass run, so it's pretty much lazily evaluated
@@ -142,7 +143,10 @@ class Expression {
     if (constVal != null) return 103*constVal
     if (op != null) {
       def tmp = left.hashCode() * 17 + op.hashCode() * 41
-      if (right != null) tmp += right.hashCode() * 91
+      if (right != null) {
+        if (op in [ADD, MUL, EQ, NEQ, AND, OR]) tmp += right.hashCode() * 17
+        else tmp += right.hashCode() * 91
+      }
       return tmp
     }
     if (varDesc != null) {
