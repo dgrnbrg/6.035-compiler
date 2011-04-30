@@ -19,7 +19,6 @@ class RegAllocCodeGen extends CodeGenerator {
   }
 
   Operand getTmp(TempVar tmp) {
-    assert (tmp instanceof SpillVar || tmp instanceof RegisterTempVar)
     switch (tmp.type) {
     case TempVarType.PARAM:
       return rbp(8 * (tmp.id+2))
@@ -37,27 +36,27 @@ class RegAllocCodeGen extends CodeGenerator {
   }
 
   void PreserveRegister(Reg r) {
-    movq(r, getTmp(method.svManager.getPreservedRegister(r.toString())));
+    movq(r, getTmp(method.svManager.getPreservedSpillVarFor(r.toString())));
   }
 
   void RestoreRegister(Reg r) {
-    movq(getTmp(method.svManager.getPreservedRegister(r.toString())), r);
+    movq(getTmp(method.svManager.getPreservedSpillVarFor(r.toString())), r);
   }
 
   void PreserveCallerRegisters() {
-    Reg.GetCallerSaveRegisters.each { PreserveRegister(it); }
+    Reg.GetCallerSaveRegisters().each { PreserveRegister(it); }
   }
 
   void RestoreCallerRegisters() {
-    Reg.GetCallerSaveRegisters.each { RestoreRegister(it); }
+    Reg.GetCallerSaveRegisters().each { RestoreRegister(it); }
   }
 
   void PreserveCalleeRegisters() {
-    Reg.GetCalleeSaveRegisters.each { PreserveRegister(it); }
+    Reg.GetCalleeSaveRegisters().each { PreserveRegister(it); }
   }
 
   void RestoreCalleeRegisters() {
-    Reg.GetCalleeSaveRegisters.each { RestoreRegister(it); }
+    Reg.GetCalleeSaveRegisters().each { RestoreRegister(it); }
   }
 
   void ValidateFirstSixArgumentsAndReturnRegisters(LowIrNode stmt) {
@@ -69,11 +68,14 @@ class RegAllocCodeGen extends CodeGenerator {
         assert Reg.GetParameterRegisters().contains(Reg.getReg(ptv.registerName));
       } 
     }
-    assert stmt.getDef() instanceof RegisterTempVar;
-    assert stmt.getDef().registerName == 'rax';
+
+    if(stmt.getDef() instanceof RegisterTempVar)
+      assert stmt.getDef().registerName == 'rax';
   }
 
-  void visitNode(LowIrNode stmt) {
+  void visitNode(GraphNode stmt) {
+    println "Visting node: $stmt, which is of type: ${stmt.class}"
+
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
@@ -86,11 +88,14 @@ class RegAllocCodeGen extends CodeGenerator {
 
     switch (stmt) {
     case LowIrStringLiteral:
+      println "HERE WE ARE." 
+      println "${stmt.value}"
       def strLitOperand = asmString(stmt.value)
       strLitOperand.type = OperType.IMM
       movq(strLitOperand, getTmp(stmt.tmpVar))
       break
     case LowIrIntLiteral:
+      assert false;
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
@@ -98,6 +103,12 @@ class RegAllocCodeGen extends CodeGenerator {
       // Both CallOuts and MethodCalls use same calling convention.
       ValidateFirstSixArgumentsAndReturnRegisters(stmt);
       PreserveCallerRegisters();
+
+      // Now optionally preserve rax if it is still a tempvar (because it wasn't colored).
+      if(!(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar))
+        PreserveRegister(Reg.RAX);
+
+      int numRegParams = Math.min(stmt.paramTmpVars.size(), 6)
       if(stmt.paramTmpVars.size() - 6 > 0)
         sub(8*(stmt.paramTmpVars.size() - 6), rsp);
       stmt.paramTmpVars.eachWithIndex { it, index ->
@@ -107,21 +118,32 @@ class RegAllocCodeGen extends CodeGenerator {
         }
       }
       // We need to restore r10 since we've been clobbering it.
-      RestoreRegister('r10');
-      if(stmt instanceof LowIrMethodCall) {
-        if (stmt.name == 'printf') {
-          // Set to 0 since printf uses rax value to determine how many SSE 
-          // registers hold arguments (since printf has varargs).
+      RestoreRegister(Reg.R10);
+
+      if(stmt instanceof LowIrCallOut) {
+        // Set to 0 since printf uses rax value to determine how many SSE 
+        // registers hold arguments (since printf has varargs).
+        if (stmt.name == 'printf')         
           movq(0,rax)
-        }
         call(stmt.name);
-      } else {
+      } else
         call(stmt.descriptor.name)
-      }
-      movq(rax,getTmp(stmt.tmpVar))
+
+      // Now optionally don't do the mov (since you shouldn't encounter that tmpVar anyway).
+      if(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar)
+        movq(rax,getTmp(stmt.tmpVar))
+      else
+        println "Don't have a return value to worry about!"
+
       RestoreCallerRegisters();
+
+      // Now optionally restore rax if it wasn't clobbered.
+      if(!(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar))
+        RestoreRegister(Reg.RAX);
+
       if(stmt.paramTmpVars.size() - 6 > 0)
         add(8*(stmt.paramTmpVars.size() - 6), rsp)
+
       break
     case LowIrReturn:
       if (stmt.tmpVar != null)
@@ -132,11 +154,13 @@ class RegAllocCodeGen extends CodeGenerator {
       ret()
       break
     case LowIrCondJump:
+      assert false;
       assert stmt.condition instanceof RegisterTempVar;
       cmp(1, getTmp(stmt.condition))
       je(stmt.trueDest.label)
       break
     case LowIrLoad:
+      assert false;
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
         assert false; // How do we handle the line below (the r11 part)
@@ -148,6 +172,7 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(r10, getTmp(stmt.tmpVar))
       break
     case LowIrStore:
+      assert false;
       movq(getTmp(stmt.value), r10)
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
@@ -158,6 +183,7 @@ class RegAllocCodeGen extends CodeGenerator {
       }
       break
     case LowIrMov:
+      assert false;
       if(stmt.src instanceof SpillVar || stmt.dest instanceof SpillVar) {
         assert false; // we should never be moving directly between spillvars.
       } else if(stmt.src instanceof SpillVar || stmt.dest instanceof SpillVar) {
@@ -172,6 +198,7 @@ class RegAllocCodeGen extends CodeGenerator {
       }
       break;
     case LowIrBinOp:
+      assert false;
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.leftTmpVar instanceof RegisterTempVar;
       if(stmt.rightTmpVar != null) 
@@ -263,14 +290,17 @@ class RegAllocCodeGen extends CodeGenerator {
     case LowIrPhi:
       break
     case LowIrStoreSpill:
+      assert false;
       assert stmt.storeLoc instanceof SpillVar
       movq(getTmp(stmt.value), getTmp(stmt.storeLoc));
       break;
     case LowIrLoadSpill:
+      assert false;
       assert stmt.loadLoc instanceof SpillVar;
       movq(getTmp(stmt.loadLoc), getTmp(stmt.tmpVar));
       break;
     case LowIrNode: //this is a noop
+      println "BLHA:HLKDFJH"
       assert stmt.getClass() == LowIrNode.class || stmt.getClass() == LowIrValueNode.class
       break
     default:

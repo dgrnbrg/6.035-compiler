@@ -110,11 +110,7 @@ public class RegisterAllocator {
     dbgOut "Now running Build()."
 
     ig = new InterferenceGraph(methodDesc);
-    theStack = new ColoringStack(ig);
-
-    Reg.eachReg { r -> 
-      ig.AddNode(new InterferenceNode(r.GetRegisterTempVar())); 
-    }
+    theStack = new ColoringStack(ig);    
 
     ig.BuildNodeToColoringNodeMap()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 

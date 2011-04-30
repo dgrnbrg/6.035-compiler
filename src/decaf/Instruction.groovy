@@ -183,18 +183,6 @@ enum Reg {
     this.rtv = new RegisterTempVar(name);
   }
 
-  List<Reg> GetCallerSaveRegisters() {
-    return [Reg.RCX, Reg.RDX, Reg.RSI, Reg.RDI, Reg.R8, Reg.R9, Reg.R10, Reg.R11]
-  }
-
-  List<Reg> GetCalleeSaveRegisters() {
-    return [Reg.RBX, Reg.R12, Reg.R13, Reg.R14, Reg.R15]
-  }
-
-  List<Reg> GetParameterRegisters() {
-    return [Reg.RDI, Reg.RSI, Reg.RDX, Reg.RCX, Reg.R8, Reg.R9];
-  }
-
   RegisterTempVar GetRegisterTempVar() {
     assert this.rtv;
     return this.rtv;
@@ -222,7 +210,19 @@ enum Reg {
 
   static Reg getRegOfParamArgNum(int argNum) {
     assert (argNum > 0) && (argNum <= 6);
-    return ([Reg.RDI, Reg.RSI, Reg.RDX, Reg.RCX, Reg.R8, Reg.R9])[argNum]
+    return ([Reg.RDI, Reg.RSI, Reg.RDX, Reg.RCX, Reg.R8, Reg.R9])[argNum - 1]
+  }
+
+  static List<Reg> GetCallerSaveRegisters() {
+    return [Reg.RCX, Reg.RDX, Reg.RSI, Reg.RDI, Reg.R8, Reg.R9, Reg.R10, Reg.R11]
+  }
+
+  static List<Reg> GetCalleeSaveRegisters() {
+    return [Reg.RBX, Reg.R12, Reg.R13, Reg.R14, Reg.R15]
+  }
+
+  static List<Reg> GetParameterRegisters() {
+    return [Reg.RDI, Reg.RSI, Reg.RDX, Reg.RCX, Reg.R8, Reg.R9];
   }
 }
 

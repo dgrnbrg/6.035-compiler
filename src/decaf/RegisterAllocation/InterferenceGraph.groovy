@@ -9,7 +9,7 @@ public class InterferenceGraph extends ColorableGraph {
   LinkedHashSet<TempVar> variables;
   MethodDescriptor methodDesc;
   LivenessAnalysis la;
-  LinkedHashSet<RegisterTempVar> registerNodes;
+  LinkedHashMap regToInterferenceNode;
 
   public InterferenceGraph(MethodDescriptor md) {
     super()
@@ -26,12 +26,15 @@ public class InterferenceGraph extends ColorableGraph {
     dbgOut "1) Running Liveness Analysis."
     RunLivenessAnalysis()
 
-    dbgOut "2) Setting up variables."
+    dbgOut "2) Adding in register nodes to interference graph."
+    AddInRegisterNodes()
+
+    dbgOut "3) Setting up variables."
     SetupVariables()
     dbgOut "Variables = $variables"
     dbgOut "Finished extracting variables. Number of variables = ${variables.size()}"
 
-    dbgOut "3) Computing the Interference Edges."
+    dbgOut "4) Computing the Interference Edges."
     ComputeInterferenceEdges()
     dbgOut "Finished computing interference edges, total number = ${edges.size()}"
     edges.each { dbgOut it }
@@ -44,6 +47,17 @@ public class InterferenceGraph extends ColorableGraph {
   void RunLivenessAnalysis() {
     la = new LivenessAnalysis();
     la.run(methodDesc.lowir)
+  }
+
+  void AddInRegisterNodes() {
+    regToInterferenceNode = [:];
+
+    Reg.eachReg { r -> 
+      RegisterTempVar regToInject = r.GetRegisterTempVar()
+      regToInterferenceNode[r.GetRegisterTempVar()] = new InterferenceNode(regToInject);
+      assert regToInterferenceNode.keySet().contains(regToInject);
+      AddNode(regToInterferenceNode[regToInject]); 
+    }
   }
 
   void SetupVariables() {
@@ -71,14 +85,14 @@ public class InterferenceGraph extends ColorableGraph {
 
       if(node.getDef()) {
         liveVars.each { v -> 
-          if(node.getDef() != v)
+          if(liveVars.contains(node.getDef()) && node.getDef() != v)
             AddEdge(new InterferenceEdge(GetColoringNode(v), GetColoringNode(node.getDef())))
         }
       }
 
-      // Now we need to handle modulo and division blocking.
       switch(node) {
       case LowIrBinOp:
+        // Handle modulo and division blocking.
         if(node.op == BinOpType.DIV || node.op == BinOpType.MOD)
           liveVars.each { 
             AddEdge(new InterferenceEdge(Reg.RDX.getRegisterTempVar(), GetColoringNode(it))) 
@@ -87,6 +101,7 @@ public class InterferenceGraph extends ColorableGraph {
         break;
       case LowIrMethodCall:
       case LowIrCallOut:
+        
         node.paramTmpVars.eachWithIndex { ptv, i -> 
           if(i < 6) 
             ForceNodeColor(GetColoringNode(ptv), Reg.getRegOfParamArgNum(i + 1));
@@ -177,7 +192,7 @@ public class InterferenceGraph extends ColorableGraph {
 
     Reg.eachReg { r -> 
       if(r != color) 
-        AddEdge(new InterferenceEdge(nodeToForce, r));
+        AddEdge(new InterferenceEdge(nodeToForce, GetColoringNode(r.GetRegisterTempVar())));
     }
   }
 
@@ -187,8 +202,19 @@ public class InterferenceGraph extends ColorableGraph {
 
   ColoringNode GetColoringNode(def tv) {
     assert tv;
-    assert tv instanceof TempVar
+    assert tv instanceof TempVar;
     assert nodeToColoringNode;
+
+    if(tv instanceof RegisterTempVar) {
+      assert regToInterferenceNode
+      assert regToInterferenceNode.keySet().contains(tv)
+      return regToInterferenceNode[tv];
+    }
+
+    if(nodeToColoringNode.keySet().contains(tv) == false) {
+      println tv;
+      println nodeToColoringNode;
+    }
     assert nodeToColoringNode.keySet().contains(tv);
     assert nodeToColoringNode[tv].nodes.contains(tv);
     return nodeToColoringNode[tv];
