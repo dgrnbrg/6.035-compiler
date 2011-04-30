@@ -5,16 +5,16 @@ import decaf.*
 import decaf.graph.*
 import decaf.optimizations.*
 
-class InterferenceGraph extends ColorableGraph { 
+public class InterferenceGraph extends ColorableGraph { 
   LinkedHashSet<TempVar> variables;
   MethodDescriptor methodDesc;
   LivenessAnalysis la;
   LinkedHashSet<RegisterTempVar> registerNodes;
 
   public InterferenceGraph(MethodDescriptor md) {
+    super()
     assert(md)
     methodDesc = md
-    neighborTable = new NeighborTable()
     CalculateInterferenceGraph()
   }
 
@@ -81,19 +81,20 @@ class InterferenceGraph extends ColorableGraph {
           }
         break;
       case LowIrMethodCall:
-      case LowIrCallOut:  
+      case LowIrCallOut:
         node.paramTmpVars.eachWithIndex { ptv, i -> 
-          if(i < 6) ForceNodeColor(GetColoringNode(ptv), RegColor.getRegOfArgNum(i + 1));
+          if(i < 6) 
+            ForceNodeColor(GetColoringNode(ptv), RegColor.getRegOfArgNum(i + 1));
         }
+        break;
+      case LowIrReturn:
+        if(methodDesc.returnType != Type.VOID)
+          ForceNodeToColor(GetColoringNode(node.tmpVar), RegColor.RAX);
         break;
       default:
         // Nothing else here at the time.
         break;
       }
-
-      // We need to force the return use to be colored 'rax'
-      assert false; // yet to be implemented.
-      
     }
 
     UpdateAfterEdgesModified();
@@ -106,7 +107,7 @@ class InterferenceGraph extends ColorableGraph {
 
   boolean isSigDeg(InterferenceNode node) {
     assert node;
-    return node.getDegree() >= sigDeg();
+    return neighborTable.GetDegree(node) >= sigDeg();
   }
 
   boolean CanCoalesceNodes(InterferenceNode a, InterferenceNode b) {
@@ -160,8 +161,12 @@ class InterferenceGraph extends ColorableGraph {
   }
 
   public void ForceNodeColor(InterferenceNode nodeToForce, RegColor color) {
+    assert nodeToForce;
+    assert color;
+
     RegColor.eachRegNode { rn -> 
-      if(rn != color) addEdge(new InterferenceEdge(nodeToForce, n));
+      if(rn != color) 
+        addEdge(new InterferenceEdge(nodeToForce, n));
     }
   }
 
@@ -169,7 +174,8 @@ class InterferenceGraph extends ColorableGraph {
     addEdge(new InterferenceEdge(nodeToForce, color));
   }
 
-  InterferenceNode GetColoringNode(TempVar tv) {
+  ColoringNode GetColoringNode(TempVar tv) {
+    println tv;
     assert tv;
     assert nodeToColoringNode;
     assert nodeToColoringMap.keySet().contains(tv);
@@ -200,5 +206,110 @@ class InterferenceGraph extends ColorableGraph {
     assert nodeToColoringNode.keySet() == variables;
     BuildNodeToColoringNodeMap();
     assert nodeToColoringNode.keySet() == variables;
+  }
+}
+
+class InterferenceNode extends ColoringNode {
+  LinkedHashSet movRelatedNodes;
+  private boolean frozen = false;
+  
+  public InterferenceNode() { 
+    assert false;
+  }
+
+  public InterferenceNode(TempVar tv) {
+    super(tv);
+    if(tv instanceof RegisterTempVar) {
+      assert tv.registerName;
+      color = RegColor.getReg(tv.registerName);
+    }
+
+    movRelatedNodes = new LinkedHashSet();
+  }
+
+  public InterferenceNode ResultOfCoalescingWith(InterferenceNode b) {
+    a.Validate(); b.Validate();
+    assert color != b.color;
+
+    InterferenceNode c = new InterferenceNode(representative);
+    c.nodes = nodes + b.nodes
+    c.movRelatedNodes = movRelatedNodes + b.movRelatedNodes
+    c.UpdateMoveRelatedNodes();
+    c.color = (color != null) ? color : b.color;
+    c.Validate();
+    return c;
+  }
+
+  boolean isMovRelated() {
+    assert movRelatedNodes != null;
+    return (frozen ? false : (movRelatedNodes.size() > 0))
+  }
+
+  void UpdateMoveRelatedNodes() {
+    assert nodes
+    nodes.each { movRelatedNodes.remove(it) }
+  }
+
+  void AddMovRelation(TempVar n) {
+    assert n;
+    movRelatedNodes << n;
+    UpdateMoveRelatedNodes();
+  }
+
+  void RemoveMovRelation(TempVar n) {
+    assert n; assert movRelatedNodes.contains(n);
+    movRelatedNodes.remove(n);
+    UpdateMoveRelatedNodes();
+  }
+
+  void Freeze() {
+    assert !frozen;
+    frozen = true;
+    assert isMovRelated() == false;
+  }
+
+  public String toString() {
+    return "[InterferenceNode. Rep = $representative, color = $color, frozen = $frozen]"
+  }
+
+  public void Validate() {
+    assert representative;
+    assert representative instanceof TempVar;
+    assert nodes;
+    nodes.each { assert it instanceof TempVar }
+    assert nodes.contains(representative);
+    assert movRelatedNodes != null;
+    movRelatedNodes.each { assert it instanceof TempVar }
+    assert (movRelatedNodes.intersect(nodes)).size() == 0;
+    if(color != null) 
+      assert color instanceof RegColor
+  }
+}
+
+class InterferenceEdge extends ColoringEdge {
+  public InterferenceEdge(ColoringNode a, ColoringNode b) {
+    super(a, b)
+  }
+
+  public String toString() {
+    return "[InterferenceEdge. cn1 = $cn1, cn2 = $cn2]"
+  }
+
+  public void Validate() {
+    assert cn1; assert cn2;
+    assert cn1 instanceof InterferenceNode;
+    assert cn2 instanceof InterferenceNode;
+    cn1.Validate();
+    cn2.Validate();
+    if(cn1.color && cn2.color)
+      assert cn1.color != cn2.color;
+    cn1.movRelatedNodes.each { mrn -> 
+      if(mrn != cn2.representative)
+        assert cn2.nodes.contains(mrn) == false;
+    }
+    cn2.movRelatedNodes.each { mrn -> 
+      if(mrn != cn1.representative)
+        assert cn1.nodes.contains(mrn) == false;
+    }
   }
 }

@@ -3,8 +3,9 @@ package decaf
 import groovy.util.*
 import decaf.*
 import decaf.graph.*
+import static decaf.RegColor.eachRegNode
 
-class RegisterAllocator {
+public class RegisterAllocator {
   def dbgOut = { str -> assert str; println str; }
 
 	MethodDescriptor methodDesc;
@@ -42,33 +43,46 @@ class RegisterAllocator {
     }
   }
 
+  boolean OnlySigDegOrMoveRelated() {
+    assert ig; assert ig.nodes;
+    ig.nodes.each { node -> 
+      if(!(ig.isSigDeg(node) || node.isMovRelated()))
+        return false;
+    }
+    return true;
+  }
+
   // Run this function to fixed point. It implements the flow-diagram in MCIJ in 11.2
   boolean RegAllocationIteration() {
     dbgOut "Now running an iteration of the register allocator."
     Build();
 
-    spillWorkList = new LinkedHashSet<InterferenceNode>();
+    spillWorklist = new LinkedHashSet<InterferenceNode>();
 
     while(true) {
       boolean didSimplifyHappen = Simplify();
-      while(Simplify());
+      if(didSimplifyHappen)
+        while(Simplify());
 
       boolean didCoalesce = Coalesce();
-      while(Coalesce());
+      if(didCoalesce)
+        while(Coalesce());
 
       if(!OnlySigDegOrMoveRelated())
         continue;
 
       if(!didSimplifyHappen && !didCoalesce)
-        if(!Freeze())
+        if(Freeze())
           continue;
 
-      if(PotentialSpill(ig))
+      if(PotentialSpill())
         continue;
 
       break;
     }
 
+    ig.nodes.each { println it }
+    ig.edges.each { println it }
     assert(!OnlySigDegOrMoveRelated())
     ig.nodes.each { assert it.isMoveRelated() == false }
 
@@ -84,8 +98,11 @@ class RegisterAllocator {
     dbgOut "Now running Build()."
 
     ig = new InterferenceGraph(methodDesc);
-    RegColor.eachRegNode { rn -> ig.addNode(rn); }
+    println "created the new interference graph."
 
+    RegColor.eachRegColor { rc -> 
+      ig.addNode(new InterferenceNode(rc.getRegTempVar())); 
+    }
     ig.BuildNodeToColoringNodeMap()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       if(node instanceof LowIrMov) {
@@ -103,26 +120,32 @@ class RegisterAllocator {
   }
 
   boolean Simplify() {
-    debOut "Now running Simplify()."
+    dbgOut "Now running Simplify()."
 
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
-    InterferenceNode nodeToSimplify = nodes.find { cn -> (!cn.isMovRelated() && ig.isSigDeg(cn)) }
+    InterferenceNode nodeToSimplify = ig.nodes.find { cn -> 
+      if(cn.isMovRelated() && cn.isSigDeg())
+        return false;
+      else if(cn.representative instanceof RegisterTempVar)
+        return false;
+      return true;
+    }
 
     if(nodeToSimplify == null) {
       dbgOut "Could not find a node to simplify."
       return false;
+    } else {
+      AddNodeToColoringStack(nodeToSimplify);
+      dbgOut "Simplify() removed a node: $nodeToSimplify."
+      return true;
     }
-    
-    AddNodeToColoringStack(nodeToSimplify);
-    dbgOut "Simplify() removed a node: $nodeToSimplify."
-    return true;
   }
 
   boolean Coalesce() {
     dbgOut "Now running Coalescing."
 
     // Perform conservative coalescing. Nothing fancy here.
-    [ig.nodes, ig.nodes].combinations().each { pair -> 
+    for(pair in [ig.nodes, ig.nodes].combinations()) { 
       if(pair[0] != pair[1])
         if(ig.CanCoalesceNodes(pair[0], pair[1])) {
           dbgOut "Found a pair of nodes to coalesce: $pair"
@@ -157,7 +180,7 @@ class RegisterAllocator {
     return false;
   }
 
-  InterferenceNode PotentialSpill() {
+  boolean PotentialSpill() {
     dbgOut "Now calculating potential spills."
 
     // need to check that there are no low-degree 
@@ -166,12 +189,12 @@ class RegisterAllocator {
         dbgOut "Found potential spill: $node"
         spillWorklist << node;
         AddNodeToColoringStack(node);
-        return node;
+        return true;
       }
     }
     
     dbgOut "Did not find any potential spills."
-    return null
+    return false
   }
 
   boolean PopNodeAndTryToColor() {
@@ -253,6 +276,81 @@ class RegisterAllocator {
         if(p.falseDest == siteOfSpiill)
           p.falseDest = nodeToPlace;
       }
+    }
+  }
+}
+
+public enum RegColor {
+  RAX('rax'), RBX('rbx'), RCX('rcx'), RDX('rdx'), RSI('rsi'), 
+  RDI('rdi'), R8('r8'),   R9('r9'),   R10('r10'), R11('r11'),
+  R12('r12'), R13('r13'), R14('r14'), R15('r15');
+
+  private final String strRegColor;
+  private final RegisterTempVar rtv;
+  private final Operand operand;
+  static LinkedHashMap regNameToRegColor;
+  final List<RegColor> callerSaveRegisters;
+  final List<RegColor> calleeSaveRegisters;
+  final List<RegColor> parameterRegisters;
+
+  RegColor(String strRegColor) {
+    assert ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
+            'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15'].contains(strRegColor)
+    this.strRegColor = strRegColor;
+    this.rtv = new RegisterTempVar(strRegColor);
+    
+    operand = new Operand(strRegColor);
+    callerSaveRegisters = [RCX, RDX, RSI, RDI, R8, R9, R10, R11];
+    calleeSaveRegisters = [RBX, R12, R13, R14, R15];
+    parameterRegisters = [RDI, RSI, RDX, RCX, R8, R9];
+  }
+
+  String getRegName() { 
+    assert strRegColor;
+    return strRegColor; 
+  }
+
+  String toString() { 
+    assert this.strRegColor
+    return this.strRegColor 
+  }
+
+  RegisterTempVar getRegTempVar() { 
+    assert this.rtv
+    return this.rtv; 
+  }
+
+  Operand getOperand() { 
+    return this.operand 
+  }
+
+  static RegColor getRegOfParamArgNum(int argNum) {
+    switch(argNum) {
+    case 1: return RegColor.RDI;
+    case 2: return RegColor.RSI;
+    case 3: return RegColor.RDX;
+    case 4: return RegColor.RCX;
+    case 5: return RegColor.R8;
+    case 6: return RegColor.R9;
+    default: assert false;
+    }
+  }
+
+  static RegColor getReg(String regName) {
+    for(rc in RegColor.values()) {
+      assert rc instanceof RegColor
+      if(regName == rc.strRegColor)
+        return rc;
+    }
+
+    assert false;
+  }
+
+  static def eachRegColor = { c -> 
+    assert c; 
+    return RegColor.values().collect { 
+      assert it instanceof RegColor;
+      c(it)
     }
   }
 }
