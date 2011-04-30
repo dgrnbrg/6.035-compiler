@@ -19,16 +19,6 @@ public class ColorableGraph {
     nodeToColoringNode = new LinkedHashMap();
   }
 
-  LinkedHashSet GetIllegalColors(ColoringNode node) { 
-    LinkedHashSet takenColors = []
-    cg.neighborTable.GetNeighbors(node).each { cn -> 
-      if(cn.color) 
-        takenColors += [cn.color]
-    }
-
-    return takenColors
-  }
-
   void addNode(ColoringNode cn) {
     assert cn;
     cn.Validate();
@@ -37,51 +27,40 @@ public class ColorableGraph {
     UpdateAfterNodesModified();
   }
 
-  void removeNode(ColoringNode cn) {
+  void RemoveNode(ColoringNode cn) {
     assert cn; 
     cn.Validate();
     assert nodes.contains(cn);
     nodes.remove(cn);
     UpdateAfterNodesModified();
   }
-
-  void removeNodes(List<ColoringNode> nodesToRemove) { 
-    assert nodesToRemove;
-    nodesToRemove.each { addNode(it) }
-  }
   
-  void addEdge(ColoringEdge ce) {
+  void AddEdge(ColoringEdge ce) {
     assert ce; 
     ce.Validate();
+    assert nodes.contains(ce.cn1);
+    assert nodes.contains(ce.cn2);
+    assert ce.cn1 != ce.cn2;
     assert !edges.contains(ce);
     edges << ce;
     UpdateAfterEdgesModified();
   }
 
-  void addEdges(Collection<ColoringEdge> ces) { 
-    assert ces; 
-    ces.each { addEdge(it) }
-  }
-
-  void removeEdge(ColoringEdge ce) {
+  void RemoveEdge(ColoringEdge ce) {
     assert ce; 
     ce.Validate();
     assert edges.contains(ce);
+    assert nodes.contains(ce.cn1);
+    assert nodes.contains(ce.cn2);
     edges.remove(ce);
     UpdateAfterEdgesModified();
   }
 
-  void removeEdges(Collection<ColoringEdge> ces) { 
-    assert ces;
-    ces.each { edges.remove(it) }
-    UpdateAfterEdgesModified();
-  }
-
-  int getDegree(ColoringNode node) {
+  int GetDegree(ColoringNode node) {
     return neighborTable.GetDegree(node)
   }
 
-  LinkedHashSet<ColoringNode> getNeighbors(ColoringNode node) {
+  LinkedHashSet<ColoringNode> GetNeighbors(ColoringNode node) {
     assert node;
     return neighborTable.GetNeighbors(node);
   }
@@ -97,7 +76,7 @@ public class ColorableGraph {
     neighborTable.Build(nodes, edges)
   }
   
-  LinkedHashMap BuildNodeToColoringNodeMap() {
+  void BuildNodeToColoringNodeMap() {
     nodeToColoringNode = new LinkedHashMap();
 
     nodes.each { cn ->       
@@ -105,8 +84,6 @@ public class ColorableGraph {
         nodeToColoringNode[n] = cn
       }
     }
-
-    return nodeToColoringNode;
   }
 
   ColoringNode GetColoringNode(def node) {
@@ -195,7 +172,7 @@ public class NeighborTable {
 }
 
 public class ColoringNode {
-  def color = null;
+  RegColor color = null;
   def representative = null;
   LinkedHashSet nodes = new LinkedHashSet();
 
@@ -213,12 +190,19 @@ public class ColoringNode {
     return "[ColoringNode. Rep = $representative, color = $color]"
   }
 
-  public void Validate() {
-    assert false;
-  }
-
   public LinkedHashSet getNodes() {
     return nodes;
+  }
+
+  public SetColor(RegColor rc) {
+    println this;
+    println rc;
+    assert rc; assert color == null;
+    color = rc;
+  }
+
+  public void Validate() {
+    assert false;
   }
 }
 

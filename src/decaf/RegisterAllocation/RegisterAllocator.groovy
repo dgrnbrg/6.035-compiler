@@ -12,6 +12,7 @@ public class RegisterAllocator {
   InterferenceGraph ig;
   LinkedHashSet<InterferenceNode> spillWorklist;
   LinkedHashSet<RegisterTempVar> registerNodes;
+  ColoringStack theStack;
 
   LinkedHashSet<String> colors = new LinkedHashSet(
       ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
@@ -31,10 +32,14 @@ public class RegisterAllocator {
 
   void DoColoring() {
     // Build the map from tmpVar to color
-    tmpVarToRegTempVar = [:]
-    ig.BuildNodeToColorNodeMap();
-    ig.variables().each { v -> 
-      tmpVarToRegTempVar[(tv)] = RegColor.getRegColorFromName(ig.GetColoringNode(v).color);
+    def tmpVarToRegTempVar = [:]
+    ig.BuildNodeToColoringNodeMap();
+    ig.nodes.each { node -> 
+      node.nodes.each { n ->
+        assert node.color;
+        assert n instanceof TempVar
+        tmpVarToRegTempVar[n] = node.color.getRegTempVar();
+      }
     }
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
@@ -45,9 +50,10 @@ public class RegisterAllocator {
 
   boolean OnlySigDegOrMoveRelated() {
     assert ig; assert ig.nodes;
-    ig.nodes.each { node -> 
+    for(node in ig.nodes) { 
       if(!(ig.isSigDeg(node) || node.isMovRelated()))
-        return false;
+        if(!(node.representative instanceof RegisterTempVar))
+          return false;
     }
     return true;
   }
@@ -55,8 +61,10 @@ public class RegisterAllocator {
   // Run this function to fixed point. It implements the flow-diagram in MCIJ in 11.2
   boolean RegAllocationIteration() {
     dbgOut "Now running an iteration of the register allocator."
+
     Build();
 
+    theStack = new ColoringStack(ig);
     spillWorklist = new LinkedHashSet<InterferenceNode>();
 
     while(true) {
@@ -81,10 +89,8 @@ public class RegisterAllocator {
       break;
     }
 
-    ig.nodes.each { println it }
-    ig.edges.each { println it }
-    assert(!OnlySigDegOrMoveRelated())
-    ig.nodes.each { assert it.isMoveRelated() == false }
+    assert OnlySigDegOrMoveRelated();
+    ig.nodes.each { assert it.isMovRelated() == false }
 
     if(!Select()) {
       Spill();
@@ -103,6 +109,7 @@ public class RegisterAllocator {
     RegColor.eachRegColor { rc -> 
       ig.addNode(new InterferenceNode(rc.getRegTempVar())); 
     }
+
     ig.BuildNodeToColoringNodeMap()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       if(node instanceof LowIrMov) {
@@ -111,12 +118,6 @@ public class RegisterAllocator {
       }
     }
     dbgOut "Finished running Build()."
-  }
-
-  void AddNodeToColoringStack(InterferenceNode node) {
-    assert false;
-    // 1. Remove it from ig.
-    // 2. Push it onto the coloringStack.
   }
 
   boolean Simplify() {
@@ -135,7 +136,7 @@ public class RegisterAllocator {
       dbgOut "Could not find a node to simplify."
       return false;
     } else {
-      AddNodeToColoringStack(nodeToSimplify);
+      theStack.PushNodeFromGraphToStack(nodeToSimplify);
       dbgOut "Simplify() removed a node: $nodeToSimplify."
       return true;
     }
@@ -147,11 +148,13 @@ public class RegisterAllocator {
     // Perform conservative coalescing. Nothing fancy here.
     for(pair in [ig.nodes, ig.nodes].combinations()) { 
       if(pair[0] != pair[1])
-        if(ig.CanCoalesceNodes(pair[0], pair[1])) {
-          dbgOut "Found a pair of nodes to coalesce: $pair"
-          ig.CoalesceNodes(pair[0], pair[1]);
-          return true;
-        }
+        if(!(pair[0].representative instanceof RegisterTempVar) && 
+            !(pair[1].representative instanceof RegisterTempVar))
+          if(ig.CanCoalesceNodes(pair[0], pair[1])) {
+            dbgOut "Found a pair of nodes to coalesce: $pair"
+            ig.CoalesceNodes(pair[0], pair[1]);
+            return true;
+          }
     }
 
     dbgOut "Finished trying to coalesce (no more coalesces found!)."
@@ -161,7 +164,7 @@ public class RegisterAllocator {
   boolean Freeze() {
     dbgOut "Now running Freeze()."
 
-    ig.nodes.each { n -> 
+    for(n in ig.nodes) { 
       if(n.isMovRelated() && !ig.isSigDeg()) {
         // Found a freeze-able node.
         dbgOut "Foudn a freeze-able node: $n"
@@ -184,11 +187,11 @@ public class RegisterAllocator {
     dbgOut "Now calculating potential spills."
 
     // need to check that there are no low-degree 
-    ig.nodes.each { node -> 
+    for(node in ig.nodes) { 
       if(ig.isSigDeg(node)) {
         dbgOut "Found potential spill: $node"
         spillWorklist << node;
-        AddNodeToColoringStack(node);
+        theStack.PushNodeFromGraphToStack(node);
         return true;
       }
     }
@@ -197,48 +200,42 @@ public class RegisterAllocator {
     return false
   }
 
-  boolean PopNodeAndTryToColor() {
-    // Note here, or in Select() (or both), we need to add code that tries 
-    // to color (a b -> x) such that b = x. Specifically, consider 
-    // add src, dest. Then this is (src dest -> dest).
-    assert false;
-  }
-
   boolean Select() {
     dbgOut "Now running select." 
 
     // Need to pop each node off the stack and try and color it.
-    while(coloringStack.size() > 0) {
-      if(!PopNodeAndTryToColor())
+    while(!theStack.isEmpty()) {
+      if(theStack.TryPopNodeFromStackToGraph() == false) {
+        dbgOut "Have to spill. Terminating select process." 
         return false;
+      }
     }
 
-    assert spillWorklist.size() == 0;
+    dbgOut "Finished running select, theStack.isEmpty() = ${theStack.isEmpty()}."
     return true;
   }
 
-  InterferenceNode SelectNodeToSpill() {
+  TempVar SelectTempVarToSpill() {
     // Obviously you want something better than this.
-    spillWorklist.asList().first();
+    return theStack.Peek().node.representative;
   }
 
   void Spill() {
-    InterferenceNode spilledNode = SelectNodeToSpill();
-    assert ig.isSigDeg(spilledNode)
-    dbgOut "Now handling a spilled node: $spilledNode"
+    TempVar tempVarToSpill = SelectTempVarToSpill();
+    dbgOut "Spilling the TempVar: $tempVarToSpill"
 
     SpillVar sv = methodDesc.svManager.requestNewSpillVar();
 
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       // Determine if this node uses the spilled var.
-      node.getUses().intersect(spilledNode.nodes).each { use -> 
+      if(node.getUses().contains(tempVarToSpill)) {
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
-        node.SwapUsesUsingMap([(use) : tv])
+        node.SwapUsesUsingMap([(tempVarToSpill) : tv]);
         PlaceSpillLoadBeforeNode(node, sv, tv);
       }
 
       // Determine if this node defines the spilled var.
-      if(spilledNode.nodes.contains(node.getDef())) { 
+      if(tempVarToSpill == node.getDef()) {
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
         node.SwapDefUsingMap([(node.getDef()) : tv])
         PlaceSpillStoreAfterNode(node, sv, tv);
