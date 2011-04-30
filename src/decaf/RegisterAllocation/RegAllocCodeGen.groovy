@@ -95,7 +95,6 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(strLitOperand, getTmp(stmt.tmpVar))
       break
     case LowIrIntLiteral:
-      assert false;
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
