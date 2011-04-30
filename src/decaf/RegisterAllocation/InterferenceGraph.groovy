@@ -23,23 +23,30 @@ public class InterferenceGraph extends ColorableGraph {
     // Make sure results from previous liveness analysis don't interfere
     Traverser.eachNodeOf(methodDesc.lowir) { node -> node.anno.remove('regalloc-liveness') }
 
+    dbgOut "1) Running Liveness Analysis."
     RunLivenessAnalysis()
+
+    dbgOut "2) Setting up variables."
     SetupVariables()
+    dbgOut "Variables = $variables"
+    dbgOut "Finished extracting variables. Number of variables = ${variables.size()}"
+
+    dbgOut "3) Computing the Interference Edges."
     ComputeInterferenceEdges()
+    dbgOut "Finished computing interference edges, total number = ${edges.size()}"
+    edges.each { dbgOut it }
+    dbgOut "-----------"
 
     //DrawDotGraph();
     dbgOut "Finished building the interference graph."
   }
 
   void RunLivenessAnalysis() {
-    dbgOut "Running Liveness Analysis on method: ${methodDesc.name}"
     la = new LivenessAnalysis();
     la.run(methodDesc.lowir)
-    dbgOut "Finished Running Liveness Analysis."
   }
 
   void SetupVariables() {
-    dbgOut "Now extracting all variables from method: ${methodDesc.name}"
     variables = new LinkedHashSet<TempVar>([])
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       node.anno['regalloc-liveness'].each { variables << it }
@@ -48,16 +55,11 @@ public class InterferenceGraph extends ColorableGraph {
     // Now add an interference node for each variable (unless it's a registerTempVar)
     variables.each { v -> 
       if(!(v instanceof RegisterTempVar))
-        addNode(new InterferenceNode(v))
+        AddNode(new InterferenceNode(v))
     }
-
-    dbgOut "Variables = $variables"
-
-    dbgOut "Finished extracting variables. Number of variables = ${variables.size()}"
   }
 
   void ComputeInterferenceEdges() {
-    dbgOut "Now computing interference edges."
     edges = new LinkedHashSet()
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
@@ -99,7 +101,6 @@ public class InterferenceGraph extends ColorableGraph {
     }
 
     UpdateAfterEdgesModified();
-    dbgOut "Finished computing interference edges, total number = ${edges.size()}"
   }
 
   int sigDeg() {
@@ -132,7 +133,7 @@ public class InterferenceGraph extends ColorableGraph {
     assert CanCoalesceNodes(a, b);
 
     InterferenceNode c = a.CoalesceWith(b);
-    addNode(c);
+    AddNode(c);
 
     // Now we have to make sure to have transferred the edges.
     List<InterferenceEdge> edgesToAdd = []
@@ -176,14 +177,8 @@ public class InterferenceGraph extends ColorableGraph {
   }
 
   ColoringNode GetColoringNode(TempVar tv) {
-    println tv;
     assert tv;
     assert nodeToColoringNode;
-    println "1________"
-    nodeToColoringNode.keySet().each {println it }
-    println "2________"
-    println tv
-    println "3_________"
     assert nodeToColoringNode.keySet().contains(tv);
     assert nodeToColoringNode[tv].nodes.contains(tv);
     return nodeToColoringNode[tv];
@@ -202,7 +197,9 @@ public class InterferenceGraph extends ColorableGraph {
     }
 
     // We need the set of coloring nodes that make up the neighbors.
-    addNode(iNode);
+    println "adding node. ${nodes.size()}"
+    AddNode(iNode);
+    println "ok, ${nodes.size()}"
     interferenceNeighbors.each { addEdge(new InterferenceEdge(iNode, it)) }
 
     Validate();

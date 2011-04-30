@@ -9,8 +9,8 @@ class RegAllocCodeGen extends CodeGenerator {
   }
 
   void handleMethod(MethodDescriptor method) {
+    println "USING REGALLOC CODEGEN!"
     this.method = method
-    this.method.svManager.ConstructFinalLineup();
     asmMacro('.globl', method.name)
     emit(method.name + ':')
     enter(8*(method.params.size() + method.svManager.getNumSpillVarsToAllocate()),0)
@@ -27,7 +27,7 @@ class RegAllocCodeGen extends CodeGenerator {
       return rbp(-8 * (1 + method.svManager.getLocOfSpillVar(tmp)));
     case TempVarType.REGISTER:
       assert tmp instanceof RegisterTempVar;
-      return (new RegColor(tmp.registerName)).getOperand();
+      return RegColor.getReg(tmp.registerName).getOperand();
     case TempVarType.LOCAL: 
       assert false; // We no longer have "locals".
     default:

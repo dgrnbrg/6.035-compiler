@@ -31,6 +31,8 @@ public class RegisterAllocator {
   }
 
   void DoColoring() {
+    dbgOut "Now actually coloring the graph."
+
     // Build the map from tmpVar to color
     def tmpVarToRegTempVar = [:]
     ig.BuildNodeToColoringNodeMap();
@@ -40,6 +42,11 @@ public class RegisterAllocator {
         assert n instanceof TempVar
         tmpVarToRegTempVar[n] = node.color.getRegTempVar();
       }
+    }
+
+    tmpVarToRegTempVar.keySet().each { 
+      if(!(it instanceof RegisterTempVar))
+        println "[$it, ${tmpVarToRegTempVar[it]}]"
     }
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
@@ -107,7 +114,7 @@ public class RegisterAllocator {
     println "created the new interference graph."
 
     RegColor.eachRegColor { rc -> 
-      ig.addNode(new InterferenceNode(rc.getRegTempVar())); 
+      ig.AddNode(new InterferenceNode(rc.getRegTempVar())); 
     }
 
     ig.BuildNodeToColoringNodeMap()
@@ -125,7 +132,7 @@ public class RegisterAllocator {
 
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
     InterferenceNode nodeToSimplify = ig.nodes.find { cn -> 
-      if(cn.isMovRelated() && cn.isSigDeg())
+      if(cn.isMovRelated() && ig.isSigDeg(cn))
         return false;
       else if(cn.representative instanceof RegisterTempVar)
         return false;

@@ -19,7 +19,7 @@ public class ColorableGraph {
     nodeToColoringNode = new LinkedHashMap();
   }
 
-  void addNode(ColoringNode cn) {
+  void AddNode(ColoringNode cn) {
     assert cn;
     cn.Validate();
     assert !nodes.contains(cn);
@@ -195,8 +195,6 @@ public class ColoringNode {
   }
 
   public SetColor(RegColor rc) {
-    println this;
-    println rc;
     assert rc; assert color == null;
     color = rc;
   }

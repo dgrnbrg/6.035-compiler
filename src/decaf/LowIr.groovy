@@ -467,8 +467,8 @@ class LowIrMov extends LowIrNode {
 
   void SwapDefUsingMap(mapToApply) {
     assert mapToApply != null
-    if(mapToApply[(dest)])
-      dest = mapToApply[(dest)]
+    if(mapToApply[(dst)])
+      dst = mapToApply[(dst)]
   }
 }
 
