@@ -67,6 +67,8 @@ public class InterferenceGraph extends ColorableGraph {
       // Add the interference edges.
       def liveVars = node.anno['regalloc-liveness']
 
+      dbgOut "liveVars = $liveVars"
+
       if(node.getDef()) {
         liveVars.each { v -> 
           if(node.getDef() != v)
@@ -79,20 +81,20 @@ public class InterferenceGraph extends ColorableGraph {
       case LowIrBinOp:
         if(node.op == BinOpType.DIV || node.op == BinOpType.MOD)
           liveVars.each { 
-            AddEdge(new InterferenceEdge(RegColor.RDX.getRetTempVar(), GetColoringNode(it))) 
-            AddEdge(new InterferenceEdge(RegColor.RAX.getRetTempVar(), GetColoringNode(it))) 
+            AddEdge(new InterferenceEdge(Reg.RDX.getRegisterTempVar(), GetColoringNode(it))) 
+            AddEdge(new InterferenceEdge(Reg.RAX.getRegisterTempVar(), GetColoringNode(it))) 
           }
         break;
       case LowIrMethodCall:
       case LowIrCallOut:
         node.paramTmpVars.eachWithIndex { ptv, i -> 
           if(i < 6) 
-            ForceNodeColor(GetColoringNode(ptv), RegColor.getRegOfArgNum(i + 1));
+            ForceNodeColor(GetColoringNode(ptv), Reg.getRegOfParamArgNum(i + 1));
         }
         break;
       case LowIrReturn:
         if(methodDesc.returnType != Type.VOID)
-          ForceNodeToColor(GetColoringNode(node.tmpVar), RegColor.RAX);
+          ForceNodeToColor(GetColoringNode(node.tmpVar), Reg.RAX);
         break;
       default:
         // Nothing else here at the time.
@@ -100,7 +102,14 @@ public class InterferenceGraph extends ColorableGraph {
       }
     }
 
-    UpdateAfterEdgesModified();
+    println "The number of edges alpha is ${edges.size()}"
+    UpdateAfterNodesModified();
+
+    println "The number of edges is ${edges.size()}"
+    println "This is what the neighbortable looks like now:"
+    neighborTable.neighbors.keySet().each {
+      println " $it = ${neighborTable.neighbors[it]}"
+    }
   }
 
   int sigDeg() {
@@ -162,26 +171,33 @@ public class InterferenceGraph extends ColorableGraph {
     }
   }
 
-  public void ForceNodeColor(InterferenceNode nodeToForce, RegColor color) {
+  public void ForceNodeColor(InterferenceNode nodeToForce, Reg color) {
     assert nodeToForce;
     assert color;
 
-    RegColor.eachRegNode { rn -> 
-      if(rn != color) 
-        AddEdge(new InterferenceEdge(nodeToForce, n));
+    Reg.eachReg { r -> 
+      if(r != color) 
+        AddEdge(new InterferenceEdge(nodeToForce, r));
     }
   }
 
-  public void ForceNodeNotColor(InterferenceNode nodeToForce, RegColor color) {
+  public void ForceNodeNotColor(InterferenceNode nodeToForce, Reg color) {
     AddEdge(new InterferenceEdge(nodeToForce, color));
   }
 
-  ColoringNode GetColoringNode(TempVar tv) {
+  ColoringNode GetColoringNode(def tv) {
     assert tv;
+    assert tv instanceof TempVar
     assert nodeToColoringNode;
     assert nodeToColoringNode.keySet().contains(tv);
     assert nodeToColoringNode[tv].nodes.contains(tv);
     return nodeToColoringNode[tv];
+  }
+
+  void AddMovRelation(TempVar src, TempVar dst) {
+    assert src; assert dst;
+    GetColoringNode(src).AddMovRelation(dst);
+    GetColoringNode(dst).AddMovRelation(src);
   }
 
   void AddNodeWithPreExistingNeighbors(InterferenceNode iNode, LinkedHashSet<TempVar> neighbors) {
@@ -200,12 +216,12 @@ public class InterferenceGraph extends ColorableGraph {
     println "adding node. ${nodes.size()}"
     AddNode(iNode);
     println "ok, ${nodes.size()}"
-    interferenceNeighbors.each { addEdge(new InterferenceEdge(iNode, it)) }
+    interferenceNeighbors.each { AddEdge(new InterferenceEdge(iNode, it)) }
 
     Validate();
   }
 
-  LinkedHashSet<TempVar> GetNeighborsAndThenRemoveNode(InterferenceNode iNode) {
+  LinkedHashSet<InterferenceNode> GetNeighborsAndThenRemoveNode(InterferenceNode iNode) {
     Validate();
     LinkedHashSet<TempVar> neighbors = GetNeighbors(iNode);
     RemoveNode(iNode);
@@ -247,7 +263,7 @@ class InterferenceNode extends ColoringNode {
     super(tv);
     if(tv instanceof RegisterTempVar) {
       assert tv.registerName;
-      color = RegColor.getReg(tv.registerName);
+      color = Reg.getReg(tv.registerName);
     }
 
     movRelatedNodes = new LinkedHashSet();
@@ -295,7 +311,7 @@ class InterferenceNode extends ColoringNode {
   }
 
   public String toString() {
-    return "[InterferenceNode. Rep = $representative, color = $color, frozen = $frozen]"
+    return "[InterferenceNode. Rep = $representative, clr = $color, frz = $frozen]"
   }
 
   public void Validate() {
@@ -308,7 +324,7 @@ class InterferenceNode extends ColoringNode {
     movRelatedNodes.each { assert it instanceof TempVar }
     assert (movRelatedNodes.intersect(nodes)).size() == 0;
     if(color != null) 
-      assert color instanceof RegColor
+      assert color instanceof Reg
   }
 }
 

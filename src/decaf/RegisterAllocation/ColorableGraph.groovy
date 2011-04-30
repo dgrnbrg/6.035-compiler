@@ -20,10 +20,10 @@ public class ColorableGraph {
   }
 
   void AddNode(ColoringNode cn) {
-    assert cn;
     cn.Validate();
     assert !nodes.contains(cn);
     nodes << cn;
+    assert nodes.contains(cn);
     UpdateAfterNodesModified();
   }
 
@@ -32,6 +32,7 @@ public class ColorableGraph {
     cn.Validate();
     assert nodes.contains(cn);
     nodes.remove(cn);
+    assert !nodes.contains(cn);
     UpdateAfterNodesModified();
   }
   
@@ -41,18 +42,23 @@ public class ColorableGraph {
     assert nodes.contains(ce.cn1);
     assert nodes.contains(ce.cn2);
     assert ce.cn1 != ce.cn2;
-    assert !edges.contains(ce);
+    assert !edges.contains(ce.cn1);
+    println "Adding the edge $ce"
     edges << ce;
+    assert edges.contains(ce);
     UpdateAfterEdgesModified();
+    assert GetNeighbors(ce.cn1).contains(ce.cn2);
+    assert GetNeighbors(ce.cn2).contains(ce.cn1);
   }
 
   void RemoveEdge(ColoringEdge ce) {
     assert ce; 
     ce.Validate();
-    assert edges.contains(ce);
     assert nodes.contains(ce.cn1);
     assert nodes.contains(ce.cn2);
+    assert edges.contains(ce);
     edges.remove(ce);
+    assert !edges.contains(ce);
     UpdateAfterEdgesModified();
   }
 
@@ -62,12 +68,19 @@ public class ColorableGraph {
 
   LinkedHashSet<ColoringNode> GetNeighbors(ColoringNode node) {
     assert node;
+    neighborTable.Build(nodes, edges)
     return neighborTable.GetNeighbors(node);
   }
 
   void UpdateAfterNodesModified() {
     // remove edges that have nodes that don't exist
-    edges.retainAll(edges.collect { nodes.contains(it.cn1) && nodes.contains(it.cn2) } );
+    LinkedHashSet<ColoringEdge> edgesToRemove = [];
+    edges.each { ce ->
+      if(!(nodes.contains(ce.cn1) && nodes.contains(ce.cn2)))
+        edgesToRemove << ce;
+    }
+    edgesToRemove.each { edges.remove(it) }
+
     BuildNodeToColoringNodeMap();
     UpdateAfterEdgesModified()
   }
@@ -121,21 +134,28 @@ public class ColorableGraph {
 
 public class NeighborTable {
   // map from coloring node to the set of it's neighbors
-  def neighbors = [:]
+  LinkedHashMap neighbors = [:]
 
   // map from a degree value (integer) to the coloring nodes with that degree
   // (using whatever graph structure the Build function takes in).
-  def degreeMap = [:]
+  LinkedHashMap degreeMap = [:]
 
   public NeighborTable(nodes, edges) {
     assert nodes != null; assert edges != null;
+    println "Creating neighbor table."
+    println "nodes = "
+    nodes.each { println it }
+    println "edges = "
+    edges.each { println it }
     Build(nodes, edges)
   }
 
   LinkedHashSet<ColoringNode> GetNeighbors(ColoringNode cn) {
     assert neighbors != null;
-    assert neighbors[(cn)] != null;
-    return neighbors[(cn)]
+    assert cn;
+    cn.Validate();
+    assert neighbors[cn] != null;
+    return neighbors[cn]
   }
 
   int GetDegree(ColoringNode cn) {
@@ -145,16 +165,25 @@ public class NeighborTable {
   }
 
   void Build(LinkedHashSet<ColoringNode> nodes, LinkedHashSet<ColoringEdge> edges) {
+    assert nodes != null; assert edges != null;
+    //println "building the neighbor table. nodes.size() = ${nodes.size()}, edges.size() = ${edges.size()}"
+
     neighbors = [:];
 
     // Populate neighborTable
-    nodes.each { n -> neighbors[(n)] = new LinkedHashSet<ColoringNode>(); }
+    nodes.each { n -> neighbors[n] = new LinkedHashSet(); }
 
     edges.each { edge -> 
-      neighbors[(edge.cn1)] += [edge.cn2]
-      neighbors[(edge.cn2)] += [edge.cn1]
+      //println "adding an edge to the neighbor table: $edge"
+      assert neighbors[edge.cn1].contains(edge.cn2) == false;
+      neighbors[edge.cn1] << edge.cn2;
+      //println "${neighbors[edge.cn1]}"
+      assert neighbors[edge.cn2].contains(edge.cn1) == false;
+      neighbors[edge.cn2] << edge.cn1;
+      //println "${neighbors[edge.cn2]}"
     }
 
+    //neighbors.keySet().each { println "[$it, ${neighbors[it]}]" }
     BuildDegreeMap(nodes);
   }
 
@@ -169,10 +198,24 @@ public class NeighborTable {
       degreeMap[degree] << node;
     }
   }
+
+  void PrettyPrint() {
+    println "Here is the neighbor table... Omitted entries for RegisterTempVars."
+    neighbors.keySet().each { n -> 
+      if(n.representative instanceof RegisterTempVar == false) {
+        println "$n"
+        neighbors[n].each { 
+          if(!(it.representative instanceof RegisterTempVar))
+            println "  $it"
+        }
+      }
+    }
+    println "------------------------------"
+  }
 }
 
 public class ColoringNode {
-  RegColor color = null;
+  Reg color = null;
   def representative = null;
   LinkedHashSet nodes = new LinkedHashSet();
 
@@ -194,9 +237,9 @@ public class ColoringNode {
     return nodes;
   }
 
-  public SetColor(RegColor rc) {
-    assert rc; assert color == null;
-    color = rc;
+  public SetColor(Reg r) {
+    assert r; assert this.color == null;
+    this.color = r;
   }
 
   public void Validate() {

@@ -16,12 +16,7 @@ class TempVar {
 }
 
 class RegisterTempVar extends TempVar {
-  def registerName = ''
-  
-  public RegisterTempVar() {
-    id = -1
-    type = TempVarType.REGISTER
-  }
+  String registerName;
 
   public RegisterTempVar(String name) {
     assert name

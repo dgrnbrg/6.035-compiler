@@ -3,7 +3,7 @@ package decaf
 import groovy.util.*
 import decaf.*
 import decaf.graph.*
-import static decaf.RegColor.eachRegNode
+import static decaf.Reg.eachRegNode
 
 public class RegisterAllocator {
   def dbgOut = { str -> assert str; println str; }
@@ -40,7 +40,7 @@ public class RegisterAllocator {
       node.nodes.each { n ->
         assert node.color;
         assert n instanceof TempVar
-        tmpVarToRegTempVar[n] = node.color.getRegTempVar();
+        tmpVarToRegTempVar[n] = node.color.GetRegisterTempVar();
       }
     }
 
@@ -71,7 +71,6 @@ public class RegisterAllocator {
 
     Build();
 
-    theStack = new ColoringStack(ig);
     spillWorklist = new LinkedHashSet<InterferenceNode>();
 
     while(true) {
@@ -111,19 +110,20 @@ public class RegisterAllocator {
     dbgOut "Now running Build()."
 
     ig = new InterferenceGraph(methodDesc);
-    println "created the new interference graph."
+    theStack = new ColoringStack(ig);
 
-    RegColor.eachRegColor { rc -> 
-      ig.AddNode(new InterferenceNode(rc.getRegTempVar())); 
+    Reg.eachReg { r -> 
+      ig.AddNode(new InterferenceNode(r.GetRegisterTempVar())); 
     }
 
     ig.BuildNodeToColoringNodeMap()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      if(node instanceof LowIrMov) {
-        ig.GetColoringNode(node.src).AddMovRelation(node.dst);
-        ig.GetColoringNode(node.dst).AddMovRelation(node.src);
-      }
+      if(node instanceof LowIrMov)
+        ig.AddMovRelation(node.src, node.dst)
     }
+
+    ig.neighborTable.PrettyPrint();
+
     dbgOut "Finished running Build()."
   }
 
@@ -280,81 +280,6 @@ public class RegisterAllocator {
         if(p.falseDest == siteOfSpiill)
           p.falseDest = nodeToPlace;
       }
-    }
-  }
-}
-
-public enum RegColor {
-  RAX('rax'), RBX('rbx'), RCX('rcx'), RDX('rdx'), RSI('rsi'), 
-  RDI('rdi'), R8('r8'),   R9('r9'),   R10('r10'), R11('r11'),
-  R12('r12'), R13('r13'), R14('r14'), R15('r15');
-
-  private final String strRegColor;
-  private final RegisterTempVar rtv;
-  private final Operand operand;
-  static LinkedHashMap regNameToRegColor;
-  final List<RegColor> callerSaveRegisters;
-  final List<RegColor> calleeSaveRegisters;
-  final List<RegColor> parameterRegisters;
-
-  RegColor(String strRegColor) {
-    assert ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
-            'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15'].contains(strRegColor)
-    this.strRegColor = strRegColor;
-    this.rtv = new RegisterTempVar(strRegColor);
-    
-    operand = new Operand(strRegColor);
-    callerSaveRegisters = [RCX, RDX, RSI, RDI, R8, R9, R10, R11];
-    calleeSaveRegisters = [RBX, R12, R13, R14, R15];
-    parameterRegisters = [RDI, RSI, RDX, RCX, R8, R9];
-  }
-
-  String getRegName() { 
-    assert strRegColor;
-    return strRegColor; 
-  }
-
-  String toString() { 
-    assert this.strRegColor
-    return this.strRegColor 
-  }
-
-  RegisterTempVar getRegTempVar() { 
-    assert this.rtv
-    return this.rtv; 
-  }
-
-  Operand getOperand() { 
-    return this.operand 
-  }
-
-  static RegColor getRegOfParamArgNum(int argNum) {
-    switch(argNum) {
-    case 1: return RegColor.RDI;
-    case 2: return RegColor.RSI;
-    case 3: return RegColor.RDX;
-    case 4: return RegColor.RCX;
-    case 5: return RegColor.R8;
-    case 6: return RegColor.R9;
-    default: assert false;
-    }
-  }
-
-  static RegColor getReg(String regName) {
-    for(rc in RegColor.values()) {
-      assert rc instanceof RegColor
-      if(regName == rc.strRegColor)
-        return rc;
-    }
-
-    assert false;
-  }
-
-  static def eachRegColor = { c -> 
-    assert c; 
-    return RegColor.values().collect { 
-      assert it instanceof RegColor;
-      c(it)
     }
   }
 }

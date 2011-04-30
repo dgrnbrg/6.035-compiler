@@ -1,6 +1,7 @@
 package decaf
 import decaf.graph.*
 import static decaf.BinOpType.*
+import static decaf.Reg.eachRegNode
 
 class RegAllocCodeGen extends CodeGenerator {
 
@@ -27,7 +28,7 @@ class RegAllocCodeGen extends CodeGenerator {
       return rbp(-8 * (1 + method.svManager.getLocOfSpillVar(tmp)));
     case TempVarType.REGISTER:
       assert tmp instanceof RegisterTempVar;
-      return RegColor.getReg(tmp.registerName).getOperand();
+      return new Operand(Reg.getReg(tmp.registerName));
     case TempVarType.LOCAL: 
       assert false; // We no longer have "locals".
     default:
@@ -35,28 +36,28 @@ class RegAllocCodeGen extends CodeGenerator {
     }
   }
 
-  void PreserveRegister(RegColor rc) {
-    movq(rc.getOperand(), getTmp(method.svManager.getPreservedRegister(regName)));
+  void PreserveRegister(Reg r) {
+    movq(r, getTmp(method.svManager.getPreservedRegister(r.toString())));
   }
 
-  void RestoreRegister(RegColor rc) {
-    movq(getTmp(method.svManager.getPreservedRegister(regName)), rc.getOperand());
+  void RestoreRegister(Reg r) {
+    movq(getTmp(method.svManager.getPreservedRegister(r.toString())), r);
   }
 
   void PreserveCallerRegisters() {
-    RegColor.callerSaveRegisters.each { PreserveRegister(it); }
+    Reg.GetCallerSaveRegisters.each { PreserveRegister(it); }
   }
 
   void RestoreCallerRegisters() {
-    RegColor.callerSaveRegisters.each { RestoreRegister(it); }
+    Reg.GetCallerSaveRegisters.each { RestoreRegister(it); }
   }
 
   void PreserveCalleeRegisters() {
-    RegColor.calleeSaveRegisters.each { PreserveRegister(it); }
+    Reg.GetCalleeSaveRegisters.each { PreserveRegister(it); }
   }
 
   void RestoreCalleeRegisters() {
-    RegColor.calleeSaveRegisters.each { RestoreRegister(it); }
+    Reg.GetCalleeSaveRegisters.each { RestoreRegister(it); }
   }
 
   void ValidateFirstSixArgumentsAndReturnRegisters(LowIrNode stmt) {
@@ -65,7 +66,7 @@ class RegAllocCodeGen extends CodeGenerator {
     stmt.paramTmpVars.eachWithIndex { ptv, i -> 
       if(i < numRegParams) {
         assert ptv instanceof RegisterTempVar;
-        assert RegColor.parameterRegisters.contains(new RegColor(ptv.registerName));
+        assert Reg.GetParameterRegisters().contains(Reg.getReg(ptv.registerName));
       } 
     }
     assert stmt.getDef() instanceof RegisterTempVar;
