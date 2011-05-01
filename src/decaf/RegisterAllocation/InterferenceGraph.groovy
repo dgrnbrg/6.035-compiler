@@ -32,7 +32,7 @@ public class InterferenceGraph extends ColorableGraph {
     dbgOut "3) Setting up variables."
     SetupVariables()
     dbgOut "Variables (${variables.size()} in total):"
-    variables.each { v -> dbgOut "  $v" }
+    //variables.each { v -> dbgOut "  $v" }
     dbgOut "Finished extracting variables."
 
     dbgOut "4) Computing the Interference Edges."
@@ -64,15 +64,21 @@ public class InterferenceGraph extends ColorableGraph {
     variables = new LinkedHashSet<TempVar>([])
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       node.anno['regalloc-liveness'].each { variables << it }
+      if(node.getDef())
+        variables << node.getDef();
+      if(node.getUses() != null)
+        node.getUses().each { tv -> variables << tv }
     }
 
     LinkedHashMap varToMovRelations
 
     // Now add an interference node for each variable (unless it's a registerTempVar)
+    println "Before: ${nodes.size()}"
     variables.each { v -> 
       if(!(v instanceof RegisterTempVar))
         AddNode(new InterferenceNode(v))
     }
+    println "After: ${nodes.size()}"
   }
 
   void ComputeInterferenceEdges() {
@@ -85,13 +91,16 @@ public class InterferenceGraph extends ColorableGraph {
 
       // Uncomment to see liveness analysis results.
       dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
-      //dbgOut "  liveVars = $liveVars"
+      liveVars.each { dbgOut "  $it" }
 
       // This is where we actually add edges based on the liveness analysis.
       if(node.getDef()) {
-        liveVars.each { v -> 
-          if(liveVars.contains(node.getDef()) && node.getDef() != v)
-            AddEdge(new InterferenceEdge(GetColoringNode(v), GetColoringNode(node.getDef())))
+        liveVars.each { v ->
+          if(node.getDef() != v) {
+            InterferenceEdge edgeToAdd = new InterferenceEdge(GetColoringNode(v), GetColoringNode(node.getDef()))
+            //dbgOut "Adding iEdge: $edgeToAdd"
+            AddEdge(edgeToAdd);
+          }
         }
       }
 
@@ -99,11 +108,24 @@ public class InterferenceGraph extends ColorableGraph {
       switch(node) {
       case LowIrBinOp:
         // Handle modulo and division blocking.
-        if(node.op == BinOpType.DIV || node.op == BinOpType.MOD)
-          liveVars.each { 
-            AddEdge(new InterferenceEdge(regToInterferenceNode[Reg.RDX.GetRegisterTempVar()], GetColoringNode(it))) 
-            AddEdge(new InterferenceEdge(regToInterferenceNode[Reg.RAX.GetRegisterTempVar()], GetColoringNode(it))) 
+        switch(node.op) {
+        case BinOpType.DIV:
+          ForceNodeColor(GetColoringNode(node.tmpVar), Reg.RAX);
+          liveVars.each {
+            if(it != node.tmpVar)
+              ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
+            ForceNodeNotColor(GetColoringNode(it), Reg.RDX);
           }
+          break;
+        case BinOpType.MOD:
+          ForceNodeColor(GetColoringNode(node.tmpVar), Reg.RDX);
+          liveVars.each {
+            if(it != node.tmpVar)
+              ForceNodeNotColor(GetColoringNode(it), Reg.RDX);
+            ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
+          }
+          break;
+        }
         break;
       case LowIrMethodCall:
       case LowIrCallOut:
@@ -124,6 +146,7 @@ public class InterferenceGraph extends ColorableGraph {
 
     UpdateAfterNodesModified();
     dbgOut "The number of interference edges is: ${edges.size()}"
+    //edges.each { e -> dbgOut "$e" }
   }
 
   int sigDeg() {
@@ -143,6 +166,8 @@ public class InterferenceGraph extends ColorableGraph {
     if(a.isMovRelated() && b.isMovRelated()) {
       if(a.movRelatedNodes.contains(b.representative) &&
           b.movRelatedNodes.contains(a.representative)) {
+        dbgOut "COALESCING!"
+        //assert false; // <- cool!
         int numNewNeighbors = (neighborTable.GetNeighbors(a) + neighborTable.GetNeighbors(b)).size()
         return (numNewNeighbors < sigDeg());
       }
@@ -197,7 +222,7 @@ public class InterferenceGraph extends ColorableGraph {
   }
 
   public void ForceNodeNotColor(InterferenceNode nodeToForce, Reg color) {
-    AddEdge(new InterferenceEdge(nodeToForce, color));
+    AddEdge(new InterferenceEdge(nodeToForce, GetColoringNode(color.GetRegisterTempVar())));
   }
 
   ColoringNode GetColoringNode(def tv) {
@@ -241,9 +266,7 @@ public class InterferenceGraph extends ColorableGraph {
     }
 
     // We need the set of coloring nodes that make up the neighbors.
-    println "adding node. ${nodes.size()}"
     AddNode(iNode);
-    println "ok, ${nodes.size()}"
     interferenceNeighbors.each { AddEdge(new InterferenceEdge(iNode, it)) }
 
     Validate();
@@ -339,7 +362,7 @@ class InterferenceNode extends ColoringNode {
   }
 
   public String toString() {
-    return "[InterNode. Rep = $representative, clr = $color, mr = ${isMovRelated()}]"
+    return "[INd, Rep = $representative]";//, clr = $color, mr = ${isMovRelated()}]"
   }
 
   public void Validate() {
@@ -356,30 +379,28 @@ class InterferenceNode extends ColoringNode {
   }
 }
 
-class InterferenceEdge extends ColoringEdge {
+public class InterferenceEdge extends ColoringEdge {
   public InterferenceEdge(ColoringNode a, ColoringNode b) {
     super(a, b)
   }
 
   public String toString() {
-    return "[InterferenceEdge. cn1 = $cn1, cn2 = $cn2]"
+    return "[InterferenceEdge. nodes = $nodes]"
   }
 
   public void Validate() {
-    assert cn1; assert cn2;
-    assert cn1 instanceof InterferenceNode;
-    assert cn2 instanceof InterferenceNode;
-    cn1.Validate();
-    cn2.Validate();
-    if(cn1.color && cn2.color)
-      assert cn1.color != cn2.color;
-    cn1.movRelatedNodes.each { mrn -> 
-      if(mrn != cn2.representative)
-        assert cn2.nodes.contains(mrn) == false;
+    assert nodes; assert nodes.size() == 2;
+    nodes.each { 
+      it instanceof InterferenceNode;
+      it.Validate();
     }
-    cn2.movRelatedNodes.each { mrn -> 
-      if(mrn != cn1.representative)
-        assert cn1.nodes.contains(mrn) == false;
+    if(N1().color && N2().color)
+      assert N1().color != N2().color;
+    PerformSymmetric { cn1, cn2 -> 
+      cn1.movRelatedNodes.each { mrn -> 
+        if(mrn != cn2.representative)
+          assert cn2.nodes.contains(mrn) == false;
+      }
     }
   }
 }

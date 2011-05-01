@@ -10,7 +10,6 @@ class RegAllocCodeGen extends CodeGenerator {
   }
 
   void handleMethod(MethodDescriptor method) {
-    println "USING REGALLOC CODEGEN!"
     this.method = method
     asmMacro('.globl', method.name)
     emit(method.name + ':')
@@ -75,6 +74,8 @@ class RegAllocCodeGen extends CodeGenerator {
   }
 
   void visitNode(GraphNode stmt) {
+
+    emit("// visiting node $stmt");
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
@@ -84,6 +85,8 @@ class RegAllocCodeGen extends CodeGenerator {
 
     if(stmt.anno["trace"]["start"] || stmt.anno["trace"]["JmpDest"])
       emit(stmt.label + ':')
+
+
 
     switch (stmt) {
     case LowIrStringLiteral:
@@ -128,8 +131,9 @@ class RegAllocCodeGen extends CodeGenerator {
       // Now optionally don't do the mov (since you shouldn't encounter that tmpVar anyway).
       if(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar)
         movq(rax,getTmp(stmt.tmpVar))
-      else
-        println "Don't have a return value to worry about!"
+      else {
+        //println "Don't have a return value to worry about!"
+      }
 
       RestoreCallerRegisters();
 
@@ -150,7 +154,6 @@ class RegAllocCodeGen extends CodeGenerator {
       ret()
       break
     case LowIrCondJump:
-      assert false;
       assert stmt.condition instanceof RegisterTempVar;
       cmp(1, getTmp(stmt.condition))
       je(stmt.trueDest.label)
@@ -252,6 +255,7 @@ class RegAllocCodeGen extends CodeGenerator {
         imul(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
         break
       case DIV:
+        println stmt.tmpVar.registerName;
         assert stmt.tmpVar.registerName == 'rax'
         movq(0, rdx)
         // these redundant move checks should be removed once we write the 
@@ -282,12 +286,10 @@ class RegAllocCodeGen extends CodeGenerator {
     case LowIrPhi:
       break
     case LowIrStoreSpill:
-      assert false;
       assert stmt.storeLoc instanceof SpillVar
       movq(getTmp(stmt.value), getTmp(stmt.storeLoc));
       break;
     case LowIrLoadSpill:
-      assert false;
       assert stmt.loadLoc instanceof SpillVar;
       movq(getTmp(stmt.loadLoc), getTmp(stmt.tmpVar));
       break;

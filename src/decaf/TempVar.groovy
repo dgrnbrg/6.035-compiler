@@ -11,7 +11,8 @@ class TempVar {
   Collection<LowIrNode> useSites = []
 
   String toString() {
-    "TempVar($id, $type)"
+    "TV($id, $type)"
+    //"TempVar($id, $type)"
   }
 }
 
@@ -26,7 +27,8 @@ class RegisterTempVar extends TempVar {
   }
 
   String toString() {
-    "RegisterTempVar($registerName)"
+    "RegTV($registerName)"
+    //"RegisterTempVar($registerName)"
   }
 }
 

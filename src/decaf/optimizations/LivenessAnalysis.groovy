@@ -26,11 +26,15 @@ class LivenessAnalysis extends Analizer {
   }
 
   def gen(node) {
+    //if(node instanceof LowIrIntLiteral)
+    //  println "gen: $node, ${node.getUses()}"
     return new LinkedHashSet(node.getUses())
   }
 
   def kill(node) {
-    return Collections.singleton(node.getDef())
+    //if(node instanceof LowIrIntLiteral)
+    //  println "kill: $node, ${node.getDef()}"
+    return Collections.singleton(node.getDef());    
   }
 
   Set transfer(GraphNode node, Set input) {

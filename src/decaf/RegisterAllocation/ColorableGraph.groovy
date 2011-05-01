@@ -39,15 +39,14 @@ public class ColorableGraph {
   void AddEdge(ColoringEdge ce) {
     assert ce; 
     ce.Validate();
-    assert nodes.contains(ce.cn1);
-    assert nodes.contains(ce.cn2);
-    assert ce.cn1 != ce.cn2;
-    assert !edges.contains(ce.cn1);
+    ce.nodes.each { assert nodes.contains(it); }
+    assert !edges.contains(ce);
     edges << ce;
     assert edges.contains(ce);
     UpdateAfterEdgesModified();
-    assert GetNeighbors(ce.cn1).contains(ce.cn2);
-    assert GetNeighbors(ce.cn2).contains(ce.cn1);
+    ce.PerformSymmetric { cn1, cn2 -> 
+      assert GetNeighbors(cn1).contains(cn2);
+    }
   }
 
   void RemoveEdge(ColoringEdge ce) {
@@ -75,7 +74,7 @@ public class ColorableGraph {
     // remove edges that have nodes that don't exist
     LinkedHashSet<ColoringEdge> edgesToRemove = [];
     edges.each { ce ->
-      if(!(nodes.contains(ce.cn1) && nodes.contains(ce.cn2)))
+      if(!(ce.And { cn -> nodes.contains(cn) }))
         edgesToRemove << ce;
     }
     edgesToRemove.each { edges.remove(it) }
@@ -160,24 +159,19 @@ public class NeighborTable {
 
   void Build(LinkedHashSet<ColoringNode> nodes, LinkedHashSet<ColoringEdge> edges) {
     assert nodes != null; assert edges != null;
-    //println "building the neighbor table. nodes.size() = ${nodes.size()}, edges.size() = ${edges.size()}"
-
     neighbors = [:];
 
     // Populate neighborTable
     nodes.each { n -> neighbors[n] = new LinkedHashSet(); }
 
     edges.each { edge -> 
-      //println "adding an edge to the neighbor table: $edge"
-      assert neighbors[edge.cn1].contains(edge.cn2) == false;
-      neighbors[edge.cn1] << edge.cn2;
-      //println "${neighbors[edge.cn1]}"
-      assert neighbors[edge.cn2].contains(edge.cn1) == false;
-      neighbors[edge.cn2] << edge.cn1;
-      //println "${neighbors[edge.cn2]}"
+      edge.PerformSymmetric { cn1, cn2 -> 
+        //println "cn1 = $cn1, cn2 = $cn2"
+        assert neighbors.keySet().contains(cn1);
+        neighbors[cn1] << cn2; 
+      }
     }
 
-    //neighbors.keySet().each { println "[$it, ${neighbors[it]}]" }
     BuildDegreeMap(nodes);
   }
 
@@ -242,16 +236,37 @@ public class ColoringNode {
 }
 
 public class ColoringEdge {
-  ColoringNode cn1;
-  ColoringNode cn2;
+  LinkedHashSet<ColoringNode> nodes;
 
   public ColoringEdge(ColoringNode a, ColoringNode b) {
     assert a; assert b;
-    cn1 = a;
-    cn2 = b;
+    nodes = new LinkedHashSet<ColoringNode>([a, b]);
   }
 
   public void Validate() {
     assert false;
+  }
+
+  ColoringNode N1() {
+    assert nodes.size() == 2;
+    return nodes.asList()[0]
+  }
+
+  ColoringNode N2() {
+    assert nodes.size() == 2;
+    return nodes.asList()[1]
+  }
+
+  void PerformSymmetric(def c) {
+    c(N1(), N2());  
+    c(N2(), N1());
+  }
+
+  boolean And(def c) {
+    return c(N1()) && c(N2());
+  }
+
+  boolean Or(def c) {
+    return c(N1()) || c(N2());
   }
 }

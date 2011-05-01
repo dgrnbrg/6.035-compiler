@@ -25,13 +25,15 @@ public class RegisterAllocator {
   }
 
   void RunRegAllocToFixedPointAndColor() {
+    dbgOut "Beginning Register Allocation."
     while(RegAllocationIteration());
 
     DoColoring();
+    dbgOut "Finished Register Allocation."
   }
 
   void DoColoring() {
-    dbgOut "Now actually coloring the graph."
+    dbgOut "Now actually coloring the graph. (LowIr being modified)"
 
     // Build the map from tmpVar to color
     def tmpVarToRegTempVar = [:]
@@ -75,6 +77,7 @@ public class RegisterAllocator {
     spillWorklist = new LinkedHashSet<InterferenceNode>();
 
     while(true) {
+      dbgOut "Now running Simplify()."
       boolean didSimplifyHappen = Simplify();
       if(didSimplifyHappen)
         while(Simplify());
@@ -116,19 +119,16 @@ public class RegisterAllocator {
     ig.BuildNodeToColoringNodeMap()
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      println node;
       if(node instanceof LowIrMov)
         ig.AddMovRelation(node.src, node.dst)
     }
-    println "done"
+
     //ig.neighborTable.PrettyPrint();
 
     dbgOut "Finished running Build()."
   }
 
   boolean Simplify() {
-    dbgOut "Now running Simplify()."
-
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
     InterferenceNode nodeToSimplify = ig.nodes.find { cn -> 
       if(cn.isMovRelated() && ig.isSigDeg(cn))
@@ -143,7 +143,7 @@ public class RegisterAllocator {
       return false;
     } else {
       theStack.PushNodeFromGraphToStack(nodeToSimplify);
-      dbgOut "+  Simplify() removed a node: $nodeToSimplify."
+      //dbgOut "+  simplified: $nodeToSimplify."
       return true;
     }
   }
@@ -153,14 +153,10 @@ public class RegisterAllocator {
 
     // Perform conservative coalescing. Nothing fancy here.
     for(pair in [ig.nodes, ig.nodes].combinations()) { 
+      assert false == ig.edges.contains(new InterferenceEdge(pair[0], pair[1]));
       if(pair[0] != pair[1]) {
         if(!(pair[0].representative instanceof RegisterTempVar) && 
             !(pair[1].representative instanceof RegisterTempVar)) {
-          println "Found potentially coalescable move nodes!"
-          println "1 = ${pair[0]}"
-          println "1. movRelNodes = ${pair[0].movRelatedNodes}"
-          println "2 = ${pair[1]}"
-          println "1. movRelNodes = ${pair[0].movRelatedNodes}"
           if(ig.CanCoalesceNodes(pair[0], pair[1])) {
             dbgOut "Found a pair of nodes to coalesce: $pair"
             ig.CoalesceNodes(pair[0], pair[1]);
@@ -179,8 +175,8 @@ public class RegisterAllocator {
 
     for(n in ig.nodes) { 
       if(n.isMovRelated() && !ig.isSigDeg(n)) {
-        // Found a freeze-able node.
-        dbgOut "Foudn a freeze-able node: $n"
+        dbgOut "Found a freeze-able node: $n"
+        assert false;
         n.Freeze();
         ig.BuildNodeToColoringNodeMap();
         n.movRelatedNodes.each { mrn -> 
@@ -234,6 +230,7 @@ public class RegisterAllocator {
   }
 
   void Spill() {
+    dbgOut "Have to spill."
     TempVar tempVarToSpill = SelectTempVarToSpill();
     dbgOut "Spilling the TempVar: $tempVarToSpill"
 
@@ -262,7 +259,7 @@ public class RegisterAllocator {
     assert siteOfSpill; assert tv; assert sv;
     assert siteOfSpill.getSuccessors().size() == 1;
 
-    LowIrLoadSpill nodeToPlace = new LowIrStoreSpill(tmpVar : tv, loadLoc : sv);
+    LowIrStoreSpill nodeToPlace = new LowIrStoreSpill(value : tv, storeLoc : sv);
     
     LowIrNode.link(siteOfSpill, nodeToPlace);
     LowIrNode.link(nodeToPlace, siteOfSpill.getSuccessors().first())
@@ -273,7 +270,7 @@ public class RegisterAllocator {
     assert siteOfSpill; assert tv; assert sv;
     assert siteOfSpill.getPredecessors().size() > 0;
 
-    LowIrStoreSpill nodeToPlace = new LowIrStoreSpill(value : tv, storeLoc : sv);
+    LowIrLoadSpill nodeToPlace = new LowIrLoadSpill(tmpVar : tv, loadLoc : sv);
     
     LowIrNode.link(nodeToPlace, siteOfSpill);
     def pred = siteOfSpill.getPredecessors();

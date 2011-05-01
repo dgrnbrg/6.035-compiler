@@ -19,7 +19,8 @@ class SpillVar extends TempVar {
   }
   
   String toString() {
-    return "[SpillVar. id = $id]"
+    return "[SV. id = $id]"
+    //return "[SpillVar. id = $id]"
   }
 }
 
