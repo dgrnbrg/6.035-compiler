@@ -8,6 +8,7 @@ class InductionVariableAnalysis {
 
   def analize(MethodDescriptor methodDesc) {
     def startLoop
+    def endLoop
     def startNode = methodDesc.lowir
     def domComps = new DominanceComputations()
     domComps.computeDominators(startNode)
@@ -21,9 +22,27 @@ class InductionVariableAnalysis {
       node.predecessors.findAll{dominated(it)}.each {
 //println "found the loop: $it, node $node"
         startLoop = node
-//println "$startLoop"
+        endLoop = it
       }
     }
+    def inductionVarList = findInductionVars(startLoop, endLoop)
+println "$inductionVarList"
+  }
+
+  def hasBasicInductionVariables(LowIrNode startLoop) {
+    
+  }
+
+  LinkedHashSet findInductionVars(LowIrNode startLoop, LowIrNode endLoop) {
+    def inductionVariableList = new LinkedHashSet()
+    def cur = startLoop
+    while (cur != endLoop) {
+      if (cur instanceof LowIrPhi) {
+        inductionVariableList << cur.tmpVar
+      }
+      cur = cur.successors[0]
+    }
+    return inductionVariableList
   }
 }
 
