@@ -1,10 +1,11 @@
-package decaf
+package decaf.optimizations
 import decaf.*
 import decaf.graph.GraphNode
 import decaf.graph.*
 import static decaf.graph.Traverser.eachNodeOf
 
 class InductionVariableAnalysis {
+  ValueNumberer valNum = new ValueNumberer()
 
   def analize(MethodDescriptor methodDesc) {
     def startLoop
@@ -26,11 +27,21 @@ class InductionVariableAnalysis {
       }
     }
     def inductionVarList = findInductionVars(startLoop, endLoop)
-println "$inductionVarList"
+//println "$inductionVarList"
+    hasBasicInductionVariables(inductionVarList)
   }
 
-  def hasBasicInductionVariables(LowIrNode startLoop) {
+  def hasLinearInductionVariables(LinkedHashSet inductionVarList) {
     
+  }
+
+  def hasBasicInductionVariables(LinkedHashSet inductionVarList) {
+    inductionVarList.each { iv ->
+      def incExpr = new Expression(left: valNum.getExpr(iv.tmpVar.defSite), right: new Expression(constVal: 1), op: BinOpType.ADD)
+      if (incExpr in iv.tmpVar.defSite.args*.defSite.collect{valNum.getExpr(it)}) {
+        println "this induction variable is basic and thus linear"
+      }
+    }
   }
 
   LinkedHashSet findInductionVars(LowIrNode startLoop, LowIrNode endLoop) {
@@ -38,7 +49,8 @@ println "$inductionVarList"
     def cur = startLoop
     while (cur != endLoop) {
       if (cur instanceof LowIrPhi) {
-        inductionVariableList << cur.tmpVar
+//TODO: incorrectly identifies variables of the if-statements as induction variables
+        inductionVariableList << new InductionVar(tmpVar: cur.tmpVar)
       }
       cur = cur.successors[0]
     }
@@ -51,4 +63,5 @@ class InductionVar {
 //  def endLoop
   TempVar lowBoundTmp
   TempVar highBoundTmp
+  TempVar tmpVar
 }
