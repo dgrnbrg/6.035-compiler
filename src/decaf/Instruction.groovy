@@ -225,15 +225,3 @@ enum Reg {
     return [Reg.RDI, Reg.RSI, Reg.RDX, Reg.RCX, Reg.R8, Reg.R9];
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

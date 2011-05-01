@@ -44,9 +44,10 @@ public class RegisterAllocator {
       }
     }
 
+    dbgOut "This is the coloring map:"
     tmpVarToRegTempVar.keySet().each { 
       if(!(it instanceof RegisterTempVar))
-        println "[$it, ${tmpVarToRegTempVar[it]}]"
+        dbgOut "$it --> ${tmpVarToRegTempVar[it]}"
     }
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
@@ -113,12 +114,14 @@ public class RegisterAllocator {
     theStack = new ColoringStack(ig);    
 
     ig.BuildNodeToColoringNodeMap()
+
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      println node;
       if(node instanceof LowIrMov)
         ig.AddMovRelation(node.src, node.dst)
     }
-
-    ig.neighborTable.PrettyPrint();
+    println "done"
+    //ig.neighborTable.PrettyPrint();
 
     dbgOut "Finished running Build()."
   }
@@ -136,11 +139,11 @@ public class RegisterAllocator {
     }
 
     if(nodeToSimplify == null) {
-      dbgOut "Could not find a node to simplify."
+      dbgOut "- Could not find a node to simplify."
       return false;
     } else {
       theStack.PushNodeFromGraphToStack(nodeToSimplify);
-      dbgOut "Simplify() removed a node: $nodeToSimplify."
+      dbgOut "+  Simplify() removed a node: $nodeToSimplify."
       return true;
     }
   }
@@ -150,14 +153,21 @@ public class RegisterAllocator {
 
     // Perform conservative coalescing. Nothing fancy here.
     for(pair in [ig.nodes, ig.nodes].combinations()) { 
-      if(pair[0] != pair[1])
+      if(pair[0] != pair[1]) {
         if(!(pair[0].representative instanceof RegisterTempVar) && 
-            !(pair[1].representative instanceof RegisterTempVar))
+            !(pair[1].representative instanceof RegisterTempVar)) {
+          println "Found potentially coalescable move nodes!"
+          println "1 = ${pair[0]}"
+          println "1. movRelNodes = ${pair[0].movRelatedNodes}"
+          println "2 = ${pair[1]}"
+          println "1. movRelNodes = ${pair[0].movRelatedNodes}"
           if(ig.CanCoalesceNodes(pair[0], pair[1])) {
             dbgOut "Found a pair of nodes to coalesce: $pair"
             ig.CoalesceNodes(pair[0], pair[1]);
             return true;
           }
+        }
+      }
     }
 
     dbgOut "Finished trying to coalesce (no more coalesces found!)."
@@ -168,7 +178,7 @@ public class RegisterAllocator {
     dbgOut "Now running Freeze()."
 
     for(n in ig.nodes) { 
-      if(n.isMovRelated() && !ig.isSigDeg()) {
+      if(n.isMovRelated() && !ig.isSigDeg(n)) {
         // Found a freeze-able node.
         dbgOut "Foudn a freeze-able node: $n"
         n.Freeze();

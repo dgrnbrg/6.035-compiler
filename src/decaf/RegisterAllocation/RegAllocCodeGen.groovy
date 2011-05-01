@@ -29,6 +29,7 @@ class RegAllocCodeGen extends CodeGenerator {
       assert tmp instanceof RegisterTempVar;
       return new Operand(Reg.getReg(tmp.registerName));
     case TempVarType.LOCAL: 
+      println tmp;
       assert false; // We no longer have "locals".
     default:
       assert false
@@ -74,8 +75,6 @@ class RegAllocCodeGen extends CodeGenerator {
   }
 
   void visitNode(GraphNode stmt) {
-    println "Visting node: $stmt, which is of type: ${stmt.class}"
-
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
@@ -88,8 +87,6 @@ class RegAllocCodeGen extends CodeGenerator {
 
     switch (stmt) {
     case LowIrStringLiteral:
-      println "HERE WE ARE." 
-      println "${stmt.value}"
       def strLitOperand = asmString(stmt.value)
       strLitOperand.type = OperType.IMM
       movq(strLitOperand, getTmp(stmt.tmpVar))
@@ -159,7 +156,6 @@ class RegAllocCodeGen extends CodeGenerator {
       je(stmt.trueDest.label)
       break
     case LowIrLoad:
-      assert false;
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
         assert false; // How do we handle the line below (the r11 part)
@@ -171,7 +167,6 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(r10, getTmp(stmt.tmpVar))
       break
     case LowIrStore:
-      assert false;
       movq(getTmp(stmt.value), r10)
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
@@ -182,13 +177,12 @@ class RegAllocCodeGen extends CodeGenerator {
       }
       break
     case LowIrMov:
-      assert false;
-      if(stmt.src instanceof SpillVar || stmt.dest instanceof SpillVar) {
+      if(stmt.src instanceof SpillVar || stmt.dst instanceof SpillVar) {
         assert false; // we should never be moving directly between spillvars.
-      } else if(stmt.src instanceof SpillVar || stmt.dest instanceof SpillVar) {
+      } else if(stmt.src instanceof SpillVar || stmt.dst instanceof SpillVar) {
         movq(getTmp(stmt.src), getTmp(stmt.dst))
         break;
-      } else if(stmt.src instanceof RegisterTempVar && stmt.dest instanceof RegisterTempVar) {
+      } else if(stmt.src instanceof RegisterTempVar && stmt.dst instanceof RegisterTempVar) {
         if(stmt.src.registerName != stmt.dst.registerName)
           movq(getTmp(stmt.src), getTmp(stmt.dst));
         break;
@@ -197,7 +191,6 @@ class RegAllocCodeGen extends CodeGenerator {
       }
       break;
     case LowIrBinOp:
-      assert false;
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.leftTmpVar instanceof RegisterTempVar;
       if(stmt.rightTmpVar != null) 
@@ -299,7 +292,6 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(getTmp(stmt.loadLoc), getTmp(stmt.tmpVar));
       break;
     case LowIrNode: //this is a noop
-      println "BLHA:HLKDFJH"
       assert stmt.getClass() == LowIrNode.class || stmt.getClass() == LowIrValueNode.class
       break
     default:

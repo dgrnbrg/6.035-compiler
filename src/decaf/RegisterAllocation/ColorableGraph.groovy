@@ -43,7 +43,6 @@ public class ColorableGraph {
     assert nodes.contains(ce.cn2);
     assert ce.cn1 != ce.cn2;
     assert !edges.contains(ce.cn1);
-    println "Adding the edge $ce"
     edges << ce;
     assert edges.contains(ce);
     UpdateAfterEdgesModified();
@@ -142,11 +141,6 @@ public class NeighborTable {
 
   public NeighborTable(nodes, edges) {
     assert nodes != null; assert edges != null;
-    println "Creating neighbor table."
-    println "nodes = "
-    nodes.each { println it }
-    println "edges = "
-    edges.each { println it }
     Build(nodes, edges)
   }
 

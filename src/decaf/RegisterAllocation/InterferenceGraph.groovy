@@ -31,13 +31,13 @@ public class InterferenceGraph extends ColorableGraph {
 
     dbgOut "3) Setting up variables."
     SetupVariables()
-    dbgOut "Variables = $variables"
-    dbgOut "Finished extracting variables. Number of variables = ${variables.size()}"
+    dbgOut "Variables (${variables.size()} in total):"
+    variables.each { v -> dbgOut "  $v" }
+    dbgOut "Finished extracting variables."
 
     dbgOut "4) Computing the Interference Edges."
     ComputeInterferenceEdges()
     dbgOut "Finished computing interference edges, total number = ${edges.size()}"
-    edges.each { dbgOut it }
     dbgOut "-----------"
 
     //DrawDotGraph();
@@ -66,6 +66,8 @@ public class InterferenceGraph extends ColorableGraph {
       node.anno['regalloc-liveness'].each { variables << it }
     }
 
+    LinkedHashMap varToMovRelations
+
     // Now add an interference node for each variable (unless it's a registerTempVar)
     variables.each { v -> 
       if(!(v instanceof RegisterTempVar))
@@ -81,8 +83,11 @@ public class InterferenceGraph extends ColorableGraph {
       // Add the interference edges.
       def liveVars = node.anno['regalloc-liveness']
 
-      dbgOut "liveVars = $liveVars"
+      // Uncomment to see liveness analysis results.
+      dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
+      //dbgOut "  liveVars = $liveVars"
 
+      // This is where we actually add edges based on the liveness analysis.
       if(node.getDef()) {
         liveVars.each { v -> 
           if(liveVars.contains(node.getDef()) && node.getDef() != v)
@@ -90,18 +95,18 @@ public class InterferenceGraph extends ColorableGraph {
         }
       }
 
+      // Extra edges to add to handle special cases.
       switch(node) {
       case LowIrBinOp:
         // Handle modulo and division blocking.
         if(node.op == BinOpType.DIV || node.op == BinOpType.MOD)
           liveVars.each { 
-            AddEdge(new InterferenceEdge(Reg.RDX.getRegisterTempVar(), GetColoringNode(it))) 
-            AddEdge(new InterferenceEdge(Reg.RAX.getRegisterTempVar(), GetColoringNode(it))) 
+            AddEdge(new InterferenceEdge(regToInterferenceNode[Reg.RDX.GetRegisterTempVar()], GetColoringNode(it))) 
+            AddEdge(new InterferenceEdge(regToInterferenceNode[Reg.RAX.GetRegisterTempVar()], GetColoringNode(it))) 
           }
         break;
       case LowIrMethodCall:
       case LowIrCallOut:
-        
         node.paramTmpVars.eachWithIndex { ptv, i -> 
           if(i < 6) 
             ForceNodeColor(GetColoringNode(ptv), Reg.getRegOfParamArgNum(i + 1));
@@ -117,14 +122,8 @@ public class InterferenceGraph extends ColorableGraph {
       }
     }
 
-    println "The number of edges alpha is ${edges.size()}"
     UpdateAfterNodesModified();
-
-    println "The number of edges is ${edges.size()}"
-    println "This is what the neighbortable looks like now:"
-    neighborTable.neighbors.keySet().each {
-      println " $it = ${neighborTable.neighbors[it]}"
-    }
+    dbgOut "The number of interference edges is: ${edges.size()}"
   }
 
   int sigDeg() {
@@ -141,11 +140,12 @@ public class InterferenceGraph extends ColorableGraph {
     a.nodes.each { node -> assert !(node instanceof RegisterTempVar) }
     b.nodes.each { node -> assert !(node instanceof RegisterTempVar) }
 
-    if(a.isMovRelated() || b.isMovRelated()) {
-      assert a.movRelatedNodes.contains(b.representative)
-      assert a.movRelatedNodes.contains(a.representative)
-      int numNewNeighbors = (neighborTable.GetNeighbors(a) + neighborTable.GetNeighbors(b)).size()
-      return (numNewNeighbors < sigDeg());
+    if(a.isMovRelated() && b.isMovRelated()) {
+      if(a.movRelatedNodes.contains(b.representative) &&
+          b.movRelatedNodes.contains(a.representative)) {
+        int numNewNeighbors = (neighborTable.GetNeighbors(a) + neighborTable.GetNeighbors(b)).size()
+        return (numNewNeighbors < sigDeg());
+      }
     }
 
     return false;
@@ -211,9 +211,11 @@ public class InterferenceGraph extends ColorableGraph {
       return regToInterferenceNode[tv];
     }
 
+    //BuildNodeToColoringNodeMap();
+
     if(nodeToColoringNode.keySet().contains(tv) == false) {
       println tv;
-      println nodeToColoringNode;
+      println nodeToColoringNode.keySet();
     }
     assert nodeToColoringNode.keySet().contains(tv);
     assert nodeToColoringNode[tv].nodes.contains(tv);
@@ -337,7 +339,7 @@ class InterferenceNode extends ColoringNode {
   }
 
   public String toString() {
-    return "[InterferenceNode. Rep = $representative, clr = $color, frz = $frozen]"
+    return "[InterNode. Rep = $representative, clr = $color, mr = ${isMovRelated()}]"
   }
 
   public void Validate() {
