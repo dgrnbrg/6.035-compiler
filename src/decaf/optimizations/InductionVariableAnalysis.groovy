@@ -108,11 +108,13 @@ class InductionVariableAnalysis {
         foundComplexInductionVar = true
       }
     }
+    println "Found complex induction vars: $foundComplexInductionVar"
   }
 
   LinkedHashSet findAllInductionVars() {
     def inductionVariableList = new LinkedHashSet()
     for (startLoop in loopStartNodes) {
+      assert startLoop.predecessors.findAll{domComps.dominates(startLoop, it)}.size() == 1
       def endLoop = startLoop.predecessors.find{domComps.dominates(startLoop, it)}
       def cur = startLoop
       while (cur != endLoop) {
