@@ -343,8 +343,6 @@ public class GroovyMain {
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
-      if ('iva' in opts) 
-        new InductionVariableAnalysis().analize(methodDesc)
       if ('dse' in opts)
         new DeadStoreElimination().run(methodDesc.lowir)
       if ('pre' in opts) {
@@ -360,6 +358,8 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
+      if ('iva' in opts)
+        new InductionVariableAnalysis().analize(methodDesc)
     }
   }
 
