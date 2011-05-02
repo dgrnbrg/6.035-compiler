@@ -90,8 +90,8 @@ public class InterferenceGraph extends ColorableGraph {
       def liveVars = node.anno['regalloc-liveness']
 
       // Uncomment to see liveness analysis results.
-      dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
-      liveVars.each { dbgOut "  $it" }
+      //dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
+      //liveVars.each { dbgOut "  $it" }
 
       // This is where we actually add edges based on the liveness analysis.
       if(node.getDef()) {
