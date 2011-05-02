@@ -52,6 +52,14 @@ public class DominanceComputations {
     domFrontier.put(n, s);
   }
 
+  public boolean dominates(GraphNode parent, GraphNode child) {
+    GraphNode cur = child;
+    while (cur != null && cur != parent) {
+      cur = idom.get(cur);
+    }
+    return cur == parent;
+  }
+
   private void doDFS(GraphNode p, GraphNode n) {
     Integer result = dfNum.get(n);
     if (result == null || result == 0) {
