@@ -36,12 +36,18 @@ class InductionVariableAnalysis {
   }
 
   def hasBasicInductionVariables(LinkedHashSet inductionVarList) {
+    def basicInductionVars = []
     inductionVarList.each { iv ->
       def incExpr = new Expression(left: valNum.getExpr(iv.tmpVar.defSite), right: new Expression(constVal: 1), op: BinOpType.ADD)
-      if (incExpr in iv.tmpVar.defSite.args*.defSite.collect{valNum.getExpr(it)}) {
-        println "this induction variable is basic and thus linear"
+      def ivArgs = iv.tmpVar.defSite.args
+      ivArgs*.defSite.each{valNum.getExpr(it)}
+      assert ivArgs.size() == 2
+      if (incExpr in ivArgs.collect{valNum.getExprOfTmp(it)}) {
+        iv.lowBoundTmp = ivArgs.find{ valNum.getExprOfTmp(it) != incExpr }
+        basicInductionVars << iv
       }
     }
+    
   }
 
   LinkedHashSet findInductionVars(LowIrNode startLoop, LowIrNode endLoop) {
