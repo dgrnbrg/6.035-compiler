@@ -305,13 +305,21 @@ public class GroovyMain {
     if (errors != []) throw new FatalException(code: 1)
   }
 
+  def stepOutOfSSA = { -> 
+    methodDescs.each { methodDesc -> 
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      if('regalloc' in opts)
+        methodDesc.ra.ColorLowIr();
+    }
+  }
+
   def lowir = {->
     depends(setupDot)
     depends(genLowIr)
+    depends(stepOutOfSSA)
 
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       TraceGraph.calculateTraces(methodDesc.lowir);
       new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
@@ -342,14 +350,13 @@ public class GroovyMain {
         new SparseConditionalConstantPropagation().run(methodDesc)
       if ('regalloc' in opts) {
         println "Register Allocator running!"
-        RegisterAllocator ra = new RegisterAllocator(methodDesc)
+        methodDesc.ra = new RegisterAllocator(methodDesc)
         println "--------------------------------------------------------------"
         println "Running Register Allocation for the method: ${methodDesc.name}"
         println "--------------------------------------------------------------"
-        ra.RunRegAllocToFixedPointAndColor()
+        methodDesc.ra.RunRegAllocToFixedPoint()
       }
     }
-    
   }
 
   CodeGenerator codeGen;
@@ -374,8 +381,9 @@ public class GroovyMain {
 
   def genCode = {->
     depends(genLowIr)
+    depends(stepOutOfSSA)
+
     methodDescs.each { methodDesc ->
-      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       // Calculate traces for each method
       TraceGraph.calculateTraces(methodDesc.lowir);
       codeGen.handleMethod(methodDesc)

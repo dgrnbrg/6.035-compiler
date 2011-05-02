@@ -24,15 +24,14 @@ public class RegisterAllocator {
     ig = null;
   }
 
-  void RunRegAllocToFixedPointAndColor() {
+  void RunRegAllocToFixedPoint() {
     dbgOut "Beginning Register Allocation."
     while(RegAllocationIteration());
 
-    DoColoring();
     dbgOut "Finished Register Allocation."
   }
 
-  void DoColoring() {
+  void ColorLowIr() {
     dbgOut "Now actually coloring the graph. (LowIr being modified)"
 
     // Build the map from tmpVar to color

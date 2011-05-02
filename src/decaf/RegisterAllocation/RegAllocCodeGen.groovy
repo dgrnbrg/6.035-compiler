@@ -76,6 +76,8 @@ class RegAllocCodeGen extends CodeGenerator {
   void visitNode(GraphNode stmt) {
 
     emit("// visiting node $stmt");
+    println "visiting node $stmt";
+
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
