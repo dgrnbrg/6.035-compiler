@@ -358,8 +358,19 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
-      if ('iva' in opts)
-        new InductionVariableAnalysis().analize(methodDesc)
+      if ('iva' in opts) {
+        def iva = new InductionVariableAnalysis()
+        iva.analize(methodDesc)
+        def depAnal = new DependencyAnalizer()
+        depAnal.identifyOutermostLoops(iva.loopAnal.loops).each {
+          try {
+            depAnal.extractWritesInSOPForm(it, iva.basicInductionVars, iva.domComps)
+          } catch (UnparallelizableException e) {
+            print "$it isn't parallelizable: error on line "
+            println e.stackTrace.find{it.className.contains('DependencyAnal')}.lineNumber
+          }
+        }
+      }
     }
   }
 

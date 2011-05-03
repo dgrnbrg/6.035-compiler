@@ -25,7 +25,6 @@ class InductionVariableAnalysis {
   }
 
   def findBasicInductionVariables(Collection inductionVars) {
-    def basicInductionVars = []
     inductionVars.each { iv -> //iv == Induction Var
       //this is x+1
       def incExpr = new Expression(left: valNum.getExpr(iv.tmpVar.defSite), right: new Expression(constVal: 1), op: BinOpType.ADD)
