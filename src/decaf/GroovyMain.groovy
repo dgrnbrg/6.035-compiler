@@ -342,7 +342,7 @@ public class GroovyMain {
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
-        new DeadCodeElimination().run(methodDesc.lowir)
+        new AggressiveDCE().run(methodDesc.lowir)
       if ('dse' in opts)
         new DeadStoreElimination().run(methodDesc.lowir)
       if ('pre' in opts) {
@@ -352,12 +352,13 @@ public class GroovyMain {
           def lcm = new LazyCodeMotion()
           lcm.run(methodDesc)
           new CopyPropagation().propagate(methodDesc.lowir)
-          new DeadCodeElimination().run(methodDesc.lowir)
+          new AggressiveDCE().run(methodDesc.lowir)
           stillGoing = lcm.insertCnt != lcm.deleteCnt
           repeats++
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
+
       if ('iva' in opts) {
         def iva = new InductionVariableAnalysis()
         iva.analize(methodDesc)

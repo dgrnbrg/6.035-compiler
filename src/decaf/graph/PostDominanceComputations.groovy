@@ -17,6 +17,7 @@ class PostDominanceComputations {
       }
     }
     domComps.computeDominators(new ReverseGraphNode(node: endNode))
+    domComps.computeDominanceFrontier(new ReverseGraphNode(node: endNode))
     for (pred in endNode.predecessors.clone()) {
         LowIrNode.unlink(pred, endNode)
     }
