@@ -110,8 +110,14 @@ public class InterferenceGraph extends ColorableGraph {
 
     UpdateAfterEdgesModified();
 
+    println "handled the liveness."
+
+    LazyMap ColorNodeMustBe = new LazyMap({ null })
+    LazyMap ColorsNodeCannotBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
+
     // Now handle odd/node-specific cases.
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      //println "visiting node $node"
       BuildNodeToColoringNodeMap();
       // Add the interference edges.
       def liveVars = node.anno['regalloc-liveness']
@@ -126,19 +132,27 @@ public class InterferenceGraph extends ColorableGraph {
         // Handle modulo and division blocking.
         switch(node.op) {
         case BinOpType.DIV:
-          ForceNodeColor(GetColoringNode(node.tmpVar), Reg.RAX);
+          //ForceNodeColor(GetColoringNode(node.tmpVar), Reg.RAX);
+          ColorNodeMustBe[GetColoringNode(node.tmpVar)] = Reg.RAX;
           liveVars.each {
-            if(it != node.tmpVar)
-              ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
-            ForceNodeNotColor(GetColoringNode(it), Reg.RDX);
+            if(it != node.tmpVar) {
+              //ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
+              ColorsNodeCannotBe[GetColoringNode(it)] = Reg.RAX
+            }
+            //ForceNodeNotColor(GetColoringNode(it), Reg.RDX);
+            ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
           }
           break;
         case BinOpType.MOD:
-          ForceNodeColor(GetColoringNode(node.tmpVar), Reg.RDX);
+          //ForceNodeColor(GetColoringNode(node.tmpVar), Reg.RDX);
+          ColorNodeMustBe[GetColoringNode(node.tmpVar)] = Reg.RDX
           liveVars.each {
-            if(it != node.tmpVar)
-              ForceNodeNotColor(GetColoringNode(it), Reg.RDX);
-            ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
+            if(it != node.tmpVar) {
+              //ForceNodeNotColor(GetColoringNode(it), Reg.RDX);
+              ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
+            }
+            //ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
+            ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
           }
           break;
         case BinOpType.LT:
@@ -148,29 +162,49 @@ public class InterferenceGraph extends ColorableGraph {
         case BinOpType.EQ:
         case BinOpType.NEQ:
           // Not allowed to be r10 as that is used as a temporary.
-          ForceNodeNotColor(GetColoringNode(node.getDef()), Reg.R10);
-          ForceNodeNotColor(GetColoringNode(node.leftTmpVar), Reg.R10);
-          ForceNodeNotColor(GetColoringNode(node.rightTmpVar), Reg.R10);
+          //ForceNodeNotColor(GetColoringNode(node.getDef()), Reg.R10);
+          ColorsNodeCannotBe[GetColoringNode(node.getDef())] << Reg.R10;
+          //ForceNodeNotColor(GetColoringNode(node.leftTmpVar), Reg.R10);
+          ColorsNodeCannotBe[GetColoringNode(node.leftTmpVar)] <<  Reg.R10;
+          //ForceNodeNotColor(GetColoringNode(node.rightTmpVar), Reg.R10);
+          ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] <<  Reg.R10;
           liveVars.each { lv -> 
-            if(lv != node.getDef()) 
-              ForceNodeNotColor(GetColoringNode(lv), Reg.R10);
+            if(lv != node.getDef()) {
+              //ForceNodeNotColor(GetColoringNode(lv), Reg.R10);
+              ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.R10;
+            }
           }
         }
         break;
       case LowIrMethodCall:
       case LowIrCallOut:
         node.paramTmpVars.eachWithIndex { ptv, i -> 
-          if(i < 6) 
-            ForceNodeColor(GetColoringNode(ptv), Reg.getRegOfParamArgNum(i + 1));
+          if(i < 6) {
+            //ForceNodeColor(GetColoringNode(ptv), Reg.getRegOfParamArgNum(i + 1));
+            ColorNodeMustBe[GetColoringNode(ptv)] = Reg.getRegOfParamArgNum(i + 1);
+          }
         }
         break;
       case LowIrReturn:
-        if(methodDesc.returnType != Type.VOID)
-          ForceNodeToColor(GetColoringNode(node.tmpVar), Reg.RAX);
+        if(methodDesc.returnType != Type.VOID) {
+          //ForceNodeToColor(GetColoringNode(node.tmpVar), Reg.RAX);
+          ColorNodeMustBe[GetColoringNode(node.tmpVar)] = Reg.RAX;
+        }
         break;
       default:
         // Nothing else here at the time.
         break;
+      }
+    }
+
+    println "finished traversing."
+    ColorNodeMustBe.keySet().each { iNode ->
+      ForceNodeColor(iNode, ColorNodeMustBe[iNode]);
+    }
+
+    ColorsNodeCannotBe.keySet().each { iNode -> 
+      ColorsNodeCannotBe[iNode].each { color -> 
+        ForceNodeNotColor(iNode, color);
       }
     }
 
@@ -270,12 +304,9 @@ public class InterferenceGraph extends ColorableGraph {
 
     //BuildNodeToColoringNodeMap();
 
-    if(nodeToColoringNode.keySet().contains(tv) == false) {
-      println tv;
-      println nodeToColoringNode.keySet();
-    }
-    assert nodeToColoringNode.keySet().contains(tv);
-    assert nodeToColoringNode[tv].nodes.contains(tv);
+    //assert nodeToColoringNode.keySet().contains(tv) == false;
+    //assert nodeToColoringNode.keySet().contains(tv);
+    //assert nodeToColoringNode[tv].nodes.contains(tv);
     return nodeToColoringNode[tv];
   }
 
@@ -293,13 +324,14 @@ public class InterferenceGraph extends ColorableGraph {
     LinkedHashSet<InterferenceNode> interferenceNeighbors = [];
 
     neighbors.each { n -> 
-      assert nodeToColoringNode.keySet().contains(n); 
+      //assert nodeToColoringNode.keySet().contains(n); 
       interferenceNeighbors << GetColoringNode(n)
     }
 
     // We need the set of coloring nodes that make up the neighbors.
     AddNode(iNode);
-    interferenceNeighbors.each { AddEdge(new InterferenceEdge(iNode, it)) }
+    interferenceNeighbors.each { AddEdgeUnsafe(new InterferenceEdge(iNode, it)) }
+    UpdateAfterEdgesModified();
 
     Validate();
   }

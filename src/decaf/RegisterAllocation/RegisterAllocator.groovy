@@ -98,8 +98,8 @@ public class RegisterAllocator {
       break;
     }
 
-    //assert OnlySigDegOrMoveRelated();
-    //ig.nodes.each { assert it.isMovRelated() == false }
+    assert OnlySigDegOrMoveRelated();
+    ig.nodes.each { assert it.isMovRelated() == false }
 
     if(!Select()) {
       Spill();
@@ -127,6 +127,28 @@ public class RegisterAllocator {
     dbgOut "Finished running Build()."
   }
 
+  boolean FastSimplify() {
+    // Determine is there is a non-move-related node of low (< K) degree in the graph.
+    LinkedHashSet<InterferenceNode> nodesToSimplify = ig.nodes.findAll { cn -> 
+      if(cn.isMovRelated() && ig.isSigDeg(cn))
+        return false;
+      else if(cn.representative instanceof RegisterTempVar)
+        return false;
+      return true;
+    }
+
+    if(nodesToSimplify.size() > 0) {
+      nodesToSimplify.each { nts -> 
+        theStack.PushNodeFromGraphToStack(nts);
+      }
+      //dbgOut "+  simplified: $nodeToSimplify."
+      return true;
+    }
+
+    dbgOut "- Could not find a node to simplify."
+    return false;
+  }
+
   boolean Simplify() {
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
     InterferenceNode nodeToSimplify = ig.nodes.find { cn -> 
@@ -137,14 +159,14 @@ public class RegisterAllocator {
       return true;
     }
 
-    if(nodeToSimplify == null) {
-      dbgOut "- Could not find a node to simplify."
-      return false;
-    } else {
+    if(nodeToSimplify != null) {
       theStack.PushNodeFromGraphToStack(nodeToSimplify);
       //dbgOut "+  simplified: $nodeToSimplify."
       return true;
     }
+
+    dbgOut "- Could not find a node to simplify."
+    return false;
   }
 
   boolean Coalesce() {

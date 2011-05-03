@@ -69,8 +69,13 @@ class RegAllocCodeGen extends CodeGenerator {
       } 
     }
 
-    if(stmt.getDef() instanceof RegisterTempVar)
-      assert stmt.getDef().registerName == 'rax';
+    if(stmt.tmpVar instanceof RegisterTempVar) {
+      if(false == (stmt.tmpVar.registerName == 'rax')) {
+        println stmt.tmpVar
+        println stmt.tmpVar.registerName
+        assert false;
+      }
+    }
   }
 
   void visitNode(GraphNode stmt) {
