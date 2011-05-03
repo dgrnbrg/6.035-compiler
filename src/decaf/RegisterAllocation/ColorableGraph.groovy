@@ -40,6 +40,16 @@ public class ColorableGraph {
     //assert !nodes.contains(cn);
     UpdateAfterNodesModified();
   }
+
+  void RemoveMultipleNodes(List<ColoringNode> cns) {
+    assert cns;
+    cns.each { cn -> 
+      // assert nodes.contains(cn);
+      nodes.remove(cn);
+    }
+
+    UpdateAfterNodesModified();
+  }
   
   void AddEdge(ColoringEdge ce) {
     assert ce; 
@@ -169,20 +179,21 @@ public class NeighborTable {
 
   void Build(LinkedHashSet<ColoringNode> nodes, LinkedHashSet<ColoringEdge> edges) {
     assert nodes != null; assert edges != null;
-    neighbors = [:];
+    BuildNeighborMap(nodes, edges);
+    BuildDegreeMap(nodes);
+  }
 
-    // Populate neighborTable
+  void BuildNeighborMap(LinkedHashSet<ColoringNode> nodes, LinkedHashSet<ColoringEdge> edges) {
+    neighbors = [:];
     nodes.each { n -> neighbors[n] = new LinkedHashSet(); }
 
     edges.each { edge -> 
       edge.PerformSymmetric { cn1, cn2 -> 
         //println "cn1 = $cn1, cn2 = $cn2"
-        assert neighbors.keySet().contains(cn1);
+        //assert neighbors.keySet().contains(cn1);
         neighbors[cn1] << cn2; 
       }
     }
-
-    BuildDegreeMap(nodes);
   }
 
   void BuildDegreeMap(LinkedHashSet<ColoringNode> nodes) {

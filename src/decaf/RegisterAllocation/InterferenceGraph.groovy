@@ -312,6 +312,15 @@ public class InterferenceGraph extends ColorableGraph {
     return neighbors;
   }
 
+  LinkedHashMap GetMultipleNeighborsAndThenRemoveNode(List<InterferenceNode> iNodes) {
+    Validate();
+    LinkedHashMap neighborMap = [:];
+    iNodes.each { neighborMap[it] = GetNeighbors(iNode); }
+    RemoveMultipleNodes(iNodes);
+    Validate();
+    return neighborMap;
+  }
+
   public void Validate() {
     if(!DbgHelper.dbgValidationOn)
       return;

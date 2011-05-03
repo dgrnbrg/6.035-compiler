@@ -30,6 +30,13 @@ public class ColoringStack {
     Validate();
   }
 
+  void PushMultipleNodesFromGraphToStack(List<InterferenceNode> iNodes) {
+    assert iNodes;
+    Validate();
+    // iNodes.each { ig.nodes.contains(iNode) };
+    LinkedHashMap neighborMap = ig.GetMultipleNeighborsAndThenRemoveNode(iNodes);
+  }
+
   // This is the function that chooses the color. The listed coloring 
   // heuristic is obviously non-optimal.
   Reg PickColor() {
