@@ -53,6 +53,24 @@ class Program {
     assertEquals(4, countLowir(gm, 'foo', {it instanceof LowIrBinOp && it.op == MUL}))
     gm = GroovyMain.runMain('genLowIr', prog2, ['opt': ['pre']])
     assertEquals(2, countLowir(gm, 'foo', {it instanceof LowIrBinOp && it.op == MUL}))
+
+    def prog3 = '''
+class Program {
+  void foo(int a, int b) {
+    int x, y;
+    x = a * b;
+    y = b * a;
+    callout("notdead",x,y);
+  }
+  void main() {
+    foo(1,2);
+  }
+}
+'''
+    gm = GroovyMain.runMain('genLowIr', prog3, ['opt': []])
+    assertEquals(2, countLowir(gm, 'foo', {it instanceof LowIrBinOp && it.op == MUL}))
+    gm = GroovyMain.runMain('genLowIr', prog3, ['opt': ['pre']])
+    assertEquals(1, countLowir(gm, 'foo', {it instanceof LowIrBinOp && it.op == MUL}))
   }
 
   void testBinOpPartialRedundancy() {
