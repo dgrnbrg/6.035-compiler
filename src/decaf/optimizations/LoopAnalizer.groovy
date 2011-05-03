@@ -51,5 +51,5 @@ class Loop {
   LowIrCondJump exit
   Collection body
 
-  String toString() { "Loop(start: ${header?.label}, end: ${header?.label})" }
+  String toString() { "Loop(start: ${header?.label}, end: ${exit?.label})" }
 }
