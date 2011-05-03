@@ -3,6 +3,17 @@ import decaf.*
 import decaf.graph.*
 
 class DependencyAnalizer {
+  def identifyInnermostLoops(loops) {
+    def innermostLoops = []
+    for (loop in loops) {
+      //this loop's body contains no other loop's header
+      if (loops.findAll{it != loop}.every{!(it.header in loop.body)}) {
+        innermostLoops << loop
+      }
+    }
+    return innermostLoops
+  }
+
   def identifyOutermostLoops(loops) {
     def outermostLoops = []
     for (loop in loops) {
@@ -12,6 +23,24 @@ class DependencyAnalizer {
       }
     }
     return outermostLoops
+  }
+
+  def computeLoopNest(loops) {
+    def outerMost = identifyOutermostLoops(loops)
+    def inToOut = [:]
+    loops = loops - outerMost
+    def lastLevel = outerMost
+    while (!loops.isEmpty()) {
+      def nextMost = identifyOutermostLoops(loops)
+      nextMost.each { inner ->
+        inToOut[inner] = lastLevel.findAll{outer -> outer.body.contains(inner.header)}
+        assert inToOut[inner].size() == 1
+        inToOut[inner] = inToOut[inner][0]
+      }
+      lastLevel = nextMost
+      loops.removeAll(lastLevel)
+    }
+    return inToOut
   }
 
   def extractWritesInSOPForm(loop, ivs, domComps) {

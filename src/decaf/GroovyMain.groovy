@@ -362,6 +362,7 @@ public class GroovyMain {
         def iva = new InductionVariableAnalysis()
         iva.analize(methodDesc)
         def depAnal = new DependencyAnalizer()
+        println "nesting is ${depAnal.computeLoopNest(iva.loopAnal.loops)}"
         depAnal.identifyOutermostLoops(iva.loopAnal.loops).each {
           try {
             depAnal.extractWritesInSOPForm(it, iva.basicInductionVars, iva.domComps)
