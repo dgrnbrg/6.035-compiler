@@ -93,6 +93,8 @@ public class ColoringStack {
   }
 
   void Validate() {
+    if(!DbgHelper.dbgValidationOn)
+      return;
     assert theStack != null;
     assert ig;
     theStack.each { 
@@ -128,6 +130,8 @@ class ColoringStackBlock {
   }
 
   void Validate() {
+    if(!DbgHelper.dbgValidationOn)
+      return;
     assert node; assert interferenceNeighbors != null;
     node.Validate();
   }

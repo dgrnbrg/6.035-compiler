@@ -98,8 +98,8 @@ public class RegisterAllocator {
       break;
     }
 
-    assert OnlySigDegOrMoveRelated();
-    ig.nodes.each { assert it.isMovRelated() == false }
+    //assert OnlySigDegOrMoveRelated();
+    //ig.nodes.each { assert it.isMovRelated() == false }
 
     if(!Select()) {
       Spill();
@@ -152,7 +152,7 @@ public class RegisterAllocator {
 
     // Perform conservative coalescing. Nothing fancy here.
     for(pair in [ig.nodes, ig.nodes].combinations()) { 
-      assert false == ig.edges.contains(new InterferenceEdge(pair[0], pair[1]));
+      //assert false == ig.edges.contains(new InterferenceEdge(pair[0], pair[1]));
       if(pair[0] != pair[1]) {
         if(!(pair[0].representative instanceof RegisterTempVar) && 
             !(pair[1].representative instanceof RegisterTempVar)) {

@@ -308,8 +308,10 @@ public class GroovyMain {
   def stepOutOfSSA = { -> 
     methodDescs.each { methodDesc -> 
       SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
-      if('regalloc' in opts)
+      if('regalloc' in opts) {
+        println "now coloring the lowir for method: ${methodDesc.name}"
         methodDesc.ra.ColorLowIr();
+      }
     }
   }
 

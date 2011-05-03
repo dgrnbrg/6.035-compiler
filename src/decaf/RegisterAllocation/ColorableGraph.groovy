@@ -21,42 +21,52 @@ public class ColorableGraph {
 
   void AddNode(ColoringNode cn) {
     cn.Validate();
-    assert !nodes.contains(cn);
+    //assert !nodes.contains(cn);
     nodes << cn;
-    assert nodes.contains(cn);
+    //assert nodes.contains(cn);
     UpdateAfterNodesModified();
+  }
+
+  void AddNodeUnsafe(ColoringNode cn) {
+    nodes << cn;
+    //UpdateAfterNodesModified(); user should handle this.
   }
 
   void RemoveNode(ColoringNode cn) {
     assert cn; 
     cn.Validate();
-    assert nodes.contains(cn);
+    //assert nodes.contains(cn);
     nodes.remove(cn);
-    assert !nodes.contains(cn);
+    //assert !nodes.contains(cn);
     UpdateAfterNodesModified();
   }
   
   void AddEdge(ColoringEdge ce) {
     assert ce; 
     ce.Validate();
-    ce.nodes.each { assert nodes.contains(it); }
-    assert !edges.contains(ce);
+    //ce.nodes.each { assert nodes.contains(it); }
+    //assert !edges.contains(ce);
     edges << ce;
-    assert edges.contains(ce);
+    //assert edges.contains(ce);
     UpdateAfterEdgesModified();
-    ce.PerformSymmetric { cn1, cn2 -> 
+    /*ce.PerformSymmetric { cn1, cn2 -> 
       assert GetNeighbors(cn1).contains(cn2);
-    }
+    }*/
+  }
+
+  void AddEdgeUnsafe(ColoringEdge ce) {
+    edges << ce;
+    //UpdateAfterEdgesModified(); (user should call this)
   }
 
   void RemoveEdge(ColoringEdge ce) {
     assert ce; 
     ce.Validate();
-    assert nodes.contains(ce.cn1);
-    assert nodes.contains(ce.cn2);
-    assert edges.contains(ce);
+    //assert nodes.contains(ce.cn1);
+    //assert nodes.contains(ce.cn2);
+    //assert edges.contains(ce);
     edges.remove(ce);
-    assert !edges.contains(ce);
+    //assert !edges.contains(ce);
     UpdateAfterEdgesModified();
   }
 

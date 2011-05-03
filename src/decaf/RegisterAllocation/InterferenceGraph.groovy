@@ -76,14 +76,41 @@ public class InterferenceGraph extends ColorableGraph {
     println "Before: ${nodes.size()}"
     variables.each { v -> 
       if(!(v instanceof RegisterTempVar))
-        AddNode(new InterferenceNode(v))
+        AddNodeUnsafe(new InterferenceNode(v))
     }
+
+    UpdateAfterNodesModified();
+
     println "After: ${nodes.size()}"
   }
 
   void ComputeInterferenceEdges() {
     edges = new LinkedHashSet()
 
+    // Firs add the edges just based on the liveness analysis results.
+    def varToLiveness = [:];
+    variables.each { varToLiveness[it] = new LinkedHashSet() }
+
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      if(node.getDef()) {
+        def liveVars = node.anno['regalloc-liveness']
+        liveVars.each { lv -> 
+          if(node.getDef() != lv)
+            varToLiveness[node.getDef()].add(lv)
+        }
+      }
+    }
+
+    varToLiveness.keySet().each { v -> 
+      varToLiveness[v].remove(v);
+      varToLiveness[v].each { lv -> 
+        AddEdgeUnsafe(new InterferenceEdge(GetColoringNode(v), GetColoringNode(lv)));
+      }
+    }
+
+    UpdateAfterEdgesModified();
+
+    // Now handle odd/node-specific cases.
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       BuildNodeToColoringNodeMap();
       // Add the interference edges.
@@ -92,17 +119,6 @@ public class InterferenceGraph extends ColorableGraph {
       // Uncomment to see liveness analysis results.
       //dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
       //liveVars.each { dbgOut "  $it" }
-
-      // This is where we actually add edges based on the liveness analysis.
-      if(node.getDef()) {
-        liveVars.each { v ->
-          if(node.getDef() != v) {
-            InterferenceEdge edgeToAdd = new InterferenceEdge(GetColoringNode(v), GetColoringNode(node.getDef()))
-            //dbgOut "Adding iEdge: $edgeToAdd"
-            AddEdge(edgeToAdd);
-          }
-        }
-      }
 
       // Extra edges to add to handle special cases.
       switch(node) {
@@ -125,6 +141,20 @@ public class InterferenceGraph extends ColorableGraph {
             ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
           }
           break;
+        case BinOpType.LT:
+        case BinOpType.LTE:
+        case BinOpType.GT:
+        case BinOpType.GTE:
+        case BinOpType.EQ:
+        case BinOpType.NEQ:
+          // Not allowed to be r10 as that is used as a temporary.
+          ForceNodeNotColor(GetColoringNode(node.getDef()), Reg.R10);
+          ForceNodeNotColor(GetColoringNode(node.leftTmpVar), Reg.R10);
+          ForceNodeNotColor(GetColoringNode(node.rightTmpVar), Reg.R10);
+          liveVars.each { lv -> 
+            if(lv != node.getDef()) 
+              ForceNodeNotColor(GetColoringNode(lv), Reg.R10);
+          }
         }
         break;
       case LowIrMethodCall:
@@ -217,8 +247,10 @@ public class InterferenceGraph extends ColorableGraph {
 
     Reg.eachReg { r -> 
       if(r != color) 
-        AddEdge(new InterferenceEdge(nodeToForce, GetColoringNode(r.GetRegisterTempVar())));
+        AddEdgeUnsafe(new InterferenceEdge(nodeToForce, GetColoringNode(r.GetRegisterTempVar())));
     }
+
+    UpdateAfterEdgesModified();
   }
 
   public void ForceNodeNotColor(InterferenceNode nodeToForce, Reg color) {
@@ -281,6 +313,8 @@ public class InterferenceGraph extends ColorableGraph {
   }
 
   public void Validate() {
+    if(!DbgHelper.dbgValidationOn)
+      return;
     assert nodes != null; assert edges != null;
     assert neighborTable;
     assert methodDesc;
@@ -366,6 +400,8 @@ class InterferenceNode extends ColoringNode {
   }
 
   public void Validate() {
+    if(!DbgHelper.dbgValidationOn)
+      return;
     assert representative;
     assert representative instanceof TempVar;
     assert nodes;
@@ -389,6 +425,8 @@ public class InterferenceEdge extends ColoringEdge {
   }
 
   public void Validate() {
+    if(!DbgHelper.dbgValidationOn)
+      return;
     assert nodes; assert nodes.size() == 2;
     nodes.each { 
       it instanceof InterferenceNode;

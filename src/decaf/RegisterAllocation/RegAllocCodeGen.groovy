@@ -75,8 +75,8 @@ class RegAllocCodeGen extends CodeGenerator {
 
   void visitNode(GraphNode stmt) {
 
-    emit("// visiting node $stmt");
-    println "visiting node $stmt";
+    // The extra tabs make it more readable.
+    emit("                        //$stmt");
 
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
@@ -87,8 +87,6 @@ class RegAllocCodeGen extends CodeGenerator {
 
     if(stmt.anno["trace"]["start"] || stmt.anno["trace"]["JmpDest"])
       emit(stmt.label + ':')
-
-
 
     switch (stmt) {
     case LowIrStringLiteral:
@@ -133,9 +131,6 @@ class RegAllocCodeGen extends CodeGenerator {
       // Now optionally don't do the mov (since you shouldn't encounter that tmpVar anyway).
       if(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar)
         movq(rax,getTmp(stmt.tmpVar))
-      else {
-        //println "Don't have a return value to worry about!"
-      }
 
       RestoreCallerRegisters();
 
@@ -191,51 +186,53 @@ class RegAllocCodeGen extends CodeGenerator {
         if(stmt.src.registerName != stmt.dst.registerName)
           movq(getTmp(stmt.src), getTmp(stmt.dst));
         break;
-      } else {
-        assert false; // We should never reach this point.
       }
+      assert false;
       break;
     case LowIrBinOp:
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.leftTmpVar instanceof RegisterTempVar;
-      if(stmt.rightTmpVar != null) 
+      assert stmt.leftTmpVar.registerName != 'r10'
+      if(stmt.rightTmpVar != null) {
         assert stmt.rightTmpVar instanceof RegisterTempVar;
+        assert stmt.rightTmpVar.registerName != 'r10';
+      }
       switch (stmt.op) {
       case GT:
 	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
-	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(1, r10)
 	      movq(0, getTmp(stmt.tmpVar))
-	      cmovg(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      cmovg(r10, getTmp(stmt.tmpVar))
 	      break
       case LT:
 	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
-	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(1, r10)
 	      movq(0, getTmp(stmt.tmpVar))
-	      cmovl(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      cmovl(r10, getTmp(stmt.tmpVar))
 	      break
       case LTE:
 	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
-	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(1, r10)
 	      movq(0, getTmp(stmt.tmpVar))
-	      cmovle(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      cmovle(r10, getTmp(stmt.tmpVar))
 	      break
       case GTE:
 	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
-	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(1, r10)
 	      movq(0, getTmp(stmt.tmpVar))
-	      cmovge(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      cmovge(r10, getTmp(stmt.tmpVar))
 	      break
       case EQ:
 	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
-	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(1, r10)
 	      movq(0, getTmp(stmt.tmpVar))
-	      cmove(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      cmove(r10, getTmp(stmt.tmpVar))
 	      break
       case NEQ:
 	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
-	      movq(1, getTmp(stmt.leftTmpVar))
+	      movq(1, r10)
 	      movq(0, getTmp(stmt.tmpVar))
-	      cmovne(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
+	      cmovne(r10, getTmp(stmt.tmpVar))
 	      break
       case NOT:
         movq(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar))
