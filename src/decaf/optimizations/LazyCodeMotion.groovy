@@ -22,7 +22,7 @@ class LazyCodeMotion {
   Set exprUEE(LowIrNode node) {
     switch (node) {
 //Note: the following relocation will break the system, so IntLiteral's aren't UEE
-//    case LowIrIntLiteral:
+    case LowIrIntLiteral:
     case LowIrLoad:
     case LowIrBinOp:
     case LowIrBoundsCheck:
