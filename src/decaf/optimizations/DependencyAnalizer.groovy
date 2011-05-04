@@ -149,17 +149,31 @@ class DependencyAnalizer {
   }
 
   def speculativelyMoveInnerLoopInvariantsToOuterLoop(startNode, outermostLoop, invariants) {
+      
+      def domComps2 = new DominanceComputations()
+      domComps2.computeDominators(startNode)
+      def tmps2 = new LinkedHashSet()
+      Traverser.eachNodeOf(startNode) { tmps2 += it.getDef(); tmps2 += it.getUses() }
+      tmps2.remove(null)
+      if (!tmps2.every{ tmp -> tmp.useSites.every{domComps2.dominates(tmp.defSite, it)} }) {
+        println "It was broke when I got here"
+      }
+
     assert outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() == 0
     for (TempVar invariant in invariants) {
       //first, we make sure this invariant is a binop combination of scalar loads and constants
       //then, we move it to the outermost loop's header
       //this is safe since the loop contains no scalar stores, so it's all speculatable
 
+      def domComps = new DominanceComputations()
+      domComps.computeDominators(startNode)
+      if (domComps.dominates(invariant.defSite, outermostLoop.header)) continue
+
       def list = isSpeculativelyMovableLoopInvariant(outermostLoop, invariant)
 
       //now, we can unlink the list and relocate it to the loop header safely
       list*.excise()
-      def domComps = new DominanceComputations()
+      domComps = new DominanceComputations()
       domComps.computeDominators(startNode)
       assert outermostLoop.header.predecessors.size() == 2
       def landingPad = outermostLoop.header.predecessors.find{domComps.dominates(it, outermostLoop.header)}

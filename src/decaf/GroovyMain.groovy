@@ -359,6 +359,7 @@ public class GroovyMain {
         new DeadStoreElimination().run(methodDesc.lowir)
       }
       if ('iva' in opts) {
+
         def iva = new InductionVariableAnalysis()
         iva.analize(methodDesc)
         def depAnal = new DependencyAnalizer()
@@ -369,9 +370,13 @@ public class GroovyMain {
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
           def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
           if (loadDescs.intersect(storeDescs).size() > 0) return
-          if (methodDesc.name != 'invert' && outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
+//TODO: reenable the safer version of the check
+          if (methodDesc.name != 'invert') return
+/*
+          if (outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
                                          it instanceof LowIrCallOut ||
                                          it instanceof LowIrReturn}.size() > 0) return
+*/
           try {
             def writes = depAnal.extractWritesInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
             inToOut.keySet().each {inner ->
@@ -450,16 +455,16 @@ public class GroovyMain {
                 index: loadInvarsList[-1].tmpVar,
                 tmpVar: copiedLoop[1][invariant]
               )
+              loadInvarsList << new LowIrStringLiteral(
+                value: 'Read invariant %d, has value %d\\n',
+                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+              )
+              loadInvarsList << new LowIrCallOut(
+                name: 'printf',
+                paramTmpVars: [loadInvarsList[-1].tmpVar, loadInvarsList[-3].tmpVar, loadInvarsList[-2].tmpVar],
+                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+              )
             }
-            loadInvarsList << new LowIrStringLiteral(
-              value: 'Executing parallel codes in function\\n',
-              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
-            )
-            loadInvarsList << new LowIrCallOut(
-              name: 'printf',
-              paramTmpVars: [loadInvarsList[-1].tmpVar],
-              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
-            )
             def loadInvarsBridge = new LowIrBridge(loadInvarsList)
             LowIrNode.link(loadInvarsBridge.end, copiedLoop[0].header)
             copiedLoop[0].exit.falseDest = new LowIrReturn()
