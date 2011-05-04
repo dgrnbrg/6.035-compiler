@@ -164,6 +164,7 @@ class DependencyAnalizer {
       assert outermostLoop.header.predecessors.size() == 2
       def landingPad = outermostLoop.header.predecessors.find{domComps.dominates(it, outermostLoop.header)}
       new LowIrBridge(list).insertBetween(landingPad, outermostLoop.header)
+      outermostLoop.body.removeAll(list) //these aren't in this loop any more
       SSAComputer.updateDUChains(startNode)
     }
   }
@@ -211,7 +212,7 @@ class DependencyAnalizer {
     loopNest.addAll(ivToInvariant.keySet() - constantSym)
     def domComps = new DominanceComputations()
     domComps.computeDominators(methodDesc.lowir)
-    loopNest.sort{a, b -> domComps.dominates(a.tmpVar.defSite,b.tmpVar.defSite) ? 1 : -1}
+    loopNest.sort{a, b -> domComps.dominates(a.tmpVar.defSite,b.tmpVar.defSite) ? -1 : 1}
     loopNest << constantSym
     //now, we generate the comparisons
     def mostRecentDest = trueDest
@@ -236,7 +237,18 @@ class DependencyAnalizer {
         tmpVar: genTmp(),
         op: BinOpType.GTE //since loop upper bound is exclusive
       ))
-      mostRecentDest = LowIrGenerator.shortcircuit(cmpBridge, mostRecentDest, falseDest)
+      def msgLitNode = new LowIrStringLiteral(
+        value: "failed test $i (%d <= %d)\\n",
+        tmpVar: genTmp()
+      )
+      def msgCallNode = new LowIrCallOut(
+        name: 'printf',
+        paramTmpVars: [msgLitNode.tmpVar, nestedStride, ivToInvariant[loopNest[i]]],
+        tmpVar: genTmp()
+      )
+      LowIrNode.link(msgLitNode, msgCallNode)
+      LowIrNode.link(msgCallNode, falseDest)
+      mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, msgLitNode)
     }
     def mainCheck = new LowIrBridge(instrs).seq(new LowIrBridge(mostRecentDest)).begin
     //don't forget to ensure that the outer loop is at least 100? iterations
@@ -245,9 +257,9 @@ class DependencyAnalizer {
       rightTmpVar: loopNest[0].highBoundTmp,
       leftTmpVar: minIters.tmpVar,
       tmpVar: genTmp(),
-      op: BinOpType.GTE //TODO: maybe this is LTE
+      op: BinOpType.LTE //TODO: maybe this is LTE
     )
-    return LowIrGenerator.shortcircuit(new LowIrBridge(minIters).seq(new LowIrValueBridge(minCmp)), mainCheck, falseDest)
+    return LowIrGenerator.static_shortcircuit(new LowIrBridge(minIters).seq(new LowIrValueBridge(minCmp)), mainCheck, falseDest)
   }
 }
 

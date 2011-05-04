@@ -267,7 +267,7 @@ public class GroovyMain {
     // Here is where the assert function should be added to the 
     // method symbol table.
     //
-    methodDescs = ast.methodSymTable.values()
+    methodDescs = [] + ast.methodSymTable.values()
     if (errors != []) throw new FatalException(code: 1)
   }
 
@@ -332,7 +332,7 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
-    methodDescs.each { MethodDescriptor methodDesc ->
+    methodDescs.clone().each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
       if ('cse' in opts)
@@ -370,8 +370,9 @@ public class GroovyMain {
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
           def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
           if (loadDescs.intersect(storeDescs).size() > 0) return
-          if (outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
-                                         it instanceof LowIrCallOut}.size() > 0) return
+          if (rethodDesc.name != 'invert' && outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
+                                         it instanceof LowIrCallOut ||
+                                         it instanceof LowIrReturn}.size() > 0) return
           try {
             def writes = depAnal.extractWritesInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
             inToOut.keySet().each {inner ->
@@ -387,7 +388,7 @@ public class GroovyMain {
               )
             }
             //at this point, we can relocate the invariants in the SOP form
-            def fail = new LowIrBridge(new LowIrNode(metaText: 'unparallelizable'))
+            def parallelize = new LowIrNode(metaText: 'parallelizable')
             writes.each { addr ->
               depAnal.speculativelyMoveInnerLoopInvariantsToOuterLoop(
                 methodDesc.lowir,
@@ -399,9 +400,98 @@ public class GroovyMain {
               domComps.computeDominators(methodDesc.lowir)
               def landingPad = outermostLoop.header.predecessors.find{domComps.dominates(it, outermostLoop.header)}
               LowIrNode.unlink(landingPad, outermostLoop.header)
-              def check = depAnal.generateParallelizabilityCheck(methodDesc, addr, outermostLoop.header, fail.begin)
+              def oldLoopBegin = new LowIrNode(metaText: 'parallelize fail dest')
+              def check = depAnal.generateParallelizabilityCheck(
+                methodDesc,
+                addr,
+                parallelize,
+                oldLoopBegin
+              )
               LowIrNode.link(landingPad, check)
+              LowIrNode.link(oldLoopBegin, outermostLoop.header)
             }
+            def parallelFuncPostfix = "par_${methodDesc.name}_${outermostLoop.header.hashCode() % 100}"
+            //find all loop invariant tempVars in the possibly parallelizable loop
+            def tmpsInLoop = new LinkedHashSet(outermostLoop.body*.getUses().flatten())
+            def domComps = new DominanceComputations()
+            domComps.computeDominators(methodDesc.lowir)
+            def loopInvariants = tmpsInLoop.findAll{domComps.dominates(it.defSite, outermostLoop.header)}
+            def loopInvariantArray = new VariableDescriptor(
+              name: "array_$parallelFuncPostfix",
+              type: Type.INT_ARRAY,
+              arraySize: loopInvariants.size()
+            )
+            ast.symTable[loopInvariantArray.name] = loopInvariantArray
+            codeGen.emit('bss', ".comm ${loopInvariantArray.name}_globalvar ${8*loopInvariantArray.arraySize}")
+            //generate the parallel function
+            def parallelMethodDesc = new MethodDescriptor(
+              name: "method_$parallelFuncPostfix",
+              returnType: Type.VOID,
+            )
+            def copiedLoop = LoopAnalizer.copyLoop(outermostLoop, parallelMethodDesc.tempFactory)
+            //generate loads and stores for all the invariants from the loop
+            def loadInvarsList = []
+            def storeInvarsList = []
+            loopInvariants.eachWithIndex{ invariant, index ->
+              storeInvarsList << new LowIrIntLiteral(
+                value: index,
+                tmpVar: methodDesc.tempFactory.createLocalTemp()
+              )
+              storeInvarsList << new LowIrStore(
+                desc: loopInvariantArray,
+                index: storeInvarsList[-1].tmpVar,
+                value: invariant
+              )
+              loadInvarsList << new LowIrIntLiteral(
+                value: index,
+                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+              )
+              loadInvarsList << new LowIrLoad(
+                desc: loopInvariantArray,
+                index: loadInvarsList[-1].tmpVar,
+                tmpVar: copiedLoop[1][invariant]
+              )
+            }
+            loadInvarsList << new LowIrStringLiteral(
+              value: 'Executing parallel codes in function\\n',
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+            )
+            loadInvarsList << new LowIrCallOut(
+              name: 'printf',
+              paramTmpVars: [loadInvarsList[-1].tmpVar],
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+            )
+            def loadInvarsBridge = new LowIrBridge(loadInvarsList)
+            LowIrNode.link(loadInvarsBridge.end, copiedLoop[0].header)
+            copiedLoop[0].exit.falseDest = new LowIrReturn()
+            LowIrNode.link(copiedLoop[0].exit, copiedLoop[0].exit.falseDest)
+            parallelMethodDesc.lowir = loadInvarsBridge.begin
+            parallelMethodDesc.params = [new VariableDescriptor(
+              name: 'threadid',
+              type: Type.INT,
+              lexicalDepth: -1,
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+            )]
+            methodDescs << parallelMethodDesc
+
+            //now, we can just try calling the parallel function after loading the array up
+            storeInvarsList << new LowIrStringLiteral(
+              value: 'Executing parallel codes\\n',
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            storeInvarsList << new LowIrCallOut(
+              name: 'printf',
+              paramTmpVars: [storeInvarsList[-1].tmpVar],
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            storeInvarsList << new LowIrMethodCall(
+              descriptor: parallelMethodDesc,
+              paramTmpVars: [loopInvariants.iterator().next()],
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            def parallelBridge = new LowIrBridge(storeInvarsList)
+            LowIrNode.link(parallelize, parallelBridge.begin)
+            LowIrNode.link(parallelBridge.end, outermostLoop.exit.falseDest)
           } catch (UnparallelizableException e) {
             print "$outermostLoop isn't parallelizable: error on line "
             println e.stackTrace.find{it.className.contains('DependencyAnal')}.lineNumber

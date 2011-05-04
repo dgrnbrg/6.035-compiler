@@ -216,9 +216,9 @@ class LowIrGenerator {
 
   static LowIrNode static_shortcircuit(LowIrValueBridge condBridge, LowIrNode trueNode, LowIrNode falseNode) {
     def jumpNode = new LowIrCondJump(trueDest: trueNode, falseDest: falseNode, condition: condBridge.tmpVar)
-    condBridge = condBridge.seq(new LowIrBridge(jumpNode))
-    LowIrNode.link(condBridge.end, trueNode)
-    LowIrNode.link(condBridge.end, falseNode)
+    LowIrNode.link(condBridge.end, jumpNode)
+    LowIrNode.link(jumpNode, trueNode)
+    LowIrNode.link(jumpNode, falseNode)
     return condBridge.begin
   }
 
