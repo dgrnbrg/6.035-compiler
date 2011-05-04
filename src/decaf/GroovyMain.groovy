@@ -370,7 +370,7 @@ public class GroovyMain {
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
           def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
           if (loadDescs.intersect(storeDescs).size() > 0) return
-          if (rethodDesc.name != 'invert' && outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
+          if (methodDesc.name != 'invert' && outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
                                          it instanceof LowIrCallOut ||
                                          it instanceof LowIrReturn}.size() > 0) return
           try {

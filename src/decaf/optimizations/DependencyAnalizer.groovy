@@ -209,10 +209,13 @@ class DependencyAnalizer {
     }
     //now, we have summed the invariants, so we must now sort them
     def loopNest = []
-    loopNest.addAll(ivToInvariant.keySet() - constantSym)
-    def domComps = new DominanceComputations()
-    domComps.computeDominators(methodDesc.lowir)
-    loopNest.sort{a, b -> domComps.dominates(a.tmpVar.defSite,b.tmpVar.defSite) ? 1 : -1}
+    def loopNestMap = computeLoopNest((ivToInvariant.keySet() - constantSym)*.loop)
+    assert loopNestMap.values().findAll{!(it in loopNestMap.keySet())}.size() == 1
+    loopNest << loopNestMap.values().find{!(it in loopNestMap.keySet())}
+    while (loopNest.size() != loopNestMap.size()+1) {
+      loopNest << loopNestMap.find{it.value == loopNest[-1]}.key
+    }
+    loopNest = loopNest.collect{loop -> ivToInvariant.keySet().find{it != constantSym && it.loop == loop}}
     loopNest << constantSym
     //now, we generate the comparisons
     def mostRecentDest = trueDest
@@ -238,7 +241,7 @@ class DependencyAnalizer {
         op: BinOpType.GTE //since loop upper bound is exclusive
       ))
       def msgLitNode = new LowIrStringLiteral(
-        value: "failed test $i (%d <= %d)\\n",
+        value: "failed test $i (%d >= %d)\\n",
         tmpVar: genTmp()
       )
       def msgCallNode = new LowIrCallOut(
