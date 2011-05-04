@@ -24,10 +24,21 @@ class SpillVar extends TempVar {
   }
 }
 
+class PostSixParamSpillVar extends SpillVar {
+  int paramPosition = 0;
+
+  String toString() {
+    return "[PostSixParamSV. paramPosition = 0]";
+  }
+}
+
 class SpillVarManager {
   List<SpillVar> lineup = [] // These are the spill vars for whom space will be allocated on the stack.
   LinkedHashMap svLocMap = [:];
   LinkedHashMap preservedRegSlots;
+  LinkedHashMap firstSixFlags;
+  LinkedHashMap postSixSpillFlags;
+  LinkedHashMap postSixColorFlags;
 
   public SpillVarManager() {
     // Important: Here is where we create our registers
@@ -37,6 +48,9 @@ class SpillVarManager {
     preservedRegSlots = [:];
     lineup = [];
     svLocMap = [:];
+    firstSixFlags = [:];
+    postSixSpillFlags = [:];
+    postSixColorFlags = [:];
 
     preservedRegNames.each { prn -> 
       preservedRegSlots[(prn)] = requestNewSpillVar();
@@ -64,4 +78,51 @@ class SpillVarManager {
     assert regName; assert preservedRegSlots.keySet().contains(regName);
     return preservedRegSlots[(regName)];
   }
+
+  void FlagOneOfFirstSixArgsForSpilling(TempVar paramTV) {
+    println "BLADDDDDDDDDDDDDDDDDDD paramTV = $paramTV"
+    assert paramTV.type == TempVarType.PARAM
+    assert (0 <= paramTV.id && paramTV.id < 6);
+    assert firstSixFlags != null;
+    assert firstSixFlags.keySet().size() <= 6;
+    assert firstSixFlags.keySet().contains(paramTV) == false;
+    firstSixFlags[paramTV] = requestNewSpillVar();
+    println "and the result is the sv = ${firstSixFlags[paramTV]}"
+  }
+
+  void FlagOneOfPostSixArgsForSpilling(TempVar paramTV) {
+    assert paramTV.type == TempVarType.PARAM
+    assert paramTV.id >= 6;
+    assert postSixSpillFlags != null;
+    assert postSixSpillFlags.keySet().contains(paramTV) == false;
+    postSixSpillFlags[paramTV] = new PostSixParamSpillVar();
+    postSixSpillFlags[paramTV].paramPosition = paramTV.id;
+  }
+
+  void FlagOneOfPostSixArgsForColoring(TempVar paramTV, Reg color) {
+    assert paramTV.type == TempVarType.PARAM
+    assert paramTV.id >= 6;
+    assert postSixColorFlags != null;
+    assert postSixColorFlags.keySet().contains(paramTV) == false;
+    postSixColorFlags[paramTV] = color;
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

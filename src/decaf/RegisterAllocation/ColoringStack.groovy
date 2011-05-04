@@ -8,6 +8,7 @@ import static decaf.Reg.eachRegNode
 public class ColoringStack {
   List<ColoringStackBlock> theStack;
   InterferenceGraph ig;
+  
 
   public ColoringStack(InterferenceGraph ig) {
     assert ig;
@@ -28,6 +29,10 @@ public class ColoringStack {
     theStack.push(new ColoringStackBlock(iNode, allNeighbors));
 
     Validate();
+  }
+
+  void PushPotentialSpillFromGraphToStack(InterferenceNode iNode) {
+    
   }
 
   void PushMultipleNodesFromGraphToStack(List<InterferenceNode> iNodes) {
@@ -111,7 +116,12 @@ public class ColoringStack {
   }
 
   void PrettyPrint() {
-    assert false;
+    println "Printing out the coloring stack (top most is oldest)";
+    theStack.each { csb ->
+      println "======================================="
+      println csb;
+    }
+    println "======================================="
   }
 }
 

@@ -10,9 +10,9 @@ public class RegisterAllocator {
 
 	MethodDescriptor methodDesc;
   InterferenceGraph ig;
-  LinkedHashSet<InterferenceNode> spillWorklist;
   LinkedHashSet<RegisterTempVar> registerNodes;
   ColoringStack theStack;
+  LinkedHashSet<InterferenceNode> potentialSpills;
 
   LinkedHashSet<String> colors = new LinkedHashSet(
       ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
@@ -22,6 +22,7 @@ public class RegisterAllocator {
     assert(md)
     methodDesc = md
     ig = null;
+    potentialSpills = [];
   }
 
   void RunRegAllocToFixedPoint() {
@@ -36,12 +37,14 @@ public class RegisterAllocator {
 
     // Build the map from tmpVar to color
     def tmpVarToRegTempVar = [:]
+    def tmpVarToReg = [:]
     ig.BuildNodeToColoringNodeMap();
     ig.nodes.each { node -> 
       node.nodes.each { n ->
         assert node.color;
         assert n instanceof TempVar
         tmpVarToRegTempVar[n] = node.color.GetRegisterTempVar();
+        tmpVarToReg[n] = node.color;
       }
     }
 
@@ -54,6 +57,11 @@ public class RegisterAllocator {
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       node.SwapUsesUsingMap(tmpVarToRegTempVar)
       node.SwapDefUsingMap(tmpVarToRegTempVar);
+    }
+
+    tmpVarToRegTempVar.keySet().each { tv -> 
+      if(tv.type == TempVarType.PARAM && tv.id >= 6)
+        methodDesc.svManager.FlagOneOfPostSixArgsForColoring(tv, tmpVarToReg[tv]);
     }
   }
 
@@ -72,8 +80,6 @@ public class RegisterAllocator {
     dbgOut "Now running an iteration of the register allocator."
 
     Build();
-
-    spillWorklist = new LinkedHashSet<InterferenceNode>();
 
     while(true) {
       dbgOut "Now running Simplify()."
@@ -151,12 +157,19 @@ public class RegisterAllocator {
 
   boolean Simplify() {
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
-    InterferenceNode nodeToSimplify = ig.nodes.find { cn -> 
-      if(cn.isMovRelated() && ig.isSigDeg(cn))
-        return false;
-      else if(cn.representative instanceof RegisterTempVar)
-        return false;
-      return true;
+    InterferenceNode nodeToSimplify = null;
+    int curMinDegree = 100000;
+
+    ig.nodes.each { iNode -> 
+      if(iNode.isMovRelated() && ig.isSigDeg(iNode))
+        return;
+      else if(iNode.representative instanceof RegisterTempVar)
+        return;
+      int thisDegree = ig.neighborTable.GetDegree(iNode);
+      if(nodeToSimplify == null || thisDegree < curMinDegree) {
+        curMinDegree = thisDegree;
+        nodeToSimplify = iNode;
+      }
     }
 
     if(nodeToSimplify != null) {
@@ -220,7 +233,7 @@ public class RegisterAllocator {
     for(node in ig.nodes) { 
       if(ig.isSigDeg(node)) {
         dbgOut "Found potential spill: $node"
-        spillWorklist << node;
+        potentialSpills << node;
         theStack.PushNodeFromGraphToStack(node);
         return true;
       }
@@ -255,9 +268,22 @@ public class RegisterAllocator {
     TempVar tempVarToSpill = SelectTempVarToSpill();
     dbgOut "Spilling the TempVar: $tempVarToSpill"
 
-    SpillVar sv = methodDesc.svManager.requestNewSpillVar();
+    SpillVar sv = null;
 
-    boolean foundDefSite = false;
+    if(tempVarToSpill.type == TempVarType.PARAM) {
+      if(tempVarToSpill.id < 6) {
+        methodDesc.svManager.FlagOneOfFirstSixArgsForSpilling(tempVarToSpill);
+        sv = methodDesc.svManager.firstSixFlags[tempVarToSpill];
+      } else {
+        methodDesc.svManager.FlagOneOfPostSixArgsForSpilling(tempVarToSpill);
+        sv = methodDesc.svManager.postSixSpillFlags[tempVarToSpill];
+        assert sv instanceof PostSixParamSpillVar;
+      }
+    } else {
+      sv = methodDesc.svManager.requestNewSpillVar();
+    }
+
+    assert sv;
 
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       // Determine if this node uses the spilled var.
@@ -270,19 +296,11 @@ public class RegisterAllocator {
 
       // Determine if this node defines the spilled var.
       if(tempVarToSpill == node.getDef()) {
-        foundDefSite = true;
-        println "tmpVarToSpill = $tempVarToSpill"
-        println "node.getDef() = ${node.getDef()}";
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
         node.SwapDefUsingMap([(node.getDef()) : tv])
         PlaceSpillStoreAfterNode(node, sv, tv);
       }
     }
-
-    if(!foundDefSite) {
-      println "DID NOT FIND DEF SITE: tempVarToSpill = $tempVarToSpill"
-    }
-    //assert foundDefSite;
 
     dbgOut "Finished spilling the node."
   }

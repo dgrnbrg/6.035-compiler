@@ -9,22 +9,56 @@ class RegAllocCodeGen extends CodeGenerator {
     paramRegs = [rdi, rsi, rdx, rcx, r8, r9]
   }
 
+  void Comment(String comment) {
+    emit("                        // " + comment);
+  }
+
   void handleMethod(MethodDescriptor method) {
     this.method = method
     asmMacro('.globl', method.name)
     emit(method.name + ':')
     enter(8*(method.params.size() + method.svManager.getNumSpillVarsToAllocate()),0)
     PreserveCalleeRegisters();
+
+    // Do we need to load any of the first six arguments into spillvars?
+    assert method.svManager.firstSixFlags != null
+    if(method.svManager.firstSixFlags.size() > 0) {
+      method.svManager.firstSixFlags.keySet().each { tv -> 
+        println method.svManager.firstSixFlags
+        Comment("load reg-args into spillvars for tv = $tv, sv = ${method.svManager.firstSixFlags[tv]}");
+        assert tv.id >= 0 && tv.id < 6;
+        movq(paramRegs[tv.id], getTmp(method.svManager.firstSixFlags[tv]));
+      }
+    }
+
+    // Do we need to load any of the post six arguments into registers?
+    assert method.svManager.postSixColorFlags != null
+    if(method.svManager.postSixColorFlags.size() > 0) {
+      method.svManager.postSixColorFlags.keySet().each { ptv -> 
+        Comment("load post-six args into registers for ptv = $ptv, reg = ${method.svManager.postSixColorFlags[ptv]}")
+        println method.svManager.postSixColorFlags
+        movq(GetPostSixParamTmp(ptv), method.svManager.postSixColorFlags[ptv]);
+      }
+    }
+
     traverseWithTraces(method.lowir)
+  }
+
+  Operand GetPostSixParamTmp(TempVar tmp) {
+    assert tmp.id >= 6;
+    return rbp(8 * ((tmp.id - 6) + 2));
   }
 
   Operand getTmp(TempVar tmp) {
     switch (tmp.type) {
     case TempVarType.PARAM:
-      return rbp(8 * (tmp.id+2))
+      assert false;
     case TempVarType.SPILLVAR:
       assert tmp instanceof SpillVar;
-      return rbp(-8 * (1 + method.svManager.getLocOfSpillVar(tmp)));
+      if(tmp instanceof PostSixParamSpillVar)
+        return GetPostSixParamTmp(tmp);
+      else
+        return rbp(-8 * (1 + method.svManager.getLocOfSpillVar(tmp)));
     case TempVarType.REGISTER:
       assert tmp instanceof RegisterTempVar;
       return new Operand(Reg.getReg(tmp.registerName));
@@ -69,20 +103,12 @@ class RegAllocCodeGen extends CodeGenerator {
         assert Reg.GetParameterRegisters().contains(Reg.getReg(ptv.registerName));
       } 
     }
-
-    if(stmt.tmpVar instanceof RegisterTempVar) {
-      if(false == (stmt.tmpVar.registerName == 'rax')) {
-        println stmt.tmpVar
-        println stmt.tmpVar.registerName
-        assert false;
-      }
-    }
   }
 
   void visitNode(GraphNode stmt) {
 
     // The extra tabs make it more readable.
-    emit("                        //$stmt");
+    emit("                        // $stmt");
 
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
@@ -118,12 +144,11 @@ class RegAllocCodeGen extends CodeGenerator {
         sub(8*(stmt.paramTmpVars.size() - 6), rsp);
       stmt.paramTmpVars.eachWithIndex { it, index ->
         if(index >= numRegParams) {
-          movq(getTmp(it), r10)
-          movq(r10, rsp(8*(index - numRegParams)))
+          movq(getTmp(it), rsp(8*(index - 6)))
         }
       }
       // We need to restore r10 since we've been clobbering it.
-      RestoreRegister(Reg.R10);
+      //RestoreRegister(Reg.R10); // no need to now.
 
       if(stmt instanceof LowIrCallOut) {
         // Set to 0 since printf uses rax value to determine how many SSE 
@@ -134,11 +159,11 @@ class RegAllocCodeGen extends CodeGenerator {
       } else
         call(stmt.descriptor.name)
 
+      RestoreCallerRegisters();
+
       // Now optionally don't do the mov (since you shouldn't encounter that tmpVar anyway).
       if(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar)
         movq(rax,getTmp(stmt.tmpVar))
-
-      RestoreCallerRegisters();
 
       // Now optionally restore rax if it wasn't clobbered.
       if(!(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar))
@@ -199,11 +224,6 @@ class RegAllocCodeGen extends CodeGenerator {
     case LowIrBinOp:
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.leftTmpVar instanceof RegisterTempVar;
-      assert stmt.leftTmpVar.registerName != 'r10'
-      if(stmt.rightTmpVar != null) {
-        assert stmt.rightTmpVar instanceof RegisterTempVar;
-        assert stmt.rightTmpVar.registerName != 'r10';
-      }
       switch (stmt.op) {
       case GT:
 	      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))

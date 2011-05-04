@@ -73,15 +73,12 @@ public class InterferenceGraph extends ColorableGraph {
     LinkedHashMap varToMovRelations
 
     // Now add an interference node for each variable (unless it's a registerTempVar)
-    println "Before: ${nodes.size()}"
     variables.each { v -> 
       if(!(v instanceof RegisterTempVar))
         AddNodeUnsafe(new InterferenceNode(v))
     }
 
     UpdateAfterNodesModified();
-
-    println "After: ${nodes.size()}"
   }
 
   void ComputeInterferenceEdges() {
@@ -92,11 +89,15 @@ public class InterferenceGraph extends ColorableGraph {
     variables.each { varToLiveness[it] = new LinkedHashSet() }
 
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      if(node.getDef()) {
-        def liveVars = node.anno['regalloc-liveness']
-        liveVars.each { lv -> 
-          if(node.getDef() != lv)
-            varToLiveness[node.getDef()].add(lv)
+      def liveVars = node.anno['regalloc-liveness']
+      liveVars.each { lv -> 
+        if(node.getDef() && node.getDef() != lv)
+          varToLiveness[node.getDef()].add(lv)
+        if(lv.type == TempVarType.PARAM) {
+          liveVars.each { lv2 -> 
+            if(lv2.type == TempVarType.PARAM)
+              varToLiveness[lv] << lv2;
+          }
         }
       }
     }
@@ -112,19 +113,24 @@ public class InterferenceGraph extends ColorableGraph {
 
     println "handled the liveness."
 
-    LazyMap ColorNodeMustBe = new LazyMap({ null })
+    LazyMap ColorNodeMustBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
     LazyMap ColorsNodeCannotBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
+
+    variables.each { v -> 
+      if(v.type == TempVarType.PARAM && v.id < 6)
+        ColorNodeMustBe[GetColoringNode(v)] << Reg.getRegOfParamArgNum(v.id + 1);
+    }
 
     // Now handle odd/node-specific cases.
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      //println "visiting node $node"
       BuildNodeToColoringNodeMap();
+
       // Add the interference edges.
       def liveVars = node.anno['regalloc-liveness']
 
       // Uncomment to see liveness analysis results.
-      //dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
-      //liveVars.each { dbgOut "  $it" }
+      dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
+      liveVars.each { dbgOut "  $it" }
 
       // Extra edges to add to handle special cases.
       switch(node) {
@@ -132,26 +138,18 @@ public class InterferenceGraph extends ColorableGraph {
         // Handle modulo and division blocking.
         switch(node.op) {
         case BinOpType.DIV:
-          //ForceNodeColor(GetColoringNode(node.tmpVar), Reg.RAX);
-          ColorNodeMustBe[GetColoringNode(node.tmpVar)] = Reg.RAX;
+          ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
           liveVars.each {
-            if(it != node.tmpVar) {
-              //ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
-              ColorsNodeCannotBe[GetColoringNode(it)] = Reg.RAX
-            }
-            //ForceNodeNotColor(GetColoringNode(it), Reg.RDX);
+            if(it != node.tmpVar)
+              ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RAX
             ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
           }
           break;
         case BinOpType.MOD:
-          //ForceNodeColor(GetColoringNode(node.tmpVar), Reg.RDX);
-          ColorNodeMustBe[GetColoringNode(node.tmpVar)] = Reg.RDX
+          ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RDX
           liveVars.each {
-            if(it != node.tmpVar) {
-              //ForceNodeNotColor(GetColoringNode(it), Reg.RDX);
+            if(it != node.tmpVar)
               ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
-            }
-            //ForceNodeNotColor(GetColoringNode(it), Reg.RAX);
             ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
           }
           break;
@@ -162,17 +160,12 @@ public class InterferenceGraph extends ColorableGraph {
         case BinOpType.EQ:
         case BinOpType.NEQ:
           // Not allowed to be r10 as that is used as a temporary.
-          //ForceNodeNotColor(GetColoringNode(node.getDef()), Reg.R10);
           ColorsNodeCannotBe[GetColoringNode(node.getDef())] << Reg.R10;
-          //ForceNodeNotColor(GetColoringNode(node.leftTmpVar), Reg.R10);
           ColorsNodeCannotBe[GetColoringNode(node.leftTmpVar)] <<  Reg.R10;
-          //ForceNodeNotColor(GetColoringNode(node.rightTmpVar), Reg.R10);
           ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] <<  Reg.R10;
           liveVars.each { lv -> 
-            if(lv != node.getDef()) {
-              //ForceNodeNotColor(GetColoringNode(lv), Reg.R10);
+            if(lv != node.getDef())
               ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.R10;
-            }
           }
         }
         break;
@@ -180,16 +173,31 @@ public class InterferenceGraph extends ColorableGraph {
       case LowIrCallOut:
         node.paramTmpVars.eachWithIndex { ptv, i -> 
           if(i < 6) {
-            //ForceNodeColor(GetColoringNode(ptv), Reg.getRegOfParamArgNum(i + 1));
-            ColorNodeMustBe[GetColoringNode(ptv)] = Reg.getRegOfParamArgNum(i + 1);
+            ColorNodeMustBe[GetColoringNode(ptv)] << Reg.getRegOfParamArgNum(i + 1);
+            liveVars.each { lv -> 
+              def theParams = node.paramTmpVars.collect { it };
+              if(lv != node.getDef() && !theParams.contains(lv))
+                ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.getRegOfParamArgNum(i+1);
+            }
+          }
+        }
+        // We also need to force the def-site to be RAX if the method isn't void.
+        if(node instanceof LowIrCallOut || 
+            node.descriptor.returnType == Type.INT || 
+            node.descriptor.returnType == Type.BOOLEAN) {
+          ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
+          liveVars.each { lv -> 
+            if(lv != node.getDef())
+              ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.RAX;
           }
         }
         break;
       case LowIrReturn:
-        if(methodDesc.returnType != Type.VOID) {
+        // The following is really a preference not an absolute...
+        /*if(methodDesc.returnType != Type.VOID) {
           //ForceNodeToColor(GetColoringNode(node.tmpVar), Reg.RAX);
           ColorNodeMustBe[GetColoringNode(node.tmpVar)] = Reg.RAX;
-        }
+        }*/
         break;
       default:
         // Nothing else here at the time.
@@ -198,8 +206,11 @@ public class InterferenceGraph extends ColorableGraph {
     }
 
     println "finished traversing."
+
     ColorNodeMustBe.keySet().each { iNode ->
-      ForceNodeColor(iNode, ColorNodeMustBe[iNode]);
+      ColorNodeMustBe[iNode].each { color -> 
+        ForceNodeColor(iNode, color);      
+      }
     }
 
     ColorsNodeCannotBe.keySet().each { iNode -> 
@@ -302,11 +313,10 @@ public class InterferenceGraph extends ColorableGraph {
       return regToInterferenceNode[tv];
     }
 
-    //BuildNodeToColoringNodeMap();
+    BuildNodeToColoringNodeMap();
 
-    //assert nodeToColoringNode.keySet().contains(tv) == false;
-    //assert nodeToColoringNode.keySet().contains(tv);
-    //assert nodeToColoringNode[tv].nodes.contains(tv);
+    assert nodeToColoringNode.keySet().contains(tv);
+    assert nodeToColoringNode[tv].nodes.contains(tv);
     return nodeToColoringNode[tv];
   }
 

@@ -9,7 +9,7 @@ class DbgHelper {
   static boolean dbgValidationOn = false;
   static def dbgOut = { str -> 
     assert str; 
-    if(false)
+    if(true)
       println str; 
   }
 }

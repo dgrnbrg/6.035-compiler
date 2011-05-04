@@ -166,8 +166,8 @@ enum Reg {
   RBP('rbp'),
   RSI('rsi'),
   RDI('rdi'),
-  R8('r8'),
-  R9('r9'),
+  R8(  'r8'),
+  R9(  'r9'),
   R10('r10'),
   R11('r11'),
   R12('r12'),
@@ -210,7 +210,7 @@ enum Reg {
 
   static Reg getRegOfParamArgNum(int argNum) {
     assert (argNum > 0) && (argNum <= 6);
-    return ([Reg.RDI, Reg.RSI, Reg.RDX, Reg.RCX, Reg.R8, Reg.R9])[argNum - 1]
+    return GetParameterRegisters()[argNum - 1] 
   }
 
   static List<Reg> GetCallerSaveRegisters() {
