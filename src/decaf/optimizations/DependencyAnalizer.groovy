@@ -166,6 +166,15 @@ class DependencyAnalizer {
       new LowIrBridge(list).insertBetween(landingPad, outermostLoop.header)
       outermostLoop.body.removeAll(list) //these aren't in this loop any more
       SSAComputer.updateDUChains(startNode)
+//check that we broke nothing
+      domComps = new DominanceComputations()
+      domComps.computeDominators(startNode)
+      def tmps = new LinkedHashSet()
+      Traverser.eachNodeOf(startNode) { tmps += it.getDef(); tmps += it.getUses() }
+      tmps.remove(null)
+      if (!tmps.every{ tmp -> tmp.useSites.every{domComps.dominates(tmp.defSite, it)} }) {
+        println "Relocated $invariant which broke stuff"
+      }
     }
   }
 

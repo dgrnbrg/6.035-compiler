@@ -358,7 +358,6 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
-
       if ('iva' in opts) {
         def iva = new InductionVariableAnalysis()
         iva.analize(methodDesc)
