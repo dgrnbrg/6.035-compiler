@@ -363,10 +363,14 @@ public class GroovyMain {
         def iva = new InductionVariableAnalysis()
         iva.analize(methodDesc)
         def depAnal = new DependencyAnalizer()
-        println "nesting is ${depAnal.computeLoopNest(iva.loopAnal.loops)}"
-        depAnal.identifyOutermostLoops(iva.loopAnal.loops).each {
+        def inToOut = depAnal.computeLoopNest(iva.loopAnal.loops)
+        inToOut.each {inner, outer ->
+          def iv = iva.basicInductionVars.find{it.loop == inner}
+          depAnal.speculativelyMoveInnerLoopInvariantsToOuterLoop(methodDesc.lowir, outer, [iv.lowBoundTmp, iv.highBoundTmp])
+        }
+        depAnal.identifyOutermostLoops(iva.loopAnal.loops).each { outermostLoop ->
           try {
-            depAnal.extractWritesInSOPForm(it, iva.basicInductionVars, iva.domComps)
+            depAnal.extractWritesInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
           } catch (UnparallelizableException e) {
             print "$it isn't parallelizable: error on line "
             println e.stackTrace.find{it.className.contains('DependencyAnal')}.lineNumber

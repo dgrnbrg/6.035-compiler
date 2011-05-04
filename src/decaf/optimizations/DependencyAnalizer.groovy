@@ -95,6 +95,47 @@ println "Looking at products $products"
       products.eachWithIndex {it, index -> if (index != products.size() - 1) println "  $it +" else println "  $it" }
     }
   }
+
+  def speculativelyMoveInnerLoopInvariantsToOuterLoop(startNode, outermostLoop, invariants) {
+    assert outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() == 0
+    for (TempVar invariant in invariants) {
+      //first, we make sure this invariant is a binop combination of scalar loads and constants
+      //then, we move it to the outermost loop's header
+      //this is safe since the loop contains no scalar stores, so it's all speculatable
+
+      //the following algorithm is from the Topological Sorting wikipedia page
+      def list = []
+      def visited = new HashSet()
+      def visit
+      visit = { LowIrNode n ->
+        if (!(n in visited)) {
+          visited << n
+          n.getUses()*.defSite.each{visit(it)}
+          list << n
+        }
+      }
+      visit(invariant.defSite)
+
+      //now, we have the nodes to relocate in the correct order
+      //let's make sure they're of the correct form
+      //division isn't relocatable
+      if (!list.every{it instanceof LowIrBinOp || it instanceof LowIrLoad || it instanceof LowIrIntLiteral})
+        throw new UnparallelizableException()
+      if (!list.findAll{it instanceof LowIrBinOp}.every{it.op != BinOpType.DIV})
+        throw new UnparallelizableException()
+      if (!list.findAll{it instanceof LowIrLoad}.every{it.index == null})
+        throw new UnparallelizableException()
+
+      //now, we can unlink the list and relocate it to the loop header safely
+      list*.excise()
+      def domComps = new DominanceComputations()
+      domComps.computeDominators(startNode)
+      assert outermostLoop.header.predecessors.size() == 2
+      def landingPad = outermostLoop.header.predecessors.find{domComps.dominates(it, outermostLoop.header)}
+      new LowIrBridge(list).insertBetween(landingPad, outermostLoop.header)
+      SSAComputer.updateDUChains(startNode)
+    }
+  }
 }
 
 class UnparallelizableException extends Exception {
