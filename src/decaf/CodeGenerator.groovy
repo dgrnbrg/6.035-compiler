@@ -18,6 +18,10 @@ class CodeGenerator extends Traverser {
     emit(method.name + ':')
     enter(8*(method.params.size() + method.tempFactory.tmpVarId),0)
 
+    //copy 1st argument into place
+    if (method.params.size() > 0)
+      movq(paramRegs[0], getTmp(new TempVar(type: TempVarType.PARAM, id: 0)))
+
     //get set of all used tmpVars
     def tmps = new LinkedHashSet()
     eachNodeOf(method.lowir) { tmps.addAll(it.getUses()) }
@@ -108,6 +112,8 @@ class CodeGenerator extends Traverser {
         movq(getTmp(it), r10)
         movq(r10, rsp(8*index))
       }
+      if (stmt.paramTmpVars.size() > 0)
+        movq(getTmp(stmt.paramTmpVars[0]), paramRegs[0])
       call(stmt.descriptor.name)
       movq(rax,getTmp(stmt.tmpVar))
       add(8*stmt.paramTmpVars.size(), rsp)

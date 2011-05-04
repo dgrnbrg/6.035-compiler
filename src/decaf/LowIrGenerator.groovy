@@ -214,7 +214,15 @@ class LowIrGenerator {
     return new LowIrBridge(shortcircuit(ifthenelse.condition, trueBridge.begin, falseBridge.begin), endNode)
   }
 
-  static LowIrNode shortcircuit(condition, LowIrNode trueNode, LowIrNode falseNode) {
+  static LowIrNode static_shortcircuit(LowIrValueBridge condBridge, LowIrNode trueNode, LowIrNode falseNode) {
+    def jumpNode = new LowIrCondJump(trueDest: trueNode, falseDest: falseNode, condition: condBridge.tmpVar)
+    condBridge = condBridge.seq(new LowIrBridge(jumpNode))
+    LowIrNode.link(condBridge.end, trueNode)
+    LowIrNode.link(condBridge.end, falseNode)
+    return condBridge.begin
+  }
+
+  LowIrNode shortcircuit(condition, LowIrNode trueNode, LowIrNode falseNode) {
     def condBridge = condition instanceof LowIrValueBridge ? condition : destruct(condition)
     def jumpNode = new LowIrCondJump(trueDest: trueNode, falseDest: falseNode, condition: condBridge.tmpVar)
     condBridge = condBridge.seq(new LowIrBridge(jumpNode))
