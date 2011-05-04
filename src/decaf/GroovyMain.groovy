@@ -364,15 +364,46 @@ public class GroovyMain {
         iva.analize(methodDesc)
         def depAnal = new DependencyAnalizer()
         def inToOut = depAnal.computeLoopNest(iva.loopAnal.loops)
-        inToOut.each {inner, outer ->
-          def iv = iva.basicInductionVars.find{it.loop == inner}
-          depAnal.speculativelyMoveInnerLoopInvariantsToOuterLoop(methodDesc.lowir, outer, [iv.lowBoundTmp, iv.highBoundTmp])
-        }
         depAnal.identifyOutermostLoops(iva.loopAnal.loops).each { outermostLoop ->
+          //forbid the easy cases
+          if (outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() > 0) return
+          def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
+          def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
+          if (loadDescs.intersect(storeDescs).size() > 0) return
+          if (outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
+                                         it instanceof LowIrCallOut}.size() > 0) return
           try {
-            depAnal.extractWritesInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
+            def writes = depAnal.extractWritesInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
+            inToOut.keySet().each {inner ->
+              //only relocate IV bounds to their parent loop (don't break nesting)
+              if (!outermostLoop.body.contains(inner.header)) return
+              //find the current loop's basic IV
+              def iv = iva.basicInductionVars.find{it.loop == inner}
+              //relocate the IV's bounds
+              depAnal.speculativelyMoveInnerLoopInvariantsToOuterLoop(
+                methodDesc.lowir,
+                outermostLoop,
+                [iv.lowBoundTmp, iv.highBoundTmp]
+              )
+            }
+            //at this point, we can relocate the invariants in the SOP form
+            def fail = new LowIrBridge(new LowIrNode(metaText: 'unparallelizable'))
+            writes.each { addr ->
+              depAnal.speculativelyMoveInnerLoopInvariantsToOuterLoop(
+                methodDesc.lowir,
+                outermostLoop,
+                addr.ivToInvariants.values().flatten().findAll{it != 1} + addr.invariants
+              )
+              //now, we generate the runtime check
+              def domComps = new DominanceComputations()
+              domComps.computeDominators(methodDesc.lowir)
+              def landingPad = outermostLoop.header.predecessors.find{domComps.dominates(it, outermostLoop.header)}
+              LowIrNode.unlink(landingPad, outermostLoop.header)
+              def check = depAnal.generateParallelizabilityCheck(methodDesc, addr, outermostLoop.header, fail.begin)
+              LowIrNode.link(landingPad, check)
+            }
           } catch (UnparallelizableException e) {
-            print "$it isn't parallelizable: error on line "
+            print "$outermostLoop isn't parallelizable: error on line "
             println e.stackTrace.find{it.className.contains('DependencyAnal')}.lineNumber
           }
         }

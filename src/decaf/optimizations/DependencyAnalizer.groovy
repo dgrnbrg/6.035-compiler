@@ -44,6 +44,7 @@ class DependencyAnalizer {
   }
 
   def extractWritesInSOPForm(loop, ivs, domComps) {
+    def writes = []
     loop.body.findAll{it instanceof LowIrStore}.each{ store ->
       //stores must be to arrays
       if (store.index == null) throw new UnparallelizableException()
@@ -71,29 +72,80 @@ class DependencyAnalizer {
       if (!sums.isEmpty()) throw new UnparallelizableException()
       //check that the products are all either invariant or an induction var * an invariant or an induction var
       def isInvariant = { LowIrNode it ->
-        domComps.dominates(it, loop.header) || it instanceof LowIrIntLiteral
+        try {
+          isSpeculativelyMovableLoopInvariant(loop, it.getDef())
+          return true
+        } catch (UnparallelizableException e) {
+          return false
+        }
       }
       //check that it's adding a different induction variable
       def inductionVarsSoFar = new HashSet([null])
       def isDisjointInductionVar = { LowIrNode it ->
         inductionVarsSoFar.add(ivs.find{iv -> iv.tmpVar == it.getDef()})
       }
-println "Looking at products $products"
+      def addr = new ArrayAccessAddress()
       for (LowIrNode it in products) {
-        if (isInvariant(it)) continue
-        if (isDisjointInductionVar(it)) continue
+        if (isInvariant(it)) {
+          addr.invariants << it.getDef()
+          continue
+        }
+        if (isDisjointInductionVar(it)) {
+          addr.ivToInvariants[ivs.find{iv-> iv.tmpVar == it.getDef()}] << 1
+          continue
+        }
         if (it instanceof LowIrBinOp && it.op == BinOpType.MUL) {
           if (contractMoves(it.getUses()*.defSite).findAll{isInvariant(it)}.size() == 1 &&
               contractMoves(it.getUses()*.defSite).findAll{isDisjointInductionVar(it)}.size() == 1) {
+            def iv = contractMoves(it.getUses()*.defSite).find{!isInvariant(it)}.getDef()
+            iv = ivs.find{indVar-> indVar.tmpVar == iv}
+            def invar = contractMoves(it.getUses()*.defSite).find{isInvariant(it)}
+            addr.ivToInvariants[iv] << invar.getDef()
             continue
           }
         }
-        println "Failed on $it"
         throw new UnparallelizableException()
       }
+      //at this point, we know that each of these is either a product, invariant, or iv
       println 'Write is:'
-      products.eachWithIndex {it, index -> if (index != products.size() - 1) println "  $it +" else println "  $it" }
+      println "  $addr"
+      writes << addr
+//      products.eachWithIndex {it, index -> if (index != products.size() - 1) println "  $it +" else println "  $it" }
     }
+    return writes
+  }
+
+//TODO: split this into the check (that it's possible to move) and the action
+//use the check while extracting writes in SOP form
+  def isSpeculativelyMovableLoopInvariant(outermostLoop, invariant) {
+    assert outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() == 0
+    //first, we make sure this invariant is a binop combination of scalar loads and constants
+
+    //the following algorithm is from the Topological Sorting wikipedia page
+    def list = []
+    def visited = new HashSet()
+    def visit
+    visit = { LowIrNode n ->
+      if (!(n in visited)) {
+        visited << n
+        n.getUses()*.defSite.each{visit(it)}
+        list << n
+      }
+    }
+    visit(invariant.defSite)
+
+    //now, we have the nodes to relocate in the correct order
+    //let's make sure they're of the correct form
+    //division isn't relocatable
+    if (!list.every{it instanceof LowIrBinOp || it instanceof LowIrLoad || it instanceof LowIrIntLiteral})
+      throw new UnparallelizableException()
+    if (!list.findAll{it instanceof LowIrBinOp}.every{it.op != BinOpType.DIV})
+      throw new UnparallelizableException()
+    if (!list.findAll{it instanceof LowIrLoad}.every{it.index == null})
+      throw new UnparallelizableException()
+
+    //if all went well, return the list
+    return list
   }
 
   def speculativelyMoveInnerLoopInvariantsToOuterLoop(startNode, outermostLoop, invariants) {
@@ -103,28 +155,7 @@ println "Looking at products $products"
       //then, we move it to the outermost loop's header
       //this is safe since the loop contains no scalar stores, so it's all speculatable
 
-      //the following algorithm is from the Topological Sorting wikipedia page
-      def list = []
-      def visited = new HashSet()
-      def visit
-      visit = { LowIrNode n ->
-        if (!(n in visited)) {
-          visited << n
-          n.getUses()*.defSite.each{visit(it)}
-          list << n
-        }
-      }
-      visit(invariant.defSite)
-
-      //now, we have the nodes to relocate in the correct order
-      //let's make sure they're of the correct form
-      //division isn't relocatable
-      if (!list.every{it instanceof LowIrBinOp || it instanceof LowIrLoad || it instanceof LowIrIntLiteral})
-        throw new UnparallelizableException()
-      if (!list.findAll{it instanceof LowIrBinOp}.every{it.op != BinOpType.DIV})
-        throw new UnparallelizableException()
-      if (!list.findAll{it instanceof LowIrLoad}.every{it.index == null})
-        throw new UnparallelizableException()
+      def list = isSpeculativelyMovableLoopInvariant(outermostLoop, invariant)
 
       //now, we can unlink the list and relocate it to the loop header safely
       list*.excise()
@@ -136,7 +167,102 @@ println "Looking at products $products"
       SSAComputer.updateDUChains(startNode)
     }
   }
+
+  def generateParallelizabilityCheck(MethodDescriptor methodDesc, ArrayAccessAddress addr, LowIrNode trueDest, LowIrNode falseDest) {
+    def constantSym = 22 //this is how we identify the constants in the map
+    def ivToInvariant = [:] //this maps from iv_k to c_k
+    def genTmp = {methodDesc.tempFactory.createLocalTemp()}
+    def instrs = []
+    //first, we'll generate sums to ensure that the invariants are available in a single tmpVar each
+    def sumListOfTmps = { list ->
+      assert list.size() > 1
+      def carriedTmp = list[0]
+      for (int i = 1; i < list.size(); i++) {
+        instrs << new LowIrBinOp(
+          leftTmpVar: carriedTmp,
+          rightTmpVar: list[i],
+          tmpVar: genTmp(),
+          op: BinOpType.ADD
+        )
+        carriedTmp = instrs[-1].tmpVar
+      }
+      return carriedTmp
+    }
+    if (addr.invariants.size() > 1) {
+      ivToInvariant[constantSym] = sumListOfTmps(addr.invariants)
+    } else if (addr.invariants.size() == 1) {
+      ivToInvariant[constantSym] = addr.invariants[0]
+    } else {
+      instrs << new LowIrIntLiteral(value: 0, tmpVar: genTmp())
+      ivToInvariant[constantSym] = instrs[-1].tmpVar
+    }
+    instrs << new LowIrIntLiteral(value: 1, tmpVar: genTmp())
+    def constOneTmpVar = instrs[-1].tmpVar
+    addr.ivToInvariants.each{ iv, invariants ->
+      invariants = invariants.collect{ it == 1 ? constOneTmpVar : it }
+      assert invariants.size() > 0
+      if (invariants.size() > 1)
+        ivToInvariant[iv] = sumListOfTmps(invariants)
+      else
+        ivToInvariant[iv] = invariants[0]
+    }
+    //now, we have summed the invariants, so we must now sort them
+    def loopNest = []
+    loopNest.addAll(ivToInvariant.keySet() - constantSym)
+    def domComps = new DominanceComputations()
+    domComps.computeDominators(methodDesc.lowir)
+    loopNest.sort{a, b -> domComps.dominates(a.tmpVar.defSite,b.tmpVar.defSite) ? 1 : -1}
+    loopNest << constantSym
+    //now, we generate the comparisons
+    def mostRecentDest = trueDest
+    for (int i = loopNest.size() - 2; i >= 0; i--) {
+      def nestedStride = ivToInvariant[loopNest[i+1]]
+      if (loopNest[i+1] != constantSym) {
+        if (nestedStride != constOneTmpVar) {
+          instrs << new LowIrBinOp(
+            rightTmpVar: loopNest[i+1].highBoundTmp,
+            leftTmpVar: nestedStride,
+            tmpVar: genTmp(),
+            op: BinOpType.MUL
+          )
+          nestedStride = instrs[-1].tmpVar
+        } else {
+          nestedStride = loopNest[i+1].highBoundTmp
+        }
+      }
+      def cmpBridge = new LowIrValueBridge(new LowIrBinOp(
+        rightTmpVar: nestedStride,
+        leftTmpVar: ivToInvariant[loopNest[i]],
+        tmpVar: genTmp(),
+        op: BinOpType.GTE //since loop upper bound is exclusive
+      ))
+      mostRecentDest = LowIrGenerator.shortcircuit(cmpBridge, mostRecentDest, falseDest)
+    }
+    def mainCheck = new LowIrBridge(instrs).seq(new LowIrBridge(mostRecentDest)).begin
+    //don't forget to ensure that the outer loop is at least 100? iterations
+    def minIters = new LowIrIntLiteral(value: 100, tmpVar: genTmp())
+    def minCmp = new LowIrBinOp(
+      rightTmpVar: loopNest[0].highBoundTmp,
+      leftTmpVar: minIters.tmpVar,
+      tmpVar: genTmp(),
+      op: BinOpType.GTE //TODO: maybe this is LTE
+    )
+    return LowIrGenerator.shortcircuit(new LowIrBridge(minIters).seq(new LowIrValueBridge(minCmp)), mainCheck, falseDest)
+  }
 }
 
 class UnparallelizableException extends Exception {
+}
+
+//The values in this object are TempVars (except for certain ivToIvariants values)
+class ArrayAccessAddress {
+  //this maps induction variables to a list of their invariants
+  //for each plain copy of the IV (no multiply), we add the constant 1 to the list
+  def ivToInvariants = new LazyMap({[]})
+  //this is a list of the invariants w/o an induction variable
+  def invariants = []
+
+  String toString() {
+    "Access(invariants: $invariants, ivs: $ivToInvariants)"
+  }
 }
