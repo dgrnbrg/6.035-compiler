@@ -212,7 +212,7 @@ class DependencyAnalizer {
     loopNest.addAll(ivToInvariant.keySet() - constantSym)
     def domComps = new DominanceComputations()
     domComps.computeDominators(methodDesc.lowir)
-    loopNest.sort{a, b -> domComps.dominates(a.tmpVar.defSite,b.tmpVar.defSite) ? -1 : 1}
+    loopNest.sort{a, b -> domComps.dominates(a.tmpVar.defSite,b.tmpVar.defSite) ? 1 : -1}
     loopNest << constantSym
     //now, we generate the comparisons
     def mostRecentDest = trueDest
