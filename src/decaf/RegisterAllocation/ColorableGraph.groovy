@@ -5,7 +5,7 @@ import decaf.*
 import decaf.graph.*
 
 public class ColorableGraph {
-  def dbgOut = { str -> assert str; println str; }
+  def dbgOut = DbgHelper.dbgOut
 
   NeighborTable neighborTable;
   LinkedHashSet<ColoringNode> nodes;

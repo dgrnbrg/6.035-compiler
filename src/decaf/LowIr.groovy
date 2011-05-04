@@ -609,7 +609,7 @@ class LowIrPhi extends LowIrValueNode {
     //assert false
   }
 
-  void SwapDefUsingMap(mapToApply) {
-    //assert false
-  }
+  /*void SwapDefUsingMap(mapToApply) {
+    assert false
+  }*/
 }

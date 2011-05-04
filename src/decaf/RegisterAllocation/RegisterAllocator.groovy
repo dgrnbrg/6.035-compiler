@@ -6,7 +6,7 @@ import decaf.graph.*
 import static decaf.Reg.eachRegNode
 
 public class RegisterAllocator {
-  def dbgOut = { str -> assert str; println str; }
+  def dbgOut = DbgHelper.dbgOut
 
 	MethodDescriptor methodDesc;
   InterferenceGraph ig;
@@ -257,9 +257,12 @@ public class RegisterAllocator {
 
     SpillVar sv = methodDesc.svManager.requestNewSpillVar();
 
+    boolean foundDefSite = false;
+
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       // Determine if this node uses the spilled var.
       if(node.getUses().contains(tempVarToSpill)) {
+        println "tempVarToSpill = $tempVarToSpill, node = $node"
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
         node.SwapUsesUsingMap([(tempVarToSpill) : tv]);
         PlaceSpillLoadBeforeNode(node, sv, tv);
@@ -267,11 +270,19 @@ public class RegisterAllocator {
 
       // Determine if this node defines the spilled var.
       if(tempVarToSpill == node.getDef()) {
+        foundDefSite = true;
+        println "tmpVarToSpill = $tempVarToSpill"
+        println "node.getDef() = ${node.getDef()}";
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
         node.SwapDefUsingMap([(node.getDef()) : tv])
         PlaceSpillStoreAfterNode(node, sv, tv);
       }
     }
+
+    if(!foundDefSite) {
+      println "DID NOT FIND DEF SITE: tempVarToSpill = $tempVarToSpill"
+    }
+    //assert foundDefSite;
 
     dbgOut "Finished spilling the node."
   }
@@ -281,6 +292,8 @@ public class RegisterAllocator {
     assert siteOfSpill.getSuccessors().size() == 1;
 
     LowIrStoreSpill nodeToPlace = new LowIrStoreSpill(value : tv, storeLoc : sv);
+    
+    println "Spilling the TempVar (spill store); $tv, $sv, $siteOfSpill"
     
     LowIrNode.link(siteOfSpill, nodeToPlace);
     LowIrNode.link(nodeToPlace, siteOfSpill.getSuccessors().first())
@@ -293,6 +306,8 @@ public class RegisterAllocator {
 
     LowIrLoadSpill nodeToPlace = new LowIrLoadSpill(tmpVar : tv, loadLoc : sv);
     
+    println "Spilling the TempVar (spill load); $tv, $sv, $siteOfSpill"
+
     LowIrNode.link(nodeToPlace, siteOfSpill);
     def pred = siteOfSpill.getPredecessors();
     pred.each { p -> 
