@@ -307,10 +307,9 @@ public class GroovyMain {
 
   def stepOutOfSSA = { -> 
     methodDescs.each { methodDesc -> 
-      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
-      if('regalloc' in opts) {
-        println "now coloring the lowir for method: ${methodDesc.name}"
-        methodDesc.ra.ColorLowIr();
+      if(('regalloc' in opts) == false) {
+        println "stepping out of SSA form."
+        SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       }
     }
   }
@@ -351,12 +350,16 @@ public class GroovyMain {
       if ('sccp' in opts)
         new SparseConditionalConstantPropagation().run(methodDesc)
       if ('regalloc' in opts) {
+        println "stepping out of ssa form before register allocation."
+        SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir);
         println "Register Allocator running!"
         methodDesc.ra = new RegisterAllocator(methodDesc)
         println "--------------------------------------------------------------"
         println "Running Register Allocation for the method: ${methodDesc.name}"
         println "--------------------------------------------------------------"
         methodDesc.ra.RunRegAllocToFixedPoint()
+        println "now coloring the lowir for method: ${methodDesc.name}"
+        methodDesc.ra.ColorLowIr();
       }
     }
   }

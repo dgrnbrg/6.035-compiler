@@ -14,6 +14,7 @@ class RegAllocCodeGen extends CodeGenerator {
     asmMacro('.globl', method.name)
     emit(method.name + ':')
     enter(8*(method.params.size() + method.svManager.getNumSpillVarsToAllocate()),0)
+    PreserveCalleeRegisters();
     traverseWithTraces(method.lowir)
   }
 
@@ -152,6 +153,7 @@ class RegAllocCodeGen extends CodeGenerator {
         movq(getTmp(stmt.tmpVar),rax)
       else
         movq(0,rax) //void fxns return 0
+      RestoreCalleeRegisters();
       leave()
       ret()
       break
