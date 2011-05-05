@@ -368,6 +368,7 @@ public class GroovyMain {
         def inToOut = depAnal.computeLoopNest(iva.loopAnal.loops)
         depAnal.identifyOutermostLoops(iva.loopAnal.loops).each { outermostLoop ->
           //forbid the easy cases
+          if (iva.foundComplexInductionVar) return
           if (outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() > 0) return
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
           def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
