@@ -115,8 +115,6 @@ class DependencyAnalizer {
     return writes
   }
 
-//TODO: split this into the check (that it's possible to move) and the action
-//use the check while extracting writes in SOP form
   def isSpeculativelyMovableLoopInvariant(outermostLoop, invariant) {
     assert outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() == 0
     //first, we make sure this invariant is a binop combination of scalar loads and constants
@@ -284,13 +282,27 @@ class DependencyAnalizer {
       mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, falseDest)
     }
     def mainCheck = new LowIrBridge(instrs).seq(new LowIrBridge(mostRecentDest)).begin
+    if (GroovyMain.debug) {
+      def msgLitNode = new LowIrStringLiteral(
+        value: "Too few loop iterations (only %d)\\n",
+        tmpVar: genTmp()
+      )
+      def msgCallNode = new LowIrCallOut(
+        name: 'printf',
+        paramTmpVars: [msgLitNode.tmpVar, loopNest[0].highBoundTmp],
+        tmpVar: genTmp()
+      )
+      LowIrNode.link(msgLitNode, msgCallNode)
+      LowIrNode.link(msgCallNode, falseDest)
+      falseDest = msgLitNode
+    }
     //don't forget to ensure that the outer loop is at least 100? iterations
     def minIters = new LowIrIntLiteral(value: 100, tmpVar: genTmp())
     def minCmp = new LowIrBinOp(
       rightTmpVar: loopNest[0].highBoundTmp,
       leftTmpVar: minIters.tmpVar,
       tmpVar: genTmp(),
-      op: BinOpType.LTE //TODO: maybe this is LTE
+      op: BinOpType.LTE
     )
     return LowIrGenerator.static_shortcircuit(new LowIrBridge(minIters).seq(new LowIrValueBridge(minCmp)), mainCheck, falseDest)
   }
