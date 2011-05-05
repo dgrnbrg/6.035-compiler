@@ -265,6 +265,7 @@ class DependencyAnalizer {
         tmpVar: genTmp(),
         op: BinOpType.GTE //since loop upper bound is exclusive
       ))
+      def tmpFalseDest = falseDest
       if (GroovyMain.debug) {
         def msgLitNode = new LowIrStringLiteral(
           value: "failed test $i (%d >= %d)\\n",
@@ -277,9 +278,9 @@ class DependencyAnalizer {
         )
         LowIrNode.link(msgLitNode, msgCallNode)
         LowIrNode.link(msgCallNode, falseDest)
-        falseDest = msgLitNode
+        tmpFalseDest = msgLitNode
       }
-      mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, falseDest)
+      mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, tmpFalseDest)
     }
     def mainCheck = new LowIrBridge(instrs).seq(new LowIrBridge(mostRecentDest)).begin
     if (GroovyMain.debug) {

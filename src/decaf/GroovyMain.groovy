@@ -436,6 +436,17 @@ public class GroovyMain {
             //generate loads and stores for all the invariants from the loop
             def loadInvarsList = []
             def storeInvarsList = []
+            if (debug) {
+              loadInvarsList << new LowIrStringLiteral(
+                value: 'Executing parallel thread %d\\n',
+                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+              )
+              loadInvarsList << new LowIrCallOut(
+                name: 'printf',
+                paramTmpVars: [loadInvarsList[-1].tmpVar, new TempVar(type: TempVarType.PARAM, id: 0)],
+                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+              )
+            }
             loopInvariants.eachWithIndex{ invariant, index ->
               storeInvarsList << new LowIrIntLiteral(
                 value: index,
