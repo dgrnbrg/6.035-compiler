@@ -373,6 +373,7 @@ public class GroovyMain {
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
           def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
           if (loadDescs.intersect(storeDescs).size() > 0) return
+          if (storeDescs.unique{it.hashCode()}.size() != storeDescs.size()) return
           if (outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
                                          it instanceof LowIrCallOut ||
                                          it instanceof LowIrReturn}.size() > 0) return
@@ -474,7 +475,6 @@ public class GroovyMain {
             parallelMethodDesc.params = [new VariableDescriptor(
               name: 'threadid',
               type: Type.INT,
-              lexicalDepth: -1,
               tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
             )]
             methodDescs << parallelMethodDesc
