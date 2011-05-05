@@ -226,11 +226,11 @@ public class GroovyMain {
     if ('iva' in argparser['opt']) {
       opts += ['ssa', 'iva']
     }
-//    if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
-//      lowirGen.inliningThreshold = 50
-//    } else {
+    if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
+      lowirGen.inliningThreshold = 50
+    } else {
       lowirGen.inliningThreshold = 0
-//    }
+    }
     if ('all' in argparser['opt']) {
       opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'iva']
     }
