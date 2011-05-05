@@ -224,13 +224,13 @@ public class GroovyMain {
     if ('iva' in argparser['opt']) {
       opts += ['ssa', 'iva']
     }
-    if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
-      lowirGen.inliningThreshold = 50
-    } else {
+//    if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
+//      lowirGen.inliningThreshold = 50
+//    } else {
       lowirGen.inliningThreshold = 0
-    }
+//    }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'iva']
     }
   }
 
@@ -370,13 +370,9 @@ public class GroovyMain {
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
           def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
           if (loadDescs.intersect(storeDescs).size() > 0) return
-//TODO: reenable the safer version of the check
-          if (methodDesc.name != 'invert') return
-/*
           if (outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
                                          it instanceof LowIrCallOut ||
                                          it instanceof LowIrReturn}.size() > 0) return
-*/
           try {
             def writes = depAnal.extractWritesInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
             inToOut.keySet().each {inner ->
