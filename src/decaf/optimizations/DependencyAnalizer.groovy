@@ -126,7 +126,7 @@ class DependencyAnalizer {
     def visited = new HashSet()
     def visit
     visit = { LowIrNode n ->
-      if (!(n in visited)) {
+      if (n != null && !(n in visited)) {
         visited << n
         n.getUses()*.defSite.each{visit(it)}
         list << n

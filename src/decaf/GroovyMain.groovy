@@ -491,9 +491,13 @@ public class GroovyMain {
                 tmpVar: methodDesc.tempFactory.createLocalTemp()
               )
             }
+            storeInvarsList << new LowIrIntLiteral(
+              value: 22,
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
             storeInvarsList << new LowIrMethodCall(
               descriptor: parallelMethodDesc,
-              paramTmpVars: [loopInvariants.iterator().next()],
+              paramTmpVars: [storeInvarsList[-1].tmpVar],
               tmpVar: methodDesc.tempFactory.createLocalTemp()
             )
             def parallelBridge = new LowIrBridge(storeInvarsList)

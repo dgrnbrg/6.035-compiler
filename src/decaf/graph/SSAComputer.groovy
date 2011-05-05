@@ -232,6 +232,10 @@ class SSAComputer {
         def mov
         if (defSite?.getDef() in phi.args) {
           mov = new LowIrMov(src: defSite.getDef(), dst: phi.tmpVar)
+        } else if (phi.args*.type.findAll{it == TempVarType.PARAM}.size() > 0) {
+          //otherwise we can't compile this
+          assert phi.args*.type.findAll{it == TempVarType.PARAM}.size() == 1
+          mov = new LowIrMov(src: phi.args.find{it.type == TempVarType.PARAM}, dst: phi.tmpVar)
         } else {
           mov = new LowIrIntLiteral(value: 0, tmpVar: phi.tmpVar)
         }
