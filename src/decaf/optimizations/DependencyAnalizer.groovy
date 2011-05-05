@@ -233,12 +233,16 @@ class DependencyAnalizer {
     //now, we have summed the invariants, so we must now sort them
     def loopNest = []
     def loopNestMap = computeLoopNest((ivToInvariant.keySet() - constantSym)*.loop)
-    assert loopNestMap.values().findAll{!(it in loopNestMap.keySet())}.size() == 1
-    loopNest << loopNestMap.values().find{!(it in loopNestMap.keySet())}
-    while (loopNest.size() != loopNestMap.size()+1) {
-      loopNest << loopNestMap.find{it.value == loopNest[-1]}.key
+    if (loopNestMap.values().findAll{!(it in loopNestMap.keySet())}.size() == 1) {
+      loopNest << loopNestMap.values().find{!(it in loopNestMap.keySet())}
+      while (loopNest.size() != loopNestMap.size()+1) {
+        loopNest << loopNestMap.find{it.value == loopNest[-1]}.key
+      }
+      loopNest = loopNest.collect{loop -> ivToInvariant.keySet().find{it != constantSym && it.loop == loop}}
+    } else {
+      loopNest << (ivToInvariant.keySet() - constantSym).iterator().next()
+      assert loopNest[0] != null
     }
-    loopNest = loopNest.collect{loop -> ivToInvariant.keySet().find{it != constantSym && it.loop == loop}}
     loopNest << constantSym
     //now, we generate the comparisons
     def mostRecentDest = trueDest

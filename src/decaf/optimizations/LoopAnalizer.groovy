@@ -55,7 +55,7 @@ class LoopAnalizer {
       case LowIrBinOp:
         return new LowIrBinOp(
           leftTmpVar: tmpCopyMap[node.leftTmpVar],
-          rightTmpVar: tmpCopyMap[node.rightTmpVar],
+          rightTmpVar: node.rightTmpVar ? tmpCopyMap[node.rightTmpVar] : null,
           tmpVar: tmpCopyMap[node.tmpVar],
           op: node.op
         )
