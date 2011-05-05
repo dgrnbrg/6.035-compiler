@@ -45,6 +45,7 @@ public class GroovyMain {
   def errors = []
   //used for storing a failure exception when called from code
   def failException
+  static debug = false
 
   static GroovyMain runMain(String target, String decafProgram, args = [:]) {
     def bytes = decafProgram.getBytes()
@@ -76,6 +77,7 @@ public class GroovyMain {
       System.exit(1)
     }
     file = argparser['other'][0]
+    debug = argparser['debug'] != null
     inputStream = new File(file).newDataInputStream()
 
     int exitCode = 0
@@ -451,15 +453,17 @@ public class GroovyMain {
                 index: loadInvarsList[-1].tmpVar,
                 tmpVar: copiedLoop[1][invariant]
               )
-              loadInvarsList << new LowIrStringLiteral(
-                value: 'Read invariant %d, has value %d\\n',
-                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
-              )
-              loadInvarsList << new LowIrCallOut(
-                name: 'printf',
-                paramTmpVars: [loadInvarsList[-1].tmpVar, loadInvarsList[-3].tmpVar, loadInvarsList[-2].tmpVar],
-                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
-              )
+              if (debug) {
+                loadInvarsList << new LowIrStringLiteral(
+                  value: 'Read invariant %d, has value %d\\n',
+                  tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+                )
+                loadInvarsList << new LowIrCallOut(
+                  name: 'printf',
+                  paramTmpVars: [loadInvarsList[-1].tmpVar, loadInvarsList[-3].tmpVar, loadInvarsList[-2].tmpVar],
+                  tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+                )
+              }
             }
             def loadInvarsBridge = new LowIrBridge(loadInvarsList)
             LowIrNode.link(loadInvarsBridge.end, copiedLoop[0].header)
@@ -475,15 +479,17 @@ public class GroovyMain {
             methodDescs << parallelMethodDesc
 
             //now, we can just try calling the parallel function after loading the array up
-            storeInvarsList << new LowIrStringLiteral(
-              value: 'Executing parallel codes\\n',
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
-            storeInvarsList << new LowIrCallOut(
-              name: 'printf',
-              paramTmpVars: [storeInvarsList[-1].tmpVar],
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
+            if (debug) {
+              storeInvarsList << new LowIrStringLiteral(
+                value: 'Executing parallel codes\\n',
+                tmpVar: methodDesc.tempFactory.createLocalTemp()
+              )
+              storeInvarsList << new LowIrCallOut(
+                name: 'printf',
+                paramTmpVars: [storeInvarsList[-1].tmpVar],
+                tmpVar: methodDesc.tempFactory.createLocalTemp()
+              )
+            }
             storeInvarsList << new LowIrMethodCall(
               descriptor: parallelMethodDesc,
               paramTmpVars: [loopInvariants.iterator().next()],

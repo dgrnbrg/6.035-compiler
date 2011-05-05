@@ -267,18 +267,21 @@ class DependencyAnalizer {
         tmpVar: genTmp(),
         op: BinOpType.GTE //since loop upper bound is exclusive
       ))
-      def msgLitNode = new LowIrStringLiteral(
-        value: "failed test $i (%d >= %d)\\n",
-        tmpVar: genTmp()
-      )
-      def msgCallNode = new LowIrCallOut(
-        name: 'printf',
-        paramTmpVars: [msgLitNode.tmpVar, nestedStride, ivToInvariant[loopNest[i]]],
-        tmpVar: genTmp()
-      )
-      LowIrNode.link(msgLitNode, msgCallNode)
-      LowIrNode.link(msgCallNode, falseDest)
-      mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, msgLitNode)
+      if (GroovyMain.debug) {
+        def msgLitNode = new LowIrStringLiteral(
+          value: "failed test $i (%d >= %d)\\n",
+          tmpVar: genTmp()
+        )
+        def msgCallNode = new LowIrCallOut(
+          name: 'printf',
+          paramTmpVars: [msgLitNode.tmpVar, nestedStride, ivToInvariant[loopNest[i]]],
+          tmpVar: genTmp()
+        )
+        LowIrNode.link(msgLitNode, msgCallNode)
+        LowIrNode.link(msgCallNode, falseDest)
+        falseDest = msgLitNode
+      }
+      mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, falseDest)
     }
     def mainCheck = new LowIrBridge(instrs).seq(new LowIrBridge(mostRecentDest)).begin
     //don't forget to ensure that the outer loop is at least 100? iterations
