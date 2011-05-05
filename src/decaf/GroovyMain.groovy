@@ -419,7 +419,12 @@ public class GroovyMain {
             def tmpsInLoop = new LinkedHashSet(outermostLoop.body*.getUses().flatten())
             def domComps = new DominanceComputations()
             domComps.computeDominators(methodDesc.lowir)
-            def loopInvariants = tmpsInLoop.findAll{domComps.dominates(it.defSite, outermostLoop.header)}
+            def loopInvariants = new ArrayList(tmpsInLoop.findAll{domComps.dominates(it.defSite, outermostLoop.header)})
+            def outermostInductionVar = iva.basicInductionVars.find{it.loop == outermostLoop}
+            assert loopInvariants.remove(outermostInductionVar.lowBoundTmp)
+            assert loopInvariants.remove(outermostInductionVar.highBoundTmp)
+            loopInvariants.add(0, outermostInductionVar.highBoundTmp)
+            loopInvariants.add(0, outermostInductionVar.lowBoundTmp)
             def loopInvariantArray = new VariableDescriptor(
               name: "array_$parallelFuncPostfix",
               type: Type.INT_ARRAY,
@@ -447,6 +452,7 @@ public class GroovyMain {
                 tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
               )
             }
+            def lowerBoundTmpInNewFunc, upperBoundTmpInNewFunc
             loopInvariants.eachWithIndex{ invariant, index ->
               storeInvarsList << new LowIrIntLiteral(
                 value: index,
@@ -466,6 +472,8 @@ public class GroovyMain {
                 index: loadInvarsList[-1].tmpVar,
                 tmpVar: copiedLoop[1][invariant]
               )
+              if (index == 0) lowerBoundTmpInNewFunc = loadInvarsList[-1].tmpVar
+              if (index == 1) upperBoundTmpInNewFunc = loadInvarsList[-1].tmpVar
               if (debug) {
                 loadInvarsList << new LowIrStringLiteral(
                   value: 'Read invariant %d, has value %d\\n',
@@ -478,10 +486,73 @@ public class GroovyMain {
                 )
               }
             }
+            //now, we must recompute the loop bounds on a per-thread basis
+            loadInvarsList << new LowIrBinOp(
+              leftTmpVar: upperBoundTmpInNewFunc,
+              rightTmpVar: lowerBoundTmpInNewFunc,
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp(),
+              op: BinOpType.SUB
+            )
+            loadInvarsList << new LowIrIntLiteral(
+              value: 4,
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+            )
+            //the result of this division is the increment
+            loadInvarsList << new LowIrBinOp(
+              leftTmpVar: loadInvarsList[-2].tmpVar,
+              rightTmpVar: loadInvarsList[-1].tmpVar,
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp(),
+              op: BinOpType.DIV
+            )
+            def loadIncTmpVar = loadInvarsList[-1].tmpVar
+            loadInvarsList << new LowIrBinOp(
+              leftTmpVar: new TempVar(type: TempVarType.PARAM, id: 0), //threadid \in {0,1,2,3}
+              rightTmpVar: loadInvarsList[-1].tmpVar,
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp(),
+              op: BinOpType.MUL
+            )
+            //this is the new lower bound
+            loadInvarsList << new LowIrBinOp(
+              leftTmpVar: lowerBoundTmpInNewFunc,
+              rightTmpVar: loadInvarsList[-1].tmpVar,
+              tmpVar: lowerBoundTmpInNewFunc,
+              op: BinOpType.ADD
+            )
+            //maybe we compute the upper bound if threadid != 3
+            loadInvarsList << new LowIrIntLiteral(
+              value: 3,
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+            )
+            def threadIdCmp = new LowIrBinOp(
+              leftTmpVar: new TempVar(type: TempVarType.PARAM, id: 0), //threadid \in {0,1,2,3}
+              rightTmpVar: loadInvarsList[-1].tmpVar,
+              tmpVar: parallelMethodDesc.tempFactory.createLocalTemp(),
+              op: BinOpType.NEQ
+            )
+            loadInvarsList << threadIdCmp
+
+            def redoUpperBound = new LowIrBinOp(
+              leftTmpVar: lowerBoundTmpInNewFunc,
+              rightTmpVar: loadIncTmpVar,
+              tmpVar: upperBoundTmpInNewFunc,
+              op: BinOpType.ADD
+            )
+            def leaveUpperBound = new LowIrNode(metaText: 'threadid == 3')
+            def anotherHeaderNoOp = new LowIrNode(metaText: 'another header noop')
+            LowIrNode.link(redoUpperBound, anotherHeaderNoOp)
+            LowIrNode.link(leaveUpperBound, anotherHeaderNoOp)
+            LowIrNode.link(anotherHeaderNoOp, copiedLoop[0].header)
+            //TODO: note that this must be the last optimization we break SSA
+            
             def loadInvarsBridge = new LowIrBridge(loadInvarsList)
-            LowIrNode.link(loadInvarsBridge.end, copiedLoop[0].header)
+            LowIrGenerator.static_shortcircuit(
+              new LowIrValueBridge(threadIdCmp),
+              redoUpperBound,
+              leaveUpperBound
+            )
             copiedLoop[0].exit.falseDest = new LowIrReturn()
             LowIrNode.link(copiedLoop[0].exit, copiedLoop[0].exit.falseDest)
+            def parallelMethodStartNode = loadInvarsBridge.begin
             parallelMethodDesc.lowir = loadInvarsBridge.begin
             parallelMethodDesc.params = [new VariableDescriptor(
               name: 'threadid',
@@ -503,7 +574,34 @@ public class GroovyMain {
               )
             }
             storeInvarsList << new LowIrIntLiteral(
-              value: 22,
+              value: 0,
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            storeInvarsList << new LowIrMethodCall(
+              descriptor: parallelMethodDesc,
+              paramTmpVars: [storeInvarsList[-1].tmpVar],
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            storeInvarsList << new LowIrIntLiteral(
+              value: 1,
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            storeInvarsList << new LowIrMethodCall(
+              descriptor: parallelMethodDesc,
+              paramTmpVars: [storeInvarsList[-1].tmpVar],
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            storeInvarsList << new LowIrIntLiteral(
+              value: 2,
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            storeInvarsList << new LowIrMethodCall(
+              descriptor: parallelMethodDesc,
+              paramTmpVars: [storeInvarsList[-1].tmpVar],
+              tmpVar: methodDesc.tempFactory.createLocalTemp()
+            )
+            storeInvarsList << new LowIrIntLiteral(
+              value: 3,
               tmpVar: methodDesc.tempFactory.createLocalTemp()
             )
             storeInvarsList << new LowIrMethodCall(
