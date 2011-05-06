@@ -543,7 +543,27 @@ public class GroovyMain {
             def anotherHeaderNoOp = new LowIrNode(metaText: 'another header noop')
             LowIrNode.link(redoUpperBound, anotherHeaderNoOp)
             LowIrNode.link(leaveUpperBound, anotherHeaderNoOp)
-            LowIrNode.link(anotherHeaderNoOp, copiedLoop[0].header)
+            if (debug) {
+              def strLit = new LowIrStringLiteral(
+                value: 'Thread %d taking iteration range [%d, %d]\\n',
+                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+              )
+              def printf = new LowIrCallOut(
+                name: 'printf',
+                paramTmpVars: [
+                  strLit.tmpVar,
+                  new TempVar(type: TempVarType.PARAM, id: 0),
+                  lowerBoundTmpInNewFunc,
+                  upperBoundTmpInNewFunc
+                ],
+                tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
+              )
+              LowIrNode.link(anotherHeaderNoOp, strLit)
+              LowIrNode.link(strLit, printf)
+              LowIrNode.link(printf, copiedLoop[0].header)
+            } else {
+              LowIrNode.link(anotherHeaderNoOp, copiedLoop[0].header)
+            }
             //TODO: note that this must be the last optimization we break SSA
             
             def loadInvarsBridge = new LowIrBridge(loadInvarsList)
