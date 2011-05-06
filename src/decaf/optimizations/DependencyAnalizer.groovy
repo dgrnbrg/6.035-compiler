@@ -3,7 +3,7 @@ import decaf.*
 import decaf.graph.*
 
 class DependencyAnalizer {
-  def identifyInnermostLoops(loops) {
+  static def identifyInnermostLoops(loops) {
     def innermostLoops = []
     for (loop in loops) {
       //this loop's body contains no other loop's header
@@ -14,7 +14,7 @@ class DependencyAnalizer {
     return innermostLoops
   }
 
-  def identifyOutermostLoops(loops) {
+  static def identifyOutermostLoops(loops) {
     def outermostLoops = []
     for (loop in loops) {
       //no other loop's body contains this loop's header
@@ -104,6 +104,7 @@ class DependencyAnalizer {
             continue
           }
         }
+println "$it"
         throw new UnparallelizableException()
       }
       //at this point, we know that each of these is either a product, invariant, or iv

@@ -259,7 +259,64 @@ class CodeGenerator extends Traverser {
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
       }
       break
+    case LowIrParallelizedLoop:
+      //pointer to thread function
+      def threadFuncOperand = new Operand(stmt.func.name)
+      threadFuncOperand.type = OperType.IMM
+      def threadPrefix = "${stmt.func.name}_threadid"
+      emit('bss', ".comm ${threadPrefix}0 8")
+      emit('bss', ".comm ${threadPrefix}1 8")
+      emit('bss', ".comm ${threadPrefix}2 8")
+      emit('bss', ".comm ${threadPrefix}3 8")
+      //globals storing thread ids
+      def thread0id = new Operand("${threadPrefix}0")
+      thread0id.type = OperType.IMM
+      def thread1id = new Operand("${threadPrefix}1")
+      thread1id.type = OperType.IMM
+      def thread2id = new Operand("${threadPrefix}2")
+      thread2id.type = OperType.IMM
+      def thread3id = new Operand("${threadPrefix}3")
+      thread3id.type = OperType.IMM
+      //set up args
+      movq(0, rcx)
+      movq(threadFuncOperand, rdx)
+      movq(0, rsi)
+      movq(thread0id, rdi)
+      call('pthread_create')
+      movq(1, rcx)
+      movq(threadFuncOperand, rdx)
+      movq(0, rsi)
+      movq(thread1id, rdi)
+      call('pthread_create')
+      movq(2, rcx)
+      movq(threadFuncOperand, rdx)
+      movq(0, rsi)
+      movq(thread2id, rdi)
+      call('pthread_create')
+      movq(3, rcx)
+      movq(threadFuncOperand, rdx)
+      movq(0, rsi)
+      movq(thread3id, rdi)
+      call('pthread_create')
+      movq(rip("${threadPrefix}0"), rax)
+      movq(0, rsi)
+      movq(rax, rdi)
+      call('pthread_join')
+      movq(rip("${threadPrefix}1"), rax)
+      movq(0, rsi)
+      movq(rax, rdi)
+      call('pthread_join')
+      movq(rip("${threadPrefix}2"), rax)
+      movq(0, rsi)
+      movq(rax, rdi)
+      call('pthread_join')
+      movq(rip("${threadPrefix}3"), rax)
+      movq(0, rsi)
+      movq(rax, rdi)
+      call('pthread_join')
+      break
     case LowIrPhi:
+      assert false, "this probably shouldn't be here"
       break
     case LowIrNode: //this is a noop
       assert stmt.getClass() == LowIrNode.class || stmt.getClass() == LowIrValueNode.class

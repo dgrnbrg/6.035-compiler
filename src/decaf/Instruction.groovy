@@ -174,7 +174,8 @@ enum Reg {
   R12('r12'),
   R13('r13'),
   R14('r14'),
-  R15('r15');
+  R15('r15'),
+  RIP('rip'); //used by parallelizer
 
   final String name
 

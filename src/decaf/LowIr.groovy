@@ -469,6 +469,15 @@ class LowIrStore extends LowIrNode {
   }
 }
 
+class LowIrParallelizedLoop extends LowIrNode {
+  MethodDescriptor func
+  VariableDescriptor thread0id, thread1id, thread2id, thread3id
+
+  String toString() {
+    "LowIrParallelizedLoop($func)"
+  }
+}
+
 class LowIrLoad extends LowIrValueNode {
   VariableDescriptor desc
   TempVar index

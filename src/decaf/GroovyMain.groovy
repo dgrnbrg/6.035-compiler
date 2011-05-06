@@ -368,7 +368,7 @@ public class GroovyMain {
         def inToOut = depAnal.computeLoopNest(iva.loopAnal.loops)
         depAnal.identifyOutermostLoops(iva.loopAnal.loops).each { outermostLoop ->
           //forbid the easy cases
-          if (iva.foundComplexInductionVar) return
+          if (outermostLoop in iva.foundComplexInductionVarInLoop) return
           if (outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() > 0) return
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
           def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
@@ -573,45 +573,11 @@ public class GroovyMain {
                 tmpVar: methodDesc.tempFactory.createLocalTemp()
               )
             }
-            storeInvarsList << new LowIrIntLiteral(
-              value: 0,
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
-            storeInvarsList << new LowIrMethodCall(
-              descriptor: parallelMethodDesc,
-              paramTmpVars: [storeInvarsList[-1].tmpVar],
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
-            storeInvarsList << new LowIrIntLiteral(
-              value: 1,
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
-            storeInvarsList << new LowIrMethodCall(
-              descriptor: parallelMethodDesc,
-              paramTmpVars: [storeInvarsList[-1].tmpVar],
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
-            storeInvarsList << new LowIrIntLiteral(
-              value: 2,
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
-            storeInvarsList << new LowIrMethodCall(
-              descriptor: parallelMethodDesc,
-              paramTmpVars: [storeInvarsList[-1].tmpVar],
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
-            storeInvarsList << new LowIrIntLiteral(
-              value: 3,
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
-            storeInvarsList << new LowIrMethodCall(
-              descriptor: parallelMethodDesc,
-              paramTmpVars: [storeInvarsList[-1].tmpVar],
-              tmpVar: methodDesc.tempFactory.createLocalTemp()
-            )
+            storeInvarsList << new LowIrParallelizedLoop(func: parallelMethodDesc)
             def parallelBridge = new LowIrBridge(storeInvarsList)
             LowIrNode.link(parallelize, parallelBridge.begin)
             LowIrNode.link(parallelBridge.end, outermostLoop.exit.falseDest)
+            println "Generated parallel codes"
           } catch (UnparallelizableException e) {
             print "$outermostLoop isn't parallelizable: error on line "
             println e.stackTrace.find{it.className.contains('DependencyAnal')}.lineNumber
