@@ -129,8 +129,8 @@ public class InterferenceGraph extends ColorableGraph {
       def liveVars = node.anno['regalloc-liveness']
 
       // Uncomment to see liveness analysis results.
-      dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
-      liveVars.each { dbgOut "  $it" }
+      //dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
+      //liveVars.each { dbgOut "  $it" }
 
       // Extra edges to add to handle special cases.
       switch(node) {
@@ -163,6 +163,19 @@ public class InterferenceGraph extends ColorableGraph {
           ColorsNodeCannotBe[GetColoringNode(node.getDef())] << Reg.R10;
           ColorsNodeCannotBe[GetColoringNode(node.leftTmpVar)] <<  Reg.R10;
           ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] <<  Reg.R10;
+          liveVars.each { lv -> 
+            if(lv != node.getDef())
+              ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.R10;
+          }
+        }
+        break;
+      case LowIrLoad:
+      case LowIrStore:
+        if(node.index != null) {
+          // We need to use r10 as a temporary to handle the index of the array.
+          node.getUses().each { use -> 
+            ColorsNodeCannotBe[GetColoringNode(use)] << Reg.R10;
+          }
           liveVars.each { lv -> 
             if(lv != node.getDef())
               ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.R10;

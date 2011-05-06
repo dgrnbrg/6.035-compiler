@@ -189,23 +189,20 @@ class RegAllocCodeGen extends CodeGenerator {
       break
     case LowIrLoad:
       if (stmt.index != null) {
-        movq(getTmp(stmt.index), r11)
-        assert false; // How do we handle the line below (the r11 part)
-        def arrOp = r11(stmt.desc.name + '_globalvar', 8)
-        movq(arrOp, r10)
+        movq(getTmp(stmt.index), r10)
+        def arrOp = r10(stmt.desc.name + '_globalvar', 8)
+        movq(arrOp, getTmp(stmt.tmpVar))
       } else {
-        movq(new Operand(stmt.desc.name + '_globalvar'), r10)
+        movq(new Operand(stmt.desc.name + '_globalvar'), getTmp(stmt.tmpVar))
       }
-      movq(r10, getTmp(stmt.tmpVar))
       break
     case LowIrStore:
-      movq(getTmp(stmt.value), r10)
       if (stmt.index != null) {
-        movq(getTmp(stmt.index), r11)
-        def arrOp = r11(stmt.desc.name + '_globalvar', 8)
-        movq(r10, arrOp)
+        movq(getTmp(stmt.index), r10)
+        def arrOp = r10(stmt.desc.name + '_globalvar', 8)
+        movq(getTmp(stmt.value), arrOp)
       } else {
-        movq(r10, new Operand(stmt.desc.name + '_globalvar'))
+        movq(getTmp(stmt.value), new Operand(stmt.desc.name + '_globalvar'))
       }
       break
     case LowIrMov:

@@ -104,8 +104,8 @@ public class RegisterAllocator {
       break;
     }
 
-    assert OnlySigDegOrMoveRelated();
-    ig.nodes.each { assert it.isMovRelated() == false }
+    //assert OnlySigDegOrMoveRelated();
+    //ig.nodes.each { assert it.isMovRelated() == false }
 
     if(!Select()) {
       Spill();
@@ -288,7 +288,7 @@ public class RegisterAllocator {
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       // Determine if this node uses the spilled var.
       if(node.getUses().contains(tempVarToSpill)) {
-        println "tempVarToSpill = $tempVarToSpill, node = $node"
+        dbgOut "USE. SPILL. TV = $tempVarToSpill, Node = $node"
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
         node.SwapUsesUsingMap([(tempVarToSpill) : tv]);
         PlaceSpillLoadBeforeNode(node, sv, tv);
@@ -296,6 +296,7 @@ public class RegisterAllocator {
 
       // Determine if this node defines the spilled var.
       if(tempVarToSpill == node.getDef()) {
+        dbgOut "DEF. SPILL. TV = $tempVarToSpill, Node = $node"
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
         node.SwapDefUsingMap([(node.getDef()) : tv])
         PlaceSpillStoreAfterNode(node, sv, tv);
@@ -307,36 +308,54 @@ public class RegisterAllocator {
 
   void PlaceSpillStoreAfterNode(LowIrNode siteOfSpill, SpillVar sv, TempVar tv) {
     assert siteOfSpill; assert tv; assert sv;
-    assert siteOfSpill.getSuccessors().size() == 1;
-
-    LowIrStoreSpill nodeToPlace = new LowIrStoreSpill(value : tv, storeLoc : sv);
-    
-    println "Spilling the TempVar (spill store); $tv, $sv, $siteOfSpill"
-    
-    LowIrNode.link(siteOfSpill, nodeToPlace);
-    LowIrNode.link(nodeToPlace, siteOfSpill.getSuccessors().first())
-    LowIrNode.unlink(siteOfSpill, siteOfSpill.getSuccessors().first())
+    PlaceNodeAfterNode(siteOfSpill, new LowIrStoreSpill(value : tv, storeLoc : sv));
   }
 
   void PlaceSpillLoadBeforeNode(LowIrNode siteOfSpill, SpillVar sv, TempVar tv) {
     assert siteOfSpill; assert tv; assert sv;
-    assert siteOfSpill.getPredecessors().size() > 0;
+    PlaceNodeBeforeNode(new LowIrLoadSpill(tmpVar : tv, loadLoc : sv), siteOfSpill);
+  }
 
-    LowIrLoadSpill nodeToPlace = new LowIrLoadSpill(tmpVar : tv, loadLoc : sv);
-    
-    println "Spilling the TempVar (spill load); $tv, $sv, $siteOfSpill"
+  // Warning, this function should not be called on LowIrCondJump.
+  void PlaceNodeAfterNode(LowIrNode beforeNode, LowIrNode afterNode) {
+    assert beforeNode; assert afterNode;
+    assert !(beforeNode instanceof LowIrCondJump);
+    assert beforeNode.getSuccessors().size() == 1;
 
-    LowIrNode.link(nodeToPlace, siteOfSpill);
-    def pred = siteOfSpill.getPredecessors();
+    LowIrNode.link(beforeNode, afterNode);
+    LowIrNode.link(afterNode, beforeNode.getSuccessors().first())
+    LowIrNode.unlink(beforeNode, beforeNode.getSuccessors().first())
+  }
+
+  void PlaceNodeBeforeNode(LowIrNode beforeNode, LowIrNode afterNode) {
+    assert beforeNode; assert afterNode;
+    assert afterNode.getPredecessors().size() > 0;
+
+    LowIrNode.link(beforeNode, afterNode);
+    def pred = afterNode.getPredecessors();
     pred.each { p -> 
-      LowIrNode.unlink(p, siteOfSpill);
-      LowIrNode.link(p, nodeToPlace);
+      LowIrNode.unlink(p, afterNode);
+      LowIrNode.link(p, beforeNode);
       if(p instanceof LowIrCondJump) {
-        if(p.trueDest == siteOfSpill) 
-          p.trueDest = nodeToPlace;
-        if(p.falseDest == siteOfSpiill)
-          p.falseDest = nodeToPlace;
+        if(p.trueDest == afterNode) 
+          p.trueDest = beforeNode;
+        if(p.falseDest == afterNode)
+          p.falseDest = beforeNode;
       }
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
