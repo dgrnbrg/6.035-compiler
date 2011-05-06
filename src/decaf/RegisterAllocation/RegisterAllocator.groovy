@@ -27,6 +27,11 @@ public class RegisterAllocator {
 
   void RunRegAllocToFixedPoint() {
     dbgOut "Beginning Register Allocation."
+
+    // First break method calls and callouts.
+    RegAllocLowIrModifier.BreakCalls(methodDesc)
+    RegAllocLowIrModifier.BreakDivMod(methodDesc)
+
     while(RegAllocationIteration());
 
     dbgOut "Finished Register Allocation."
@@ -117,9 +122,6 @@ public class RegisterAllocator {
 
   void Build() {
     dbgOut "Now running Build()."
-
-    // First break method calls and callouts.
-    RegAllocLowIrModifier.BreakCalls(methodDesc)
 
     ig = new InterferenceGraph(methodDesc);
     theStack = new ColoringStack(ig);    
@@ -234,7 +236,7 @@ public class RegisterAllocator {
 
     // need to check that there are no low-degree 
     for(node in ig.nodes) { 
-      if(ig.isSigDeg(node)) {
+      if(ig.isSigDeg(node) && ((node.representative instanceof RegisterTempVar) == false)) {
         dbgOut "Found potential spill: $node"
         potentialSpills << node;
         theStack.PushNodeFromGraphToStack(node);

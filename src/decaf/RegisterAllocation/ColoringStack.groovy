@@ -18,6 +18,7 @@ public class ColoringStack {
 
   void PushNodeFromGraphToStack(InterferenceNode iNode) {
     assert iNode;
+    assert iNode.color == null;
     Validate();
     assert ig.nodes.contains(iNode);
 
@@ -48,6 +49,7 @@ public class ColoringStack {
     ColoringStackBlock csb = Peek();
     ig.BuildNodeToColoringNodeMap();
     LinkedHashSet<Reg> remainingColors = []
+
     Reg.eachReg { r -> 
       if(r != Reg.RSP && r != Reg.RBP)
         remainingColors << r;
@@ -55,15 +57,25 @@ public class ColoringStack {
 
     assert remainingColors.size() == 14;
 
+    LinkedHashSet<Reg> removedColors = [];
+
     csb.interferenceNeighbors.each { n -> 
       assert n instanceof TempVar;
       InterferenceNode iNode = ig.GetColoringNode(n);
-      if(iNode.color)
+      assert iNode.color != null;
+      if(iNode.color) {
         remainingColors.remove(iNode.color)
+        removedColors << iNode.color
+      }
     }
 
     if(remainingColors.size() > 0)
       return remainingColors.asList().first();
+    else {
+      println "csb = $csb"
+      println removedColors
+      //assert false
+    }
 
     return null;
   }

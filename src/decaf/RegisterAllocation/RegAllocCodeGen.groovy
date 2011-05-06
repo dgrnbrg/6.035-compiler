@@ -253,44 +253,54 @@ class RegAllocCodeGen extends CodeGenerator {
 	      xor(1, getTmp(stmt.tmpVar))
 	      break
       case ADD:
-        if(stmt.leftTmpVar != stmt.tmpVar)
+        if(stmt.leftTmpVar == stmt.tmpVar && stmt.leftTmpVar == stmt.tmpVar) {
+          add(getTmp(stmt.leftTmpVar), getTmp(stmt.rightTmpVar));
+        } else if(stmt.leftTmpVar == stmt.tmpVar) {
+          add(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar));
+        } else if(stmt.rightTmpVar == stmt.tmpVar) {
+          add(getTmp(stmt.leftTmpVar), getTmp(stmt.rightTmpVar));
+        } else {
           movq(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar));
-        add(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
-        break
+          add(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
+        }
+        break;
       case SUB:
-        if(stmt.leftTmpVar != stmt.tmpVar)
+        if(stmt.leftTmpVar == stmt.tmpVar && stmt.leftTmpVar == stmt.tmpVar) {
+          // The following line should probably be replaced by:
+          // movq($0, getTmp(stmt.tmpVar));
+          sub(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar));
+        } else if(stmt.leftTmpVar == stmt.tmpVar) {
+          sub(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar));
+        } else if(stmt.rightTmpVar == stmt.tmpVar) {
+          assert false;
+        } else {
           movq(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar));
-        sub(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
+          sub(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
+        }
         break
       case MUL:
-        if(stmt.leftTmpVar != stmt.tmpVar)
+        if(stmt.leftTmpVar == stmt.tmpVar && stmt.leftTmpVar == stmt.tmpVar) {
+          imul(getTmp(stmt.leftTmpVar), getTmp(stmt.rightTmpVar));
+        } else if(stmt.leftTmpVar == stmt.tmpVar) {
+          imul(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar));
+        } else if(stmt.rightTmpVar == stmt.tmpVar) {
+          imul(getTmp(stmt.leftTmpVar), getTmp(stmt.rightTmpVar));
+        } else {
           movq(getTmp(stmt.leftTmpVar), getTmp(stmt.tmpVar));
-        imul(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
+          imul(getTmp(stmt.rightTmpVar), getTmp(stmt.tmpVar));
+        }
         break
       case DIV:
-        println stmt.tmpVar.registerName;
         assert stmt.tmpVar.registerName == 'rax'
+        assert stmt.leftTmpVar.registerName == 'rax'
         movq(0, rdx)
-        // these redundant move checks should be removed once we write the 
-        // peep-hole optimization for it.
-        if(stmt.leftTmpVar.registerName != 'rax')
-          movq(getTmp(stmt.leftTmpVar),rax)
-        if(stmt.rightTmpVar.registerName != 'r10')
-          movq(getTmp(stmt.rightTmpVar),r10)
-        idiv(r10)
-        if(stmt.tmpVar.registerName != 'rax')
-          movq(rax,getTmp(stmt.tmpVar))
+        idiv(getTmp(stmt.rightTmpVar))
         break
       case MOD:
         assert stmt.tmpVar.registerName == 'rdx'
+        assert stmt.leftTmpVar.registerName == 'rax'
         movq(0, rdx)
-        if(stmt.leftTmpVar.registerName != 'rax')
-          movq(getTmp(stmt.leftTmpVar),rax)
-        if(stmt.rightTmpVar.registerName != 'r10')
-          movq(getTmp(stmt.rightTmpVar),r10)
-        idiv(r10)
-        if(stmt.tmpVar.registerName != 'rdx')
-          movq(rdx, getTmp(stmt.tmpVar))
+        idiv(getTmp(stmt.rightTmpVar))
         break
       default:
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")

@@ -91,13 +91,16 @@ public class InterferenceGraph extends ColorableGraph {
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       def liveVars = node.anno['regalloc-liveness']
       liveVars.each { lv -> 
-        if(node.getDef() && node.getDef() != lv)
+        /*if(node.getDef() && node.getDef() != lv)
           varToLiveness[node.getDef()].add(lv)
         if(lv.type == TempVarType.PARAM) {
           liveVars.each { lv2 -> 
             if(lv2.type == TempVarType.PARAM)
               varToLiveness[lv] << lv2;
           }
+        }*/
+        liveVars.each { lv2 ->
+          varToLiveness[lv] << lv2;
         }
       }
     }
@@ -129,8 +132,8 @@ public class InterferenceGraph extends ColorableGraph {
       def liveVars = node.anno['regalloc-liveness']
 
       // Uncomment to see liveness analysis results.
-      //dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
-      //liveVars.each { dbgOut "  $it" }
+      dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
+      liveVars.each { dbgOut "  $it" }
 
       // Extra edges to add to handle special cases.
       switch(node) {
@@ -138,20 +141,36 @@ public class InterferenceGraph extends ColorableGraph {
         // Handle modulo and division blocking.
         switch(node.op) {
         case BinOpType.DIV:
+          println "reached the div."
+          println "ColorNodeMustBe = $ColorNodeMustBe"
+          println "ColorsNodeCannotBe = $ColorsNodeCannotBe"
+          println "node = $node"
+          println "liveVars = $liveVars"
           ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
+          ColorNodeMustBe[GetColoringNode(node.leftTmpVar)] << Reg.RAX;        
+          ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.RDX;
           liveVars.each {
-            if(it != node.tmpVar)
+            if(it != node.leftTmpVar && it != node.rightTmpVar) {
               ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RAX
-            ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
+              ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
+            }
           }
+          
+          println "ColorNodeMustBe = $ColorNodeMustBe"
+          println "ColorsNodeCannotBe = $ColorsNodeCannotBe"
           break;
         case BinOpType.MOD:
           ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RDX
+          ColorNodeMustBe[GetColoringNode(node.leftTmpVar)] << Reg.RAX;
+          ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.RDX;
           liveVars.each {
             if(it != node.tmpVar)
               ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
-            ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
+            ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RAX;
           }
+          break;
+        case BinOpType.SUB:
+          AddEdge(new InterferenceEdge(GetColoringNode(node.tmpVar), GetColoringNode(node.rightTmpVar)));
           break;
         case BinOpType.LT:
         case BinOpType.LTE:
@@ -161,8 +180,8 @@ public class InterferenceGraph extends ColorableGraph {
         case BinOpType.NEQ:
           // Not allowed to be r10 as that is used as a temporary.
           ColorsNodeCannotBe[GetColoringNode(node.getDef())] << Reg.R10;
-          ColorsNodeCannotBe[GetColoringNode(node.leftTmpVar)] <<  Reg.R10;
-          ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] <<  Reg.R10;
+          ColorsNodeCannotBe[GetColoringNode(node.leftTmpVar)] << Reg.R10;
+          ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.R10;
           liveVars.each { lv -> 
             if(lv != node.getDef())
               ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.R10;
@@ -205,13 +224,6 @@ public class InterferenceGraph extends ColorableGraph {
           }
         }
         break;
-      case LowIrReturn:
-        // The following is really a preference not an absolute...
-        /*if(methodDesc.returnType != Type.VOID) {
-          //ForceNodeToColor(GetColoringNode(node.tmpVar), Reg.RAX);
-          ColorNodeMustBe[GetColoringNode(node.tmpVar)] = Reg.RAX;
-        }*/
-        break;
       default:
         // Nothing else here at the time.
         break;
@@ -219,6 +231,9 @@ public class InterferenceGraph extends ColorableGraph {
     }
 
     println "finished traversing."
+
+              println "ColorNodeMustBe = $ColorNodeMustBe"
+          println "ColorsNodeCannotBe = $ColorsNodeCannotBe"
 
     ColorNodeMustBe.keySet().each { iNode ->
       ColorNodeMustBe[iNode].each { color -> 
