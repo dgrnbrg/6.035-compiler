@@ -43,6 +43,7 @@ class LazyCodeMotion {
       //Method kills anything it might store to; we don't bother to only kill certain indices
       node.descriptor.getDescriptorsOfNestedStores().each{set.addAll(exprsContainingDesc[it])}
       break
+    case LowIrBoundsCheck:
     case LowIrStore:
       //might be too conservative, in that we mess up the following:
       //a[0] = 1;

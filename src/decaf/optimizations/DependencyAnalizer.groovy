@@ -128,6 +128,13 @@ println "$it"
       if (n != null && !(n in visited)) {
         visited << n
         n.getUses()*.defSite.each{visit(it)}
+        if (n instanceof LowIrLoad) {
+          def cur = n
+          while (!(cur instanceof LowIrBoundsCheck) && cur.predecessors.size() == 1)
+            cur = cur.predecessors[0]
+          if (cur.predecessors.size() != 1) throw new UnparallelizableException()
+          visit(cur)
+        }
         list << n
       }
     }
@@ -136,7 +143,7 @@ println "$it"
     //now, we have the nodes to relocate in the correct order
     //let's make sure they're of the correct form
     //division isn't relocatable
-    if (!list.every{it instanceof LowIrBinOp || it instanceof LowIrLoad || it instanceof LowIrIntLiteral})
+    if (!list.every{it instanceof LowIrBinOp || it instanceof LowIrLoad || it instanceof LowIrIntLiteral || it instanceof LowIrBoundsCheck})
       throw new UnparallelizableException()
     if (!list.findAll{it instanceof LowIrBinOp}.every{it.op != BinOpType.DIV})
       throw new UnparallelizableException()

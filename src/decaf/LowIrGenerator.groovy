@@ -314,6 +314,7 @@ class LowIrGenerator {
   LowIrBridge boundsCheck(VariableDescriptor arrDesc, TempVar indexVar) {
     assert arrDesc.arraySize != null
     return new LowIrBridge(new LowIrBoundsCheck(
+      desc: arrDesc,
       lowerBound: 0,
       upperBound: arrDesc.arraySize,
       testVar: indexVar

@@ -417,6 +417,7 @@ class LowIrMov extends LowIrNode {
 class LowIrBoundsCheck extends LowIrNode {
   TempVar testVar
   int lowerBound, upperBound
+  VariableDescriptor desc
 
   int replaceUse(TempVar oldVar, TempVar newVar) {
     int x = 0
@@ -434,7 +435,7 @@ class LowIrBoundsCheck extends LowIrNode {
   }
 
   String toString() {
-    "LowIrBoundsCheck($lowerBound <= $testVar < $upperBound)"
+    "LowIrBoundsCheck($lowerBound <= $testVar < $upperBound for $desc)"
   }
 }
 
