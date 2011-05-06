@@ -1,0 +1,21 @@
+//test CSE works for weird availability cases
+class Program {
+  void main() {
+    int a, b, x;
+    a = 0;
+    b = 2;
+    x = a + b;
+    if (true) {
+      if (false) {
+        a = 1;
+        x = a + b;
+      } else {
+        a = 3;
+        x = a + b;
+      }
+    }
+    x = a + b;
+// EXPECTS 5
+    callout("printf","%d\n",x);
+  }
+}

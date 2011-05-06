@@ -1,0 +1,19 @@
+// EXPECTS tep's number is 22
+class Program {
+  int a[10];
+  int x;
+  int foo(int index) {
+    {
+      return index * x;
+    }
+  }
+  void main() {
+    x = 2;
+    a[4] = 22;
+    {
+      int y;
+      y = 2;
+      callout("printf","tep\'s number is %d\n",a[foo(y)]);
+    }
+  }
+}

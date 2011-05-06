@@ -4,25 +4,19 @@ import decaf.graph.GraphNode
 import decaf.graph.*
 import static decaf.graph.Traverser.eachNodeOf
 
-//TODO: kill dead loads
 class DeadCodeElimination extends Analizer {
   DeadCodeElimination() {
     dir = AnalysisDirection.BACKWARD
   }
 
-  final void lazyInit(node) {
-    if (node.anno['deadcode-liveness'] == null)
-      node.anno['deadcode-liveness'] = new HashSet()
-  }
+  def map = new LazyMap({new HashSet()})
 
   void store(GraphNode node, Set data) {
-    lazyInit(node)
-    node.anno['deadcode-liveness'] = data
+    map[node] = data
   }
 
   Set load(GraphNode node) {
-    lazyInit(node)
-    return node.anno['deadcode-liveness']
+    return map[node]
   }
 
   def gen(node) {
@@ -61,6 +55,17 @@ class DeadCodeElimination extends Analizer {
   }
 
   def run(startNode) {
+    //We initialize the worklist in reverse to allow the propagator to visit the nodes
+    //in closer to linear time than n^2/2 time
+    worklistInit = { k ->
+      def worklist = []
+      eachNodeOf(k) { worklist << it }
+      def worklist_final = new LinkedHashSet()
+      for (int i = worklist.size() - 1; i >= 0; i--) {
+        worklist_final << worklist[i]
+      }
+      return worklist_final
+    }
     analize(startNode)
     def worklist = new LinkedHashSet()
     eachNodeOf(startNode) {
@@ -80,8 +85,9 @@ class DeadCodeElimination extends Analizer {
       def node = worklist.iterator().next()
       worklist.remove(node)
       def uses = node.getUses()
-      if (sideEffectFree(node) && !node.is(startNode))
+      if (sideEffectFree(node) && !node.is(startNode)) {
         node.excise()
+      }
       worklist += uses.findAll{it.useSites.size() == 0}*.defSite.findAll{it != null && sideEffectFree(it)}
     }
   }

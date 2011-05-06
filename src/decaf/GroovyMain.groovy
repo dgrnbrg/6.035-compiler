@@ -14,6 +14,7 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
+//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['expr']}\\n${cur.anno['insert']}\\n${cur.anno['delete']}\"$nodeColor]")
     out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['instVal']}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
@@ -211,6 +212,12 @@ public class GroovyMain {
     if ('dce' in argparser['opt']) {
       opts += ['ssa', 'dce']
     }
+    if ('dse' in argparser['opt']) {
+      opts += ['ssa', 'dse']
+    }
+    if ('pre' in argparser['opt']) {
+      opts += ['ssa', 'pre']
+    }
     if ('sccp' in argparser['opt']) {
       opts += ['ssa', 'sccp']
     }
@@ -222,9 +229,8 @@ public class GroovyMain {
     } else {
       lowirGen.inliningThreshold = 0
     }
-    //TODO: add sccp after testing to all
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'cse', 'cp', 'sccp', 'regalloc']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'regalloc']
     }
   }
 
@@ -297,6 +303,8 @@ public class GroovyMain {
         methodHiIr.inOrderWalk(check)
       }
 */
+      methodHiIr.inOrderWalk(checker.arrayIndicesAreInts)
+      if (errors != []) throw new FatalException(code: 1)
       methodHiIr.inOrderWalk(checker.hyperblast)
     }
     
@@ -341,14 +349,31 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
-      if ('cse' in opts)
-        new CommonSubexpressionElimination().run(methodDesc)
+//      if ('cse' in opts)
+//        new CommonSubexpressionElimination().run(methodDesc)
+      if ('sccp' in opts)
+        new SparseConditionalConstantPropagation().run(methodDesc)
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
         new DeadCodeElimination().run(methodDesc.lowir)
       if ('sccp' in opts)
         new SparseConditionalConstantPropagation().run(methodDesc)
+      if ('dse' in opts)
+        new DeadStoreElimination().run(methodDesc.lowir)
+      if ('pre' in opts) {
+        def repeats = 0
+        def stillGoing = true
+        while (repeats < 2 && stillGoing) {
+          def lcm = new LazyCodeMotion()
+          lcm.run(methodDesc)
+          new CopyPropagation().propagate(methodDesc.lowir)
+          new DeadCodeElimination().run(methodDesc.lowir)
+          stillGoing = lcm.insertCnt != lcm.deleteCnt
+          repeats++
+        }
+        new DeadStoreElimination().run(methodDesc.lowir)
+      }
       if ('regalloc' in opts) {
         println "stepping out of ssa form before register allocation."
         SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir);

@@ -1,0 +1,12 @@
+class Program {
+  void tep() {
+    callout("printf","hello aysylu\n");
+  }
+
+  void main() {
+    tep();
+    callout("printf","hello world!\n");
+    // EXPECTS hello aysylu
+    // EXPECTS hello world!
+  }
+}

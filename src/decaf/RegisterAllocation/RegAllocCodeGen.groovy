@@ -125,7 +125,11 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(strLitOperand, getTmp(stmt.tmpVar))
       break
     case LowIrIntLiteral:
+      assert stmt.tmpVar instanceof RegisterTempVar
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
+      break
+    case LowIrBoundsCheck:
+      doBoundsCheck(stmt.lowerBound, stmt.upperBound, getTmp(stmt.testVar))
       break
     case LowIrCallOut:
     case LowIrMethodCall:
@@ -133,8 +137,8 @@ class RegAllocCodeGen extends CodeGenerator {
       PreserveCallerRegisters();
 
       // Now optionally preserve rax if it is still a tempvar (because it wasn't colored).
-      if(!(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar))
-        PreserveRegister(Reg.RAX);
+      //if(!(stmt.tmpVar instanceof RegisterTempVar))
+      //  PreserveRegister(Reg.RAX);
 
       if(stmt instanceof LowIrCallOut) {
         // Set to 0 since printf uses rax value to determine how many SSE 
@@ -148,12 +152,12 @@ class RegAllocCodeGen extends CodeGenerator {
       RestoreCallerRegisters();
 
       // Now optionally don't do the mov (since you shouldn't encounter that tmpVar anyway).
-      if(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar)
-        movq(rax,getTmp(stmt.tmpVar))
+      if(stmt.tmpVar instanceof RegisterTempVar)
+        assert stmt.tmpVar.registerName == 'rax'
 
       // Now optionally restore rax if it wasn't clobbered.
-      if(!(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar))
-        RestoreRegister(Reg.RAX);
+      //if(!(stmt.tmpVar instanceof RegisterTempVar))
+      //  RestoreRegister(Reg.RAX);
 
       if(stmt.numOriginalArgs - 6 > 0)
         add(8*(stmt.numOriginalArgs - 6), rsp)
@@ -164,8 +168,11 @@ class RegAllocCodeGen extends CodeGenerator {
       movq(getTmp(stmt.arg), rsp(0))
       break
     case LowIrReturn:
-      if (stmt.tmpVar != null)
-        movq(getTmp(stmt.tmpVar),rax)
+      if (stmt.tmpVar != null) {
+        assert stmt.tmpVar instanceof RegisterTempVar
+        if(stmt.tmpVar.registerName != 'rax')
+          movq(getTmp(stmt.tmpVar),rax)
+      }
       else
         movq(0,rax) //void fxns return 0
       RestoreCalleeRegisters();
@@ -253,7 +260,8 @@ class RegAllocCodeGen extends CodeGenerator {
 	      xor(1, getTmp(stmt.tmpVar))
 	      break
       case ADD:
-        if(stmt.leftTmpVar == stmt.tmpVar && stmt.leftTmpVar == stmt.tmpVar) {
+        emit("// LOL: $stmt")
+        if(stmt.leftTmpVar == stmt.tmpVar && stmt.rightTmpVar == stmt.tmpVar) {
           add(getTmp(stmt.leftTmpVar), getTmp(stmt.rightTmpVar));
         } else if(stmt.leftTmpVar == stmt.tmpVar) {
           add(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar));
@@ -265,7 +273,7 @@ class RegAllocCodeGen extends CodeGenerator {
         }
         break;
       case SUB:
-        if(stmt.leftTmpVar == stmt.tmpVar && stmt.leftTmpVar == stmt.tmpVar) {
+        if(stmt.leftTmpVar == stmt.tmpVar && stmt.rightTmpVar == stmt.tmpVar) {
           // The following line should probably be replaced by:
           // movq($0, getTmp(stmt.tmpVar));
           sub(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar));
@@ -279,7 +287,7 @@ class RegAllocCodeGen extends CodeGenerator {
         }
         break
       case MUL:
-        if(stmt.leftTmpVar == stmt.tmpVar && stmt.leftTmpVar == stmt.tmpVar) {
+        if(stmt.leftTmpVar == stmt.tmpVar && stmt.rightTmpVar == stmt.tmpVar) {
           imul(getTmp(stmt.leftTmpVar), getTmp(stmt.rightTmpVar));
         } else if(stmt.leftTmpVar == stmt.tmpVar) {
           imul(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar));

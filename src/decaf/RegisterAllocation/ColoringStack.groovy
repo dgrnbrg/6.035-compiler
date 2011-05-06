@@ -72,8 +72,8 @@ public class ColoringStack {
     if(remainingColors.size() > 0)
       return remainingColors.asList().first();
     else {
-      println "csb = $csb"
-      println removedColors
+      //println "csb = $csb"
+      //println removedColors
       //assert false
     }
 

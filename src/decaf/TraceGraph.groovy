@@ -34,9 +34,18 @@ class TraceGraph {
     return "ghostwhite"
   }
 
+  static void resetTraces(GraphNode start) {
+    Traverser.eachNodeOf(start) { node -> 
+      node.anno["trace"] = [:]
+      node.anno["traceMarker"] = -1
+    }
+  }
+
   // This function traverses a lowir and marks the anno of each 
   // lowir node with trace-information.
   static void calculateTraces(GraphNode start) {
+    resetTraces(start);
+
     // We are assuming that start is a lowir node.
     Set<GraphNode> visited = new HashSet<GraphNode>()
     Set<TraverserEdge> edges = new HashSet<TraverserEdge>()
@@ -47,16 +56,31 @@ class TraceGraph {
     while(newTraceStarts.size() > 0) {
       def curNode = newTraceStarts.first()
 
-      curNode.anno["trace"] = [:]
+      // Check if we have already visited this node.
+      if(curNode.anno["traceMarker"] != -1) {
+        //println "Already visited the node at the beginning of a trace."
+        //println curNode.label
+        // Mark this as a jump destination
+        curNode.anno["trace"]["JmpDest"] = true
+        curNode.anno["trace"]["falseStart"] = true
+        // Now we are done with this trace, so get rid of it.
+        newTraceStarts = newTraceStarts.tail()
+        curTraceMarker += 1
+        continue  
+      }
+
+      //curNode.anno["trace"] = [:]
       curNode.anno["trace"]["start"] = true
 
       while(curNode != null) {
         // mark curNode with the trace marker
         curNode.anno["traceMarker"] = curTraceMarker 
+        //println "Currently tracing the node ${curNode.label} with traceMarker = ${curTraceMarker}"
 
-        if(curNode.anno["trace"] == null) {
-          curNode.anno["trace"] = [:]
-        }
+        // REMOVED
+        //if(curNode.anno["trace"] == null) {
+        //  curNode.anno["trace"] = [:]
+        //}
 
         switch(curNode.getSuccessors().size()) {
         case(0): 
@@ -66,7 +90,7 @@ class TraceGraph {
           break;
         case(1):
           def nextNode = curNode.getSuccessors().first()
-          if(nextNode.anno["traceMarker"]) {
+          if(nextNode.anno["traceMarker"] != -1) {
             // the next node has already been visited.
             curNode.anno["trace"]["JmpSrc"] = nextNode.label
             nextNode.anno["trace"]["JmpDest"] = true
@@ -77,13 +101,15 @@ class TraceGraph {
           break;
         case(2):
           assert(curNode instanceof LowIrCondJump);
-
+          //println "I am a LowIrCondJump!"
+          //println "My trueDest is: ${curNode.trueDest.label}"
+          //println "My falseDest is: ${curNode.falseDest.label}"
           // add the true branch to newTraceStarts if it isn't already there.
           if(newTraceStarts.count(curNode.trueDest) == 0) {
             newTraceStarts = newTraceStarts + [curNode.trueDest];
           }
 
-          if(curNode.falseDest.anno["traceMarker"]) {
+          if(curNode.falseDest.anno["traceMarker"] != -1) {
             // we have already visited the falseDest
             curNode.anno["trace"]["FalseJmpSrc"] = true
             // we need to be able to jump to the false-dest though

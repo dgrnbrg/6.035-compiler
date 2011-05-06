@@ -1,6 +1,7 @@
 package decaf
 import decaf.graph.*
 import static decaf.BinOpType.*
+import static decaf.graph.Traverser.eachNodeOf
 
 class CodeGenerator extends Traverser {
   def asm = [text: ['.text'], strings: ['.data'], bss: ['.bss']]
@@ -16,6 +17,15 @@ class CodeGenerator extends Traverser {
     asmMacro('.globl', method.name)
     emit(method.name + ':')
     enter(8*(method.params.size() + method.tempFactory.tmpVarId),0)
+
+    //get set of all used tmpVars
+    def tmps = new LinkedHashSet()
+    eachNodeOf(method.lowir) { tmps.addAll(it.getUses()) }
+    //zero out all tmpVars
+    for (t in tmps.findAll{it.type == TempVarType.LOCAL}) {
+      movq(0,getTmp(t))
+    }
+
     // Part of pre-trace codegen
     // traverse(method.lowir)
     traverseWithTraces(method.lowir)
@@ -40,6 +50,7 @@ class CodeGenerator extends Traverser {
       return
     }*/
 
+    //emit("// Visiting node ${stmt.label}")
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
@@ -103,6 +114,10 @@ class CodeGenerator extends Traverser {
       call(stmt.descriptor.name)
       movq(rax,getTmp(stmt.tmpVar))
       add(8*stmt.paramTmpVars.size(), rsp)
+      break
+    case LowIrBoundsCheck:
+      movq(getTmp(stmt.testVar), r10)
+      doBoundsCheck(stmt.lowerBound, stmt.upperBound, r10)
       break
     case LowIrReturn:
       if (stmt.tmpVar != null) {
@@ -225,7 +240,7 @@ class CodeGenerator extends Traverser {
         break
       case DIV:
         movq(getTmp(stmt.leftTmpVar),rax)
-        movq(0,rdx)
+        cqo() //sign extend rax into rdx:rax
         movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
         movq(rax,getTmp(stmt.tmpVar))
@@ -288,6 +303,32 @@ class CodeGenerator extends Traverser {
 
   void link(GraphNode src, GraphNode dst) {
   }
+
+  static int boundsLabelCounter = 0
+  def genBoundsLabel() {
+    return "bounds_check_${boundsLabelCounter++}".toString()
+  }
+
+  //the access is in the inRegister, low and high are ints that will checked
+  def doBoundsCheck(int low, int high, inRegister) {
+    def boundsLabel = genBoundsLabel()
+    def boundsLabelPost = genBoundsLabel()
+
+    cmp(high, inRegister)
+    jge(boundsLabel)
+
+    cmp(low, inRegister)
+    jl(boundsLabel)
+
+    jmp(boundsLabelPost)
+
+    emit(boundsLabel + ':')
+    dieWithMessage("Array out of bounds\\n");
+
+    emit(boundsLabelPost + ':')
+  }
+
+
 
   def getAsm() {
     StringBuilder code = new StringBuilder()

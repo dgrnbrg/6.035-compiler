@@ -141,11 +141,10 @@ public class InterferenceGraph extends ColorableGraph {
         // Handle modulo and division blocking.
         switch(node.op) {
         case BinOpType.DIV:
-          println "reached the div."
-          println "ColorNodeMustBe = $ColorNodeMustBe"
-          println "ColorsNodeCannotBe = $ColorsNodeCannotBe"
-          println "node = $node"
-          println "liveVars = $liveVars"
+          dbgOut "reached the div."
+          dbgOut "ColorNodeMustBe = $ColorNodeMustBe"
+          dbgOut "ColorsNodeCannotBe = $ColorsNodeCannotBe"
+          dbgOut "liveVars = $liveVars"
           ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
           ColorNodeMustBe[GetColoringNode(node.leftTmpVar)] << Reg.RAX;        
           ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.RDX;
@@ -155,19 +154,25 @@ public class InterferenceGraph extends ColorableGraph {
               ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
             }
           }
-          
-          println "ColorNodeMustBe = $ColorNodeMustBe"
-          println "ColorsNodeCannotBe = $ColorsNodeCannotBe"
+          dbgOut "ColorNodeMustBe = $ColorNodeMustBe"
+          dbgOut "ColorsNodeCannotBe = $ColorsNodeCannotBe"
           break;
         case BinOpType.MOD:
+          dbgOut "reached the mod."
+          dbgOut "ColorNodeMustBe = $ColorNodeMustBe"
+          dbgOut "ColorsNodeCannotBe = $ColorsNodeCannotBe"
+          dbgOut "liveVars = $liveVars"
           ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RDX
           ColorNodeMustBe[GetColoringNode(node.leftTmpVar)] << Reg.RAX;
           ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.RDX;
           liveVars.each {
-            if(it != node.tmpVar)
+            if(it != node.leftTmpVar && it != node.rightTmpVar) {
+              ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RAX
               ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
-            ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RAX;
+            }
           }
+          dbgOut "ColorNodeMustBe = $ColorNodeMustBe"
+          dbgOut "ColorsNodeCannotBe = $ColorsNodeCannotBe"
           break;
         case BinOpType.SUB:
           AddEdge(new InterferenceEdge(GetColoringNode(node.tmpVar), GetColoringNode(node.rightTmpVar)));
@@ -203,6 +208,7 @@ public class InterferenceGraph extends ColorableGraph {
         break;
       case LowIrMethodCall:
       case LowIrCallOut:
+        println "BLOHA:FHJLDKJF"; // get rid of the getDefs();
         node.paramTmpVars.eachWithIndex { ptv, i -> 
           if(i < 6) {
             ColorNodeMustBe[GetColoringNode(ptv)] << Reg.getRegOfParamArgNum(i + 1);
@@ -214,15 +220,15 @@ public class InterferenceGraph extends ColorableGraph {
           }
         }
         // We also need to force the def-site to be RAX if the method isn't void.
-        if(node instanceof LowIrCallOut || 
-            node.descriptor.returnType == Type.INT || 
-            node.descriptor.returnType == Type.BOOLEAN) {
+        //if(node instanceof LowIrCallOut || 
+        //    node.descriptor.returnType == Type.INT || 
+        //    node.descriptor.returnType == Type.BOOLEAN) {
           ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
           liveVars.each { lv -> 
             if(lv != node.getDef())
               ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.RAX;
           }
-        }
+        //}
         break;
       default:
         // Nothing else here at the time.
@@ -232,8 +238,8 @@ public class InterferenceGraph extends ColorableGraph {
 
     println "finished traversing."
 
-              println "ColorNodeMustBe = $ColorNodeMustBe"
-          println "ColorsNodeCannotBe = $ColorsNodeCannotBe"
+    dbgOut "final ColorNodeMustBe = $ColorNodeMustBe"
+    dbgOut "final ColorsNodeCannotBe = $ColorsNodeCannotBe"
 
     ColorNodeMustBe.keySet().each { iNode ->
       ColorNodeMustBe[iNode].each { color -> 

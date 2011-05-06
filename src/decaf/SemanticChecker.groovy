@@ -433,6 +433,7 @@ class SemanticChecker {
   def hyperblast = {cur ->
     hyperspeed = true
     checks.each {
+      if (it.is(arrayIndicesAreInts)) return
       it.delegate = delegate
       it(cur)
     }

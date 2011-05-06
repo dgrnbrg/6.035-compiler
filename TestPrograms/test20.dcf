@@ -1,0 +1,19 @@
+// EXPECTS a is 1
+// EXPECTS a is 2
+// EXPECTS a is 3
+// EXPECTS a is 4
+// EXPECTS a is 5
+// EXPECTS a is 6
+// EXPECTS a is 7
+// EXPECTS a is 8
+// EXPECTS a is 9
+
+class Program {
+  void main() {
+    int a;
+    for i=1, 10 {
+      a = i * 1;
+      callout("printf", "a is %d\n", a);
+    }
+  }
+}
