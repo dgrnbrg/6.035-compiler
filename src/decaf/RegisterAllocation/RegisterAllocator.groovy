@@ -118,6 +118,9 @@ public class RegisterAllocator {
   void Build() {
     dbgOut "Now running Build()."
 
+    // First break method calls and callouts.
+    RegAllocLowIrModifier.BreakCalls(methodDesc)
+
     ig = new InterferenceGraph(methodDesc);
     theStack = new ColoringStack(ig);    
 
@@ -308,12 +311,12 @@ public class RegisterAllocator {
 
   void PlaceSpillStoreAfterNode(LowIrNode siteOfSpill, SpillVar sv, TempVar tv) {
     assert siteOfSpill; assert tv; assert sv;
-    PlaceNodeAfterNode(siteOfSpill, new LowIrStoreSpill(value : tv, storeLoc : sv));
+    RegAllocLowIrModifier.PlaceNodeAfterNode(siteOfSpill, new LowIrStoreSpill(value : tv, storeLoc : sv));
   }
 
   void PlaceSpillLoadBeforeNode(LowIrNode siteOfSpill, SpillVar sv, TempVar tv) {
     assert siteOfSpill; assert tv; assert sv;
-    PlaceNodeBeforeNode(new LowIrLoadSpill(tmpVar : tv, loadLoc : sv), siteOfSpill);
+    RegAllocLowIrModifier.PlaceNodeBeforeNode(new LowIrLoadSpill(tmpVar : tv, loadLoc : sv), siteOfSpill);
   }
 
   // Warning, this function should not be called on LowIrCondJump.

@@ -95,13 +95,11 @@ class RegAllocCodeGen extends CodeGenerator {
   }
 
   void ValidateFirstSixArgumentsAndReturnRegisters(LowIrNode stmt) {
-    assert (stmt instanceof LowIrMethodCall) || (stmt instanceof LowIrCallOut);
-    int numRegParams = Math.min(stmt.paramTmpVars.size(), 6)
+    assert (stmt instanceof LowIrMethodCall) || (stmt instanceof LowIrCallOut)
+    assert stmt.paramTmpVars.size() <= 6;
     stmt.paramTmpVars.eachWithIndex { ptv, i -> 
-      if(i < numRegParams) {
-        assert ptv instanceof RegisterTempVar;
-        assert Reg.GetParameterRegisters().contains(Reg.getReg(ptv.registerName));
-      } 
+      assert ptv instanceof RegisterTempVar;
+      assert Reg.GetParameterRegisters().contains(Reg.getReg(ptv.registerName));
     }
   }
 
@@ -131,24 +129,12 @@ class RegAllocCodeGen extends CodeGenerator {
       break
     case LowIrCallOut:
     case LowIrMethodCall:
-      // Both CallOuts and MethodCalls use same calling convention.
       ValidateFirstSixArgumentsAndReturnRegisters(stmt);
       PreserveCallerRegisters();
 
       // Now optionally preserve rax if it is still a tempvar (because it wasn't colored).
       if(!(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar))
         PreserveRegister(Reg.RAX);
-
-      int numRegParams = Math.min(stmt.paramTmpVars.size(), 6)
-      if(stmt.paramTmpVars.size() - 6 > 0)
-        sub(8*(stmt.paramTmpVars.size() - 6), rsp);
-      stmt.paramTmpVars.eachWithIndex { it, index ->
-        if(index >= numRegParams) {
-          movq(getTmp(it), rsp(8*(index - 6)))
-        }
-      }
-      // We need to restore r10 since we've been clobbering it.
-      //RestoreRegister(Reg.R10); // no need to now.
 
       if(stmt instanceof LowIrCallOut) {
         // Set to 0 since printf uses rax value to determine how many SSE 
@@ -169,9 +155,13 @@ class RegAllocCodeGen extends CodeGenerator {
       if(!(stmt.tmpVar instanceof RegisterTempVar || stmt.tmpVar instanceof SpillVar))
         RestoreRegister(Reg.RAX);
 
-      if(stmt.paramTmpVars.size() - 6 > 0)
-        add(8*(stmt.paramTmpVars.size() - 6), rsp)
+      if(stmt.numOriginalArgs - 6 > 0)
+        add(8*(stmt.numOriginalArgs - 6), rsp)
 
+      break
+    case LowIrLoadArgOntoStack: 
+      sub(8, rsp);
+      movq(getTmp(stmt.arg), rsp(0))
       break
     case LowIrReturn:
       if (stmt.tmpVar != null)

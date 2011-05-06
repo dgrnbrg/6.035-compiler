@@ -235,6 +235,7 @@ class LowIrCondJump extends LowIrNode {
 class LowIrCallOut extends LowIrValueNode {
   String name
   TempVar[] paramTmpVars
+  int numOriginalArgs; // <-- used by reg alloc.
 
   //returns the number of replacements that happened
   int replaceUse(TempVar oldVar, TempVar newVar) {
@@ -269,6 +270,7 @@ class LowIrCallOut extends LowIrValueNode {
 class LowIrMethodCall extends LowIrValueNode {
   MethodDescriptor descriptor
   TempVar[] paramTmpVars
+  int numOriginalArgs; // <-- used by reg alloc
 
   //returns the number of replacements that happened
   int replaceUse(TempVar oldVar, TempVar newVar) {
@@ -577,6 +579,30 @@ class LowIrLoadSpill extends LowIrValueNode {
 
   String toString() {
     "LowIrLoadSpill(tmpVar: $tmpVar, loadLoc: $loadLoc)"
+  }
+}
+
+class LowIrLoadArgOntoStack extends LowIrNode {
+  TempVar arg;
+  int paramNum; // Indexing starts at 1, 2, 3, 4, ... for paramNum
+  
+  LowIrLoadArgOntoStack(TempVar paramArg, int paramPosition) {
+    assert paramPosition > 6;
+    paramNum = paramPosition;
+    arg = paramArg;
+  }
+
+  Collection<TempVar> getUses() {
+    return [arg];
+  }
+
+  String toString() {
+    "LowIrLoadArgOntoStack(arg : $arg, paramNum : $paramNum)"
+  }
+
+  void SwapUsesUsingMap(mapToApply) {
+    if(mapToApply[arg])
+      arg = mapToApply[arg]
   }
 }
 
