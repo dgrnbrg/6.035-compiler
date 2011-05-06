@@ -334,7 +334,7 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
-    methodDescs.clone().each { MethodDescriptor methodDesc ->
+    methodDescs.each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
       if ('cse' in opts)
@@ -360,6 +360,8 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
+    }
+    methodDescs.clone().each { MethodDescriptor methodDesc ->
       if ('iva' in opts) {
 
         def iva = new InductionVariableAnalysis()
