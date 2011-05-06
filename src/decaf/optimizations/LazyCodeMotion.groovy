@@ -345,7 +345,7 @@ class LazyCodeMotion {
         if (expr.index != null) node.index = exprToNewTmp[expr.index]
       } else if (expr.boundTest != null) {
         node = new LowIrBoundsCheck(lowerBound: expr.boundLow, upperBound: expr.boundHigh,
-          testVar: exprToNewTmp[expr.boundTest])
+          testVar: exprToNewTmp[expr.boundTest], desc: expr.boundDesc)
       } else {
         assert false
       }

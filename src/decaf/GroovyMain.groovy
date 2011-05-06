@@ -350,7 +350,7 @@ public class GroovyMain {
       if ('pre' in opts) {
         def repeats = 0
         def stillGoing = true
-        while (repeats < 2 && stillGoing) {
+        while (repeats < 6 && stillGoing) {
           def lcm = new LazyCodeMotion()
           lcm.run(methodDesc)
           new CopyPropagation().propagate(methodDesc.lowir)

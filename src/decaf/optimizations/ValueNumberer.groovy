@@ -63,6 +63,7 @@ class ValueNumberer {
       break
     case LowIrBoundsCheck:
       result = new Expression(
+        boundDesc: node.desc,
         boundLow: node.lowerBound,
         boundHigh: node.upperBound,
         boundTest: getExprOfTmp(node.testVar)
@@ -112,24 +113,26 @@ class Expression {
   //For variables
   def varDesc, index
   //For bounds checks
-  def boundTest, boundLow, boundHigh
+  def boundTest, boundLow, boundHigh, boundDesc
 
   //This checks that you set it up correctly
   def check() {
     if (constVal != null) {
       assert !unique && left == null && right == null && op == null && varDesc == null &&
-        index == null && boundTest == null && boundLow == null && boundHigh == null
+        index == null && boundTest == null && boundLow == null && boundHigh == null &&
+        boundDesc == null
     } else if (unique) {
       assert constVal == null && left == null && right == null && op == null &&
-        varDesc == null && index == null && boundTest == null && boundLow == null && boundHigh == null
+        varDesc == null && index == null && boundTest == null && boundLow == null &&
+        boundHigh == null && boundDesc == null
     } else if (left) {
       assert constVal == null && !unique && varDesc == null && index == null &&
-        boundTest == null && boundLow == null && boundHigh == null
+        boundTest == null && boundLow == null && boundHigh == null && boundDesc == null
     } else if (varDesc) {
       assert !unique && constVal == null && left == null && right == null &&
-        op == null && boundTest == null && boundLow == null && boundHigh == null
+        op == null && boundTest == null && boundLow == null && boundHigh == null && boundDesc == null
     } else if (boundTest) {
-      assert boundLow != null && boundHigh != null
+      assert boundLow != null && boundHigh != null && boundDesc != null
       assert !unique && constVal == null && left == null && right == null &&
         op == null && varDesc == null && index == null
     } else {

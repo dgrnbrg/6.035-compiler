@@ -120,7 +120,7 @@ class CodeGenerator extends Traverser {
       break
     case LowIrBoundsCheck:
       movq(getTmp(stmt.testVar), r10)
-      doBoundsCheck(stmt.lowerBound, stmt.upperBound, r10)
+      doBoundsCheck(stmt.lowerBound, stmt.upperBound, r10, stmt.desc.name)
       break
     case LowIrReturn:
       if (stmt.tmpVar != null) {
@@ -370,7 +370,7 @@ class CodeGenerator extends Traverser {
   }
 
   //the access is in the inRegister, low and high are ints that will checked
-  def doBoundsCheck(int low, int high, inRegister) {
+  def doBoundsCheck(int low, int high, inRegister, String name) {
     def boundsLabel = genBoundsLabel()
     def boundsLabelPost = genBoundsLabel()
 
@@ -383,7 +383,7 @@ class CodeGenerator extends Traverser {
     jmp(boundsLabelPost)
 
     emit(boundsLabel + ':')
-    dieWithMessage("Array out of bounds\\n");
+    dieWithMessage("${name}[%d], out of bounds\\n", inRegister);
 
     emit(boundsLabelPost + ':')
   }
@@ -400,10 +400,11 @@ class CodeGenerator extends Traverser {
     return code.toString()
   }
 
-  def dieWithMessage(String msg) {
+  def dieWithMessage(String msg, arg = null) {
     def strLitOperand = asmString('RUNTIME ERROR: '+msg)
     strLitOperand.type = OperType.IMM
     movq(strLitOperand, rdi)
+    if (arg != null) movq(arg, rsi)
     movq(0, rax)
     call('printf')
     movq(1,rdi)

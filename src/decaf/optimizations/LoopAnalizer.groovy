@@ -63,6 +63,7 @@ class LoopAnalizer {
         return new LowIrMov(src: tmpCopyMap[node.src], dst: tmpCopyMap[node.dst])
       case LowIrBoundsCheck:
         return new LowIrBoundsCheck(
+          desc: node.desc,
           testVar: tmpCopyMap[node.testVar],
           lowerBound: node.lowerBound,
           upperBound: node.upperBound
