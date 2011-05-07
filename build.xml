@@ -143,7 +143,8 @@
       <arg value="-assertEnabled"/>
       <arg value="-opt"/>
       <arg value="dce"/>
-      <arg value="iva"/>
+      <arg value="sccp"/>
+      <arg value="cc"/>
     </java>
   </target>
 

@@ -218,6 +218,16 @@ class LowIrCondJump extends LowIrNode {
   }
 }
 
+class LowIrCondCoalesced extends LowIrCondJump {
+  TempVar leftTmpVar
+  TempVar rightTmpVar
+  TempVar tmpVar
+  BinOpType op
+  String toString() {
+    "LowIrCondCoalesced(condition: $condition, op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar, tmpVar: $tmpVar)"
+  }
+}
+
 class LowIrCallOut extends LowIrValueNode {
   String name
   TempVar[] paramTmpVars
