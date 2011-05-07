@@ -221,13 +221,13 @@ public class GroovyMain {
     if ('sccp' in argparser['opt']) {
       opts += ['ssa', 'sccp']
     }
-    if ('cc' in argparser['opt']) {
-      opts += ['ssa', 'cc']
-    }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
     } else {
       lowirGen.inliningThreshold = 0
+    }
+    if ('cc' in argparser['opt']) {
+      opts += ['ssa', 'cc']
     }
     if ('all' in argparser['opt']) {
       opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'cc']
@@ -339,8 +339,6 @@ public class GroovyMain {
 //        new CommonSubexpressionElimination().run(methodDesc)
       if ('sccp' in opts)
         new SparseConditionalConstantPropagation().run(methodDesc)
-      if ('cc' in opts)
-        new ConditionalCoalescing().analize(methodDesc)
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
@@ -360,6 +358,8 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
+      if ('cc' in opts)
+        new ConditionalCoalescing().analize(methodDesc)
     }
   }
 
