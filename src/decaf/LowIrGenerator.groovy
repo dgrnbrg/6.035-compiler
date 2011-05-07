@@ -270,9 +270,9 @@ class LowIrGenerator {
 
     def endNode = new LowIrNode(metaText: 'for loop end')
 
-    forLoopBreakContinueStack << [endNode, incBridge.begin, false]
+    forLoopBreakContinueStack << [endNode, incBridge.begin, []]
     def bodyBridge = destruct(forloop.block).seq(incBridge)
-    def loopHasBreak = forLoopBreakContinueStack[-1][2]
+    def loopHasBreaks = forLoopBreakContinueStack[-1][2]
     forLoopBreakContinueStack.pop()
 
     def landingPad = new LowIrNode(metaText: 'landing pad')
@@ -283,7 +283,7 @@ class LowIrGenerator {
     LowIrNode.link(incBridge.end, cmpNode)
     LowIrNode.link(initBridge.end, bypassNode)
 
-    landingPad.anno['loop-contains-breaks'] = loopHasBreak
+    landingPad.anno['loop-contains-breaks'] = loopHasBreaks
     assert cmpBridge.end.successors.size() == 1 && cmpBridge.end.successors[0] instanceof LowIrCondJump
     landingPad.anno['loop-exit-node'] = cmpBridge.end.successors[0]
 
@@ -299,7 +299,7 @@ class LowIrGenerator {
   LowIrBridge destruct(Break breakHiir) {
     def breakNode = new LowIrNode(metaText: 'break')
     LowIrNode.link(breakNode, forLoopBreakContinueStack[-1][0])
-    forLoopBreakContinueStack[-1][2] = true
+    forLoopBreakContinueStack[-1][2] << breakNode
     return new LowIrBridge(breakNode, new LowIrNode(metaText: 'break spurious node'))
   }
 

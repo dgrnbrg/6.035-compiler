@@ -360,15 +360,17 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
+      new LoopInvariantCodeMotion().run(methodDesc)
     }
     methodDescs.clone().each { MethodDescriptor methodDesc ->
       if ('iva' in opts) {
 
         def iva = new InductionVariableAnalysis()
         iva.analize(methodDesc)
+        def loops = iva.loopAnal.loops.findAll{it.exits.size() == 1}
         def depAnal = new DependencyAnalizer()
-        def inToOut = depAnal.computeLoopNest(iva.loopAnal.loops)
-        depAnal.identifyOutermostLoops(iva.loopAnal.loops).each { outermostLoop ->
+        def inToOut = depAnal.computeLoopNest(loops)
+        depAnal.identifyOutermostLoops(loops).each { outermostLoop ->
           //forbid the easy cases
           if (outermostLoop in iva.foundComplexInductionVarInLoop) return
           if (outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() > 0) return
@@ -572,8 +574,9 @@ public class GroovyMain {
               redoUpperBound,
               leaveUpperBound
             )
-            copiedLoop[0].exit.falseDest = new LowIrReturn()
-            LowIrNode.link(copiedLoop[0].exit, copiedLoop[0].exit.falseDest)
+            assert copiedLoop[0].exits.size() == 1
+            copiedLoop[0].exits[0].falseDest = new LowIrReturn()
+            LowIrNode.link(copiedLoop[0].exits[0], copiedLoop[0].exits[0].falseDest)
             def parallelMethodStartNode = loadInvarsBridge.begin
             parallelMethodDesc.lowir = loadInvarsBridge.begin
             parallelMethodDesc.params = [new VariableDescriptor(
@@ -598,7 +601,8 @@ public class GroovyMain {
             storeInvarsList << new LowIrParallelizedLoop(func: parallelMethodDesc)
             def parallelBridge = new LowIrBridge(storeInvarsList)
             LowIrNode.link(parallelize, parallelBridge.begin)
-            LowIrNode.link(parallelBridge.end, outermostLoop.exit.falseDest)
+            assert outermostLoop.exits.size() == 1
+            LowIrNode.link(parallelBridge.end, outermostLoop.exits[0].falseDest)
             println "Generated parallel codes"
           } catch (UnparallelizableException e) {
             print "$outermostLoop isn't parallelizable: error on line "

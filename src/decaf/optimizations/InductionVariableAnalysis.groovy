@@ -46,7 +46,8 @@ class InductionVariableAnalysis {
         iv.lowBoundTmp = ivArgs.find{ valNum.getExprOfTmp(it) != incExpr }
 
         //find the high bound, which will be the right argument to the binop whose result determines the loop exit condition
-        def compBinOp = iv.loop.exit.condition.defSite
+        assert iv.loop.exits.size() == 1
+        def compBinOp = iv.loop.exits[0].condition.defSite
         assert compBinOp.op == BinOpType.LT
         //if we have (iv+1 < invariant)
         if (valNum.getExprOfTmp(compBinOp.leftTmpVar) == incExpr &&
