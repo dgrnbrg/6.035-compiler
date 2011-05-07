@@ -72,7 +72,7 @@ class AutomationTester {
   }
 
   //try to run gcc
-  Process gcc = "gcc tmp.s -o tmp.o".execute()
+  Process gcc = "gcc tmp.s -o tmp.o -L. -l6035 -lpthread".execute()
   def gccout = new StringBuffer()
   def gccerr = new StringBuffer()
   gcc.consumeProcessOutput(gccout, gccerr)
