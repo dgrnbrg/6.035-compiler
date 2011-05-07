@@ -1,4 +1,4 @@
-package decaf
+package decaf.optimizations
 import decaf.*
 import decaf.graph.GraphNode
 import decaf.graph.*
