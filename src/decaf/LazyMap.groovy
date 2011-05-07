@@ -10,7 +10,7 @@ class LazyMap {
 
   Object getAt(Object key) {
     if (!map.containsKey(key)) {
-      map[key] = factory(key)
+      map.put(key, factory(key))
     }
     return map[key]
   }
