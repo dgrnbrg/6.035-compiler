@@ -55,6 +55,8 @@ class ValueNumberer {
       result = new Expression(left: lhs, right: rhs, op: node.op)
       break
     case LowIrStore:
+      result = uniqueMap[node]
+      break
     case LowIrLoad:
       result = new Expression(varDesc: node.desc)
       if (node.index != null) {

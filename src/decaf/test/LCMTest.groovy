@@ -113,7 +113,7 @@ class Program {
     assertEquals(1, countLowir(gm, 'main', {it instanceof LowIrStore}))
     gm = GroovyMain.runMain('genLowIr', prog1, ['opt': ['pre']])
     assertEquals(1, countLowir(gm, 'main', {it instanceof LowIrStore}))
-    assertEquals(0, countLowir(gm, 'main', {it instanceof LowIrLoad}))
+    assertEquals(1, countLowir(gm, 'main', {it instanceof LowIrLoad}))
 
     def prog2 = '''
 class Program {

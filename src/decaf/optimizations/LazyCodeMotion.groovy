@@ -270,12 +270,53 @@ class LazyCodeMotion {
     //it also adds cruft from nodes that aren't used
     valueNumberer.uniqueToTmp.each{k, v-> if (k.unique) exprToNewTmp[k] = v}
 
+    //all exprs that will be deleted need to have all other copies of them expose their arguments
+    def toDeleteExprs = new HashSet(
+      toInsertOrDelete.findAll{it.size() == 2}.collect{it[0]}.findAll{it.op != null || it.varDesc != null}
+    )
+    def toDeleteNodes = new HashSet(
+      toInsertOrDelete.findAll{it.size() == 2}.findAll{it[0].op != null || it[0].varDesc != null}.collect{it[1]}
+    )
+    def needsCopy = new LinkedHashSet()
+    eachNodeOf(startNode) { node ->
+      if (node in toDeleteNodes) return
+      if (valueNumberer.getExpr(node) in toDeleteExprs && !(node instanceof LowIrBoundsCheck)) {
+        needsCopy << [node, valueNumberer.getExpr(node)]
+      }
+    }
+    for (pair in needsCopy) {
+      def node = pair[0], expr = pair[1]
+      assert node.successors.size() == 1
+      def nodeSrc = node.getDef()
+      if (nodeSrc == null) {
+        assert node instanceof LowIrStore
+        nodeSrc = node.value
+      }
+      new LowIrBridge(new LowIrMov(src: nodeSrc, dst: exprToNewTmp[expr])).insertBetween(
+        node, node.successors[0]
+      )
+    }
+
+    //make sure all nodes have their uses provided
+    needsCopy.clear()
+    eachNodeOf(startNode) { node ->
+      if (node in toDeleteNodes) return
+      node.getUses().findAll{valueNumberer.getExprOfTmp(it) in toDeleteExprs}.each{
+        needsCopy << [node, it, valueNumberer.getExprOfTmp(it)]
+      }
+    }
+    for (pair in needsCopy) {
+      def node = pair[0], useTmp = pair[1], expr = pair[2]
+      new LowIrBridge(new LowIrMov(src: exprToNewTmp[expr], dst: useTmp)).insertBefore(node)
+    }
+
     //insert and delete expressions as needed
     for (action in toInsertOrDelete) {
       doRewrite(action)
     }
 
     //insert moves from other places the expression is computed to the shared expression tmpVar
+/*
     def needsCopy = []
     def newTmps = new HashSet(exprToNewTmp.values())
     eachNodeOf(startNode) { node ->
@@ -300,14 +341,14 @@ class LazyCodeMotion {
         )
       }
     }
-    eachNodeOf(startNode){it.anno['expr'] = valueNumberer.getExpr(it)}
+*/
     insertCnt = toInsertOrDelete.findAll{it.size() == 3}.size()
     deleteCnt = toInsertOrDelete.findAll{it.size() == 2}.size()
     def ssaComp =new SSAComputer()
     ssaComp.destroyAllMyBeautifulHardWork(startNode)
     ssaComp.tempFactory = desc.tempFactory
     ssaComp.doDominanceComputations(startNode)
-    ssaComp.placePhiFunctions(startNode, newTmps)
+    ssaComp.placePhiFunctions(startNode)
     ssaComp.rename(startNode)
   }
   def insertCnt, deleteCnt
@@ -353,6 +394,7 @@ class LazyCodeMotion {
       node.anno['expr'] = expr
       //node.tmpVar.defSite = node
       valueNumberer.memo[node] = expr
+
       new LowIrBridge(node).insertBetween(fst, snd)
     } else {
       def del = action[1]
