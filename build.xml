@@ -147,6 +147,7 @@
       <arg value="dce"/>
       <arg value="cp"/>
       <arg value="dse"/>
+      <arg value="cc"/>
     </java>
   </target>
 
