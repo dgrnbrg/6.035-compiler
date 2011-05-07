@@ -128,7 +128,7 @@ println "$it"
       if (n != null && !(n in visited)) {
         visited << n
         n.getUses()*.defSite.each{visit(it)}
-        if (n instanceof LowIrLoad) {
+        if (n instanceof LowIrLoad && n.index != null) {
           def cur = n
           while (!(cur instanceof LowIrBoundsCheck) && cur.predecessors.size() == 1)
             cur = cur.predecessors[0]
