@@ -221,9 +221,6 @@ public class GroovyMain {
     if ('sccp' in argparser['opt']) {
       opts += ['ssa', 'sccp']
     }
-    if ('iva' in argparser['opt']) {
-      opts += ['ssa', 'iva']
-    }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
     } else {
@@ -316,7 +313,7 @@ public class GroovyMain {
 
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       TraceGraph.calculateTraces(methodDesc.lowir);
       new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
@@ -335,16 +332,14 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
-      if ('cse' in opts)
-        new CommonSubexpressionElimination().run(methodDesc)
+//    if ('cse' in opts)
+//        new CommonSubexpressionElimination().run(methodDesc)
       if ('sccp' in opts)
         new SparseConditionalConstantPropagation().run(methodDesc)
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
-        new DeadCodeElimination().run(methodDesc.lowir)
-      if ('iva' in opts) 
-        new InductionVariableAnalysis().analize(methodDesc)
+        new AggressiveDCE().run(methodDesc.lowir)
       if ('dse' in opts)
         new DeadStoreElimination().run(methodDesc.lowir)
       if ('pre' in opts) {
@@ -354,7 +349,7 @@ public class GroovyMain {
           def lcm = new LazyCodeMotion()
           lcm.run(methodDesc)
           new CopyPropagation().propagate(methodDesc.lowir)
-          new DeadCodeElimination().run(methodDesc.lowir)
+          new AggressiveDCE().run(methodDesc.lowir)
           stillGoing = lcm.insertCnt != lcm.deleteCnt
           repeats++
         }
