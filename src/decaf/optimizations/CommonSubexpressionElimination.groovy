@@ -7,7 +7,9 @@ import static decaf.BinOpType.*
 class CommonSubexpressionElimination extends Analizer{
 
   def allExprs = new LinkedHashSet()
-  def exprsContainingTmp = new LazyMap({new LinkedHashSet()})
+  def exprsContainingExpr = new LazyMap({new LinkedHashSet()})
+  def exprsContainingDesc = new LazyMap({new LinkedHashSet()})
+  def valNum = new ValueNumberer()
 
   def tempFactory
   def run(MethodDescriptor methodDesc) {
@@ -16,200 +18,119 @@ class CommonSubexpressionElimination extends Analizer{
     store(startNode, new LinkedHashSet())
     eachNodeOf(startNode) {
       def expr
-      expr = new AvailableExpr(it)
+      expr = valNum.getExpr(it)
       switch (it) {
       case LowIrLoad:
-      case LowIrBinOp:
-        it.getUses().each { use ->
-          exprsContainingTmp[use] << expr
-        }
-        allExprs << expr
+      case LowIrStore:
+        exprsContainingDesc[it.desc] << expr
         break
       }
+      it.getUses().each { use ->
+        exprsContainingExpr[valNum.getExprOfTmp(use)] << expr
+      }
+      allExprs << expr
     }
     analize(startNode)
+    def redundantExprs = new LinkedHashSet()
+    def nodesToRemove = []
     eachNodeOf(startNode) {
       def expr
       switch (it) {
       case LowIrLoad:
       case LowIrBinOp:
-        expr = new AvailableExpr(it)
+      case LowIrBoundsCheck:
+      case LowIrIntLiteral:
+        expr = valNum.getExpr(it)
         break
       }
       if (expr != null) {
         if (it.predecessors.every{pred -> load(pred).contains(expr)}) {
-/*
-          def tmpVar = methodDesc.tempFactory.createLocalTemp()
-          def worklist = new LinkedHashSet(it.predecessors)
-          def visited = new HashSet(worklist)
-          while (worklist.size() > 0) {
-            def candidate = worklist.iterator().next()
-            worklist.remove(candidate)
-            visited << candidate
-            //we're BFS backwards from the node to find the defsites
-            if ((candidate instanceof LowIrBinOp || candidate instanceof LowIrLoad)
-                 && new AvailableExpr(candidate) == expr) {
-              //now, we insert a move to the temporary
-              //since candidate isn't a condjump, it has one successor
-              def mov = new LowIrMov(src: candidate.getDef(), dst: tmpVar)
-              assert candidate.successors.size() == 1
-              new LowIrBridge(mov).insertBetween(candidate, candidate.successors[0])
-            } else {
-              worklist += candidate.predecessors - visited
-            }
-          }
-*/
-          rootNode = it
-          tmpVarCache = [:]
-          def tmpVar = createRedundancy(it, expr)
-          //now, insert mov so that from tmpvar to redundant expr's destination
-          assert it.successors.size() == 1
-          new LowIrBridge(new LowIrMov(src: tmpVar, dst: expr.tmpVar)).insertBetween(
-            it, it.successors[0])
-          it.excise()
+          if (it.getDef() != null) redundantExprs << expr
+          nodesToRemove << it
         }
       }
     }
-  }
 
-  def getExpressionOf(node) {
-    if (node instanceof LowIrBinOp || node instanceof LowIrLoad) {
-      return new AvailableExpr(node)
-    } else if (node instanceof LowIrStore) {
-      return new AvailableExpr(new LowIrLoad(tmpVar: node.value, desc: node.desc))
-    } else {
-      return [tmpVar: null]
-    }
-  }
-
-  def rootNode
-  Map tmpVarCache
-  TempVar createRedundancy(LowIrNode startNode, targetExpression) {
-    def nodeUnderInspection = startNode
-    def exprUnderInspection = getExpressionOf(nodeUnderInspection)
-    def walkedNodes = [nodeUnderInspection]
-    while (nodeUnderInspection.predecessors.size() == 1
-        && !tmpVarCache.containsKey(nodeUnderInspection)) {
-      if (exprUnderInspection == targetExpression && nodeUnderInspection != rootNode) {
-        break
+    def redundanciesToCreate = []
+    eachNodeOf(startNode) {
+      if (valNum.getExpr(it) in redundantExprs) {
+        redundanciesToCreate << it
       }
-      nodeUnderInspection = nodeUnderInspection.predecessors[0]
-      exprUnderInspection = getExpressionOf(nodeUnderInspection)
-      walkedNodes << nodeUnderInspection
     }
 
-    if (tmpVarCache.containsKey(nodeUnderInspection)) return tmpVarCache[nodeUnderInspection]
-
-    if (exprUnderInspection == targetExpression) {
-      walkedNodes.each { tmpVarCache[it] = exprUnderInspection.tmpVar }
-      return exprUnderInspection.tmpVar
-    } else if (nodeUnderInspection.predecessors.size() > 1) {
-      //we need to insert a phi before this node, but first, find the 2 tmpVars
-      //if all are equal, return it; otherwise, insert phi function
-      def tmps = nodeUnderInspection.predecessors.collect{ createRedundancy(it, targetExpression) }
-      if (tmps.findAll{it == tmps[0]}.size() == tmps.size()) {
-        walkedNodes.each { tmpVarCache[it] = tmps[0] }
-        return tmps[0]
-      } else {
-        def phi = new LowIrPhi(tmpVar: tempFactory.createLocalTemp(), args: tmps)
-        new LowIrBridge(phi).insertBefore(nodeUnderInspection)
-        walkedNodes.each { tmpVarCache[it] = phi.tmpVar }
-        return phi.tmpVar
+    def exprToNewTmp = new LazyMap({methodDesc.tempFactory.createLocalTemp()})
+    redundanciesToCreate.each{
+      assert it.successors.size() == 1
+      def nodeSrc = it.getDef()
+      if (it instanceof LowIrStore) nodeSrc = it.value
+      if (nodeSrc) {
+        new LowIrBridge(new LowIrMov(src: nodeSrc, dst: exprToNewTmp[valNum.getExpr(it)])).
+          insertBetween(it, it.successors[0])
       }
-    } else {
-      assert false, "shouldn't reach a start node"
     }
+
+    nodesToRemove.each{
+      assert it.successors.size() == 1
+      if (it.getDef() != null) {
+        new LowIrBridge(new LowIrMov(src: exprToNewTmp[valNum.getExpr(it)], dst: it.getDef())).
+          insertBetween(it, it.successors[0])
+      }
+      it.excise()
+    }
+
+    def ssaComp =new SSAComputer()
+    ssaComp.destroyAllMyBeautifulHardWork(startNode)
+    ssaComp.tempFactory = methodDesc.tempFactory
+    ssaComp.doDominanceComputations(startNode)
+    ssaComp.placePhiFunctions(startNode)
+    ssaComp.rename(startNode)
   }
 
-  // map from nodes to (map from availableExpr to first def site)
-  def availExprMap = new LazyMap({[:]})
+  def dataMap = new LazyMap({ new HashSet(allExprs) })
 
   void store(GraphNode node, Set data) {
-    def newMap = [:]
-    data.each { newMap[it] = it.node.getDef() }
-    availExprMap[node] = newMap
-    node.anno['avail']=data
+    dataMap[node] = data
   }
 
   Set load(GraphNode node) {
-    return new LinkedHashSet(availExprMap[node].keySet())
+    return dataMap[node]
+  }
+
+  //set of expressions whose arguments were killed by the node
+  Set exprKill(LowIrNode node) {
+    def set = new HashSet()
+    //every expr that uses this one
+    set.addAll(exprsContainingExpr[valNum.getExpr(node)])
+    switch (node) {
+    case LowIrMethodCall:
+      //Method kills anything it might store to; we don't bother to only kill certain indices
+      node.descriptor.getDescriptorsOfNestedStores().each{set.addAll(exprsContainingDesc[it])}
+      break
+    case LowIrBoundsCheck:
+    case LowIrStore:
+      //might be too conservative, in that we mess up the following:
+      //a[0] = 1;
+      //a[1] = 2; #here we kill a[0] = 1
+      //foo(a[0]); #we generate an extra load for a[0] here maybe?
+      set += exprsContainingDesc[node.desc]
+      break
+    }
+    return set
   }
 
   Set transfer(GraphNode node, Set input) {
-    return (input - kill(node)) + gen(node)
+    def set = new LinkedHashSet([valNum.getExpr(node)])
+    def set_prime = input.clone()
+    set_prime.removeAll(exprKill(node))
+    set.addAll(set_prime)
+    return set
   }
 
   Set join(GraphNode node) {
-    if (node.predecessors) {
-      return node.predecessors.inject(load(node.predecessors[0]).clone()) { set, succ -> set.retainAll(load(succ)); set }
+    def preds = node.predecessors
+    if (preds) {
+      return preds.inject(load(preds[0]).clone()) { set, pred -> set.retainAll(load(pred)); set }
     } else
       return new LinkedHashSet()
-  }
-
-  def gen(node) {
-    def set
-    switch (node) {
-    case LowIrBinOp:
-    case LowIrLoad:
-      set = Collections.singleton(new AvailableExpr(node))
-      set -= kill(node)
-      break
-    case LowIrStore:
-      set = Collections.singleton(new AvailableExpr(new LowIrLoad(desc: node.desc, tmpVar: node.value)))
-      break
-    default:
-      set = Collections.emptySet()
-      break
-    }
-    return set
-  }
-
-  def kill(node) {
-    def set = node.getDef() != null ? exprsContainingTmp[node.getDef()] : Collections.emptySet()
-    if (node instanceof LowIrMethodCall) {
-      set = node.descriptor.getDescriptorsOfNestedStores().collect{
-        new AvailableExpr(new LowIrLoad(desc: it))
-      }
-    } else if (node instanceof LowIrStore) {
-      set = Collections.singleton(new AvailableExpr(new LowIrLoad(desc: node.desc)))
-    }
-    return set
-  }
-}
-
-class AvailableExpr {
-  def node
-
-  AvailableExpr(node) {
-    this.node = node
-  }
-
-  def getTmpVar() { node.getDef() }
-
-  int hashCode() {
-    int i = 0
-    assert node instanceof LowIrBinOp || node instanceof LowIrLoad
-    switch (node) {
-    case LowIrBinOp:
-      i = node.op.hashCode() * 43 + node.leftTmpVar.hashCode() * 97
-      if (node.rightTmpVar) {
-        if (node.op in [ADD, MUL, EQ, NEQ, AND, OR]) i += node.rightTmpVar.hashCode() * 97
-        else i += node.rightTmpVar.hashCode() * 103
-      }
-      break
-    case LowIrLoad:
-      i = node.desc.hashCode() * 4257
-      if (node.index != null) i += node.index.hashCode() * 101
-      break
-    }
-    return i
-  }
-
-  boolean equals(Object other) {
-    return other != null && other.getClass() == AvailableExpr.class && other.hashCode() == this.hashCode()
-  }
-
-  String toString() {
-    return "Available($node)"
   }
 }
