@@ -1,5 +1,6 @@
 package decaf.test
 import decaf.*
+import decaf.optimizations.*
 
 class SCCPTest extends GroovyTestCase {
 
