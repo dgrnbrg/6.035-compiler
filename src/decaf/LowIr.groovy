@@ -378,6 +378,7 @@ class LowIrStringLiteral extends LowIrValueNode {
 
 class LowIrIntLiteral extends LowIrValueNode {
   int value
+  boolean useless = false; // <-- used by regalloc
 
   String toString() {
     "LowIrIntLiteral(value: $value, tmpVar: $tmpVar)"

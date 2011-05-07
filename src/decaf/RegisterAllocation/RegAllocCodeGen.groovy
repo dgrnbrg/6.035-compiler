@@ -127,7 +127,8 @@ class RegAllocCodeGen extends CodeGenerator {
       break
     case LowIrIntLiteral:
       assert stmt.tmpVar instanceof RegisterTempVar
-      movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
+      if(stmt.useless == false)
+        movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrBoundsCheck:
       doBoundsCheck(stmt.lowerBound, stmt.upperBound, getTmp(stmt.testVar))

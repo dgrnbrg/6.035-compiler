@@ -65,7 +65,6 @@ class LivenessAnalysis extends Analizer {
   }
 
   def run(startNode) {
-    println "Running Liveness Analysis!"
     analize(startNode)
   }
 }

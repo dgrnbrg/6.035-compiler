@@ -15,6 +15,24 @@ public class RegAllocLowIrModifier {
     PlaceNodeBeforeNode(new LowIrLoadSpill(tmpVar : tv, loadLoc : sv), siteOfSpill);
   }
 
+  static void MarkUselessIntLiterals(MethodDescriptor methodDesc) {
+    // First get all the uses in the program.
+    LinkedHashSet<TempVar> uses = [];
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      if(node.getUses())
+        node.getUses().each { uses << it }
+    }
+
+    // Now get rid of useless int literals.
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      if(node instanceof LowIrIntLiteral) {
+        assert node.useless == false;
+        if(uses.contains(node.getDef()) == false)
+          node.useless = true;
+      }
+    }
+  }
+
   static void BreakCalls(MethodDescriptor methodDesc) {
     // First we'll get rid of the past-6 parameters.
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 

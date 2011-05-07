@@ -84,7 +84,6 @@ public class InterferenceGraph extends ColorableGraph {
   void ComputeInterferenceEdges() {
     edges = new LinkedHashSet()
 
-    // Firs add the edges just based on the liveness analysis results.
     def varToLiveness = [:];
     variables.each { varToLiveness[it] = new LinkedHashSet() }
 
@@ -105,8 +104,6 @@ public class InterferenceGraph extends ColorableGraph {
     }
 
     UpdateAfterEdgesModified();
-
-    println "handled the liveness."
 
     LazyMap ColorNodeMustBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
     LazyMap ColorsNodeCannotBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
@@ -179,10 +176,17 @@ public class InterferenceGraph extends ColorableGraph {
           ColorsNodeCannotBe[GetColoringNode(node.getDef())] << Reg.R10;
           ColorsNodeCannotBe[GetColoringNode(node.leftTmpVar)] << Reg.R10;
           ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.R10;
-          liveVars.each { lv -> 
-            if(lv != node.getDef())
-              ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.R10;
+          if(node.getSuccessors().size() == 1) {
+            def nextNode = node.getSuccessors().first();
+            def nextLiveVars = nextNode.anno['regalloc-liveness']
+            nextLiveVars.each { nlv -> 
+              if(nlv != node.getDef())
+                ColorsNodeCannotBe[GetColoringNode(nlv)] << Reg.R10;
+            }
           }
+          break;
+        default:
+          break;
         }
         break;
       case LowIrLoad:
@@ -200,32 +204,33 @@ public class InterferenceGraph extends ColorableGraph {
         break;
       case LowIrMethodCall:
       case LowIrCallOut:
-        println "BLOHA:FHJLDKJF"; // get rid of the getDefs();
+        assert node.paramTmpVars.size() <= 6;
+        def theParams = node.paramTmpVars.collect { it };
         node.paramTmpVars.eachWithIndex { ptv, i -> 
-          if(i < 6) {
-            ColorNodeMustBe[GetColoringNode(ptv)] << Reg.getRegOfParamArgNum(i + 1);
-            liveVars.each { lv -> 
-              def theParams = node.paramTmpVars.collect { it };
-              if(lv != node.getDef() && !theParams.contains(lv))
-                ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.getRegOfParamArgNum(i+1);
-            }
+          ColorNodeMustBe[GetColoringNode(ptv)] << Reg.getRegOfParamArgNum(i + 1);
+          liveVars.each { lv -> 
+            assert lv != node.getDef()
+            if(!theParams.contains(lv))
+              ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.getRegOfParamArgNum(i+1);
           }
         }
         // We also need to force the def-site to be RAX if the method isn't void.
         ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
-        //assert node.getSuccessors().size() == 1;
-        liveVars.each { lv -> 
-          if(lv != node.getDef())
-            ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.RAX;
+        if(node.getSuccessors().size() == 1) {
+          def nextNode = node.getSuccessors().first();
+          def nextLiveVars = nextNode.anno['regalloc-liveness']
+          nextLiveVars.each { nlv -> 
+            if(nlv != node.getDef())
+              ColorsNodeCannotBe[GetColoringNode(nlv)] << Reg.RAX;
+          }
         }
         break;
       default:
-        // Nothing else here at the time.
         break;
       }
     }
 
-    println "finished traversing."
+    dbgOut "finished traversing."
 
     dbgOut "final ColorNodeMustBe = $ColorNodeMustBe"
     dbgOut "final ColorsNodeCannotBe = $ColorsNodeCannotBe"

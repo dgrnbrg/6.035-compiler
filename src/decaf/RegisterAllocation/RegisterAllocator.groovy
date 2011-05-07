@@ -31,7 +31,7 @@ public class RegisterAllocator {
     // First break method calls and callouts.
     RegAllocLowIrModifier.BreakCalls(methodDesc)
     RegAllocLowIrModifier.BreakDivMod(methodDesc)
-
+    RegAllocLowIrModifier.MarkUselessIntLiterals(methodDesc)
     while(RegAllocationIteration()) {
       //System.in.withReader { println it.readLine(); }
     }
