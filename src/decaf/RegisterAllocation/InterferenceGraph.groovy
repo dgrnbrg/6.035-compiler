@@ -91,14 +91,6 @@ public class InterferenceGraph extends ColorableGraph {
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       def liveVars = node.anno['regalloc-liveness']
       liveVars.each { lv -> 
-        /*if(node.getDef() && node.getDef() != lv)
-          varToLiveness[node.getDef()].add(lv)
-        if(lv.type == TempVarType.PARAM) {
-          liveVars.each { lv2 -> 
-            if(lv2.type == TempVarType.PARAM)
-              varToLiveness[lv] << lv2;
-          }
-        }*/
         liveVars.each { lv2 ->
           varToLiveness[lv] << lv2;
         }
@@ -220,15 +212,12 @@ public class InterferenceGraph extends ColorableGraph {
           }
         }
         // We also need to force the def-site to be RAX if the method isn't void.
-        //if(node instanceof LowIrCallOut || 
-        //    node.descriptor.returnType == Type.INT || 
-        //    node.descriptor.returnType == Type.BOOLEAN) {
-          ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
-          liveVars.each { lv -> 
-            if(lv != node.getDef())
-              ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.RAX;
-          }
-        //}
+        ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
+        //assert node.getSuccessors().size() == 1;
+        liveVars.each { lv -> 
+          if(lv != node.getDef())
+            ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.RAX;
+        }
         break;
       default:
         // Nothing else here at the time.
@@ -275,8 +264,6 @@ public class InterferenceGraph extends ColorableGraph {
     if(a.isMovRelated() && b.isMovRelated()) {
       if(a.movRelatedNodes.contains(b.representative) &&
           b.movRelatedNodes.contains(a.representative)) {
-        dbgOut "COALESCING!"
-        //assert false; // <- cool!
         int numNewNeighbors = (neighborTable.GetNeighbors(a) + neighborTable.GetNeighbors(b)).size()
         return (numNewNeighbors < sigDeg());
       }

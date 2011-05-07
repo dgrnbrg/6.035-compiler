@@ -8,8 +8,6 @@ import static decaf.Reg.eachRegNode
 class DbgHelper {
   static boolean dbgValidationOn = false;
   static def dbgOut = { str -> 
-    assert str; 
-    if(false)
-      println str; 
+    //println str; 
   }
 }

@@ -32,7 +32,9 @@ public class RegisterAllocator {
     RegAllocLowIrModifier.BreakCalls(methodDesc)
     RegAllocLowIrModifier.BreakDivMod(methodDesc)
 
-    while(RegAllocationIteration());
+    while(RegAllocationIteration()) {
+      //System.in.withReader { println it.readLine(); }
+    }
 
     dbgOut "Finished Register Allocation."
   }
@@ -197,7 +199,7 @@ public class RegisterAllocator {
         if(!(pair[0].representative instanceof RegisterTempVar) && 
             !(pair[1].representative instanceof RegisterTempVar)) {
           if(ig.CanCoalesceNodes(pair[0], pair[1])) {
-            dbgOut "Found a pair of nodes to coalesce: $pair"
+            //dbgOut "Found a pair of nodes to coalesce: $pair"
             ig.CoalesceNodes(pair[0], pair[1]);
             return true;
           }

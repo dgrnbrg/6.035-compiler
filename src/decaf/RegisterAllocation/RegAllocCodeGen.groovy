@@ -106,7 +106,8 @@ class RegAllocCodeGen extends CodeGenerator {
   void visitNode(GraphNode stmt) {
 
     // The extra tabs make it more readable.
-    emit("                        // $stmt");
+    if(!(stmt.class == LowIrValueNode))
+      Comment("$stmt");
 
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
