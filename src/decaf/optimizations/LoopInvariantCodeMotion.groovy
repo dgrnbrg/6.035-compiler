@@ -37,6 +37,7 @@ class LoopInvariantCodeMotion {
       invariants.findAll{!domComps.dominates(it, loop.header)}
       def landingPad = loop.header.predecessors.find{domComps.dominates(it, loop.header)}
       def copier = new Copier(methodDesc.tempFactory)
+      copier.tmpCopyMap = new LazyMap({it})
       new LowIrBridge(invariants.collect{copier.nodeCopyMap[it]}).insertBefore(landingPad)
       SSAComputer.updateDUChains(startNode)
 
