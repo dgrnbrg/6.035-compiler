@@ -7,12 +7,16 @@ import static decaf.Reg.eachRegNode
 
 public class RegisterAllocator {
   def dbgOut = DbgHelper.dbgOut
-
+  def dbgOutFreeze = { str -> if(false) dbgOut(str) };
+  def dbgOutCoalesce = { str -> if(false) dbgOut(str) };
+  def dbgOutSimplify = { str -> if(false) dbgOut(str) };
+  def dbgOutSpill = { str -> if(true) dbgOut(str) };
+  
 	MethodDescriptor methodDesc;
   InterferenceGraph ig;
   LinkedHashSet<RegisterTempVar> registerNodes;
   ColoringStack theStack;
-  LinkedHashSet<InterferenceNode> potentialSpills;
+  LinkedHashSet<TempVar> spillWorklist;
 
   LinkedHashSet<String> colors = new LinkedHashSet(
       ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
@@ -22,7 +26,6 @@ public class RegisterAllocator {
     assert(md)
     methodDesc = md
     ig = null;
-    potentialSpills = [];
   }
 
   void RunRegAllocToFixedPoint() {
@@ -32,8 +35,10 @@ public class RegisterAllocator {
     RegAllocLowIrModifier.BreakCalls(methodDesc)
     RegAllocLowIrModifier.BreakDivMod(methodDesc)
     RegAllocLowIrModifier.MarkUselessIntLiterals(methodDesc)
+    int numIterations = 0;
     while(RegAllocationIteration()) {
-      //System.in.withReader { println it.readLine(); }
+      println "iteration $numIterations completed"
+      numIterations++;
     }
 
     dbgOut "Finished Register Allocation."
@@ -127,6 +132,7 @@ public class RegisterAllocator {
 
     ig = new InterferenceGraph(methodDesc);
     theStack = new ColoringStack(ig);    
+    spillWorklist = [];
 
     ig.BuildNodeToColoringNodeMap()
 
@@ -168,7 +174,9 @@ public class RegisterAllocator {
     int curMinDegree = 100000;
 
     ig.nodes.each { iNode -> 
-      if(iNode.isMovRelated() && ig.isSigDeg(iNode))
+      //if(iNode.isMovRelated() && ig.isSigDeg(iNode))
+      //  return;
+      if(iNode.isMovRelated() || ig.isSigDeg(iNode))
         return;
       else if(iNode.representative instanceof RegisterTempVar)
         return;
@@ -181,7 +189,6 @@ public class RegisterAllocator {
 
     if(nodeToSimplify != null) {
       theStack.PushNodeFromGraphToStack(nodeToSimplify);
-      //dbgOut "+  simplified: $nodeToSimplify."
       return true;
     }
 
@@ -190,16 +197,15 @@ public class RegisterAllocator {
   }
 
   boolean Coalesce() {
-    dbgOut "Now running Coalescing."
+    dbgOutCoalesce "Now running Coalescing."
 
     // Perform conservative coalescing. Nothing fancy here.
     for(pair in [ig.nodes, ig.nodes].combinations()) { 
-      //assert false == ig.edges.contains(new InterferenceEdge(pair[0], pair[1]));
       if(pair[0] != pair[1]) {
         if(!(pair[0].representative instanceof RegisterTempVar) && 
             !(pair[1].representative instanceof RegisterTempVar)) {
           if(ig.CanCoalesceNodes(pair[0], pair[1])) {
-            //dbgOut "Found a pair of nodes to coalesce: $pair"
+            //dbgOutCoalesce "Found a pair of nodes to coalesce: $pair"
             ig.CoalesceNodes(pair[0], pair[1]);
             return true;
           }
@@ -207,29 +213,29 @@ public class RegisterAllocator {
       }
     }
 
-    dbgOut "Finished trying to coalesce (no more coalesces found!)."
+    dbgOutCoalesce "Finished trying to coalesce (no more coalesces found!)."
     return false;
   }
 
   boolean Freeze() {
-    dbgOut "Now running Freeze()."
+    dbgOutFreeze "Now running Freeze()."
 
     for(n in ig.nodes) { 
       if(n.isMovRelated() && !ig.isSigDeg(n)) {
-        dbgOut "Found a freeze-able node: $n"
-        assert false;
+        dbgOutFreeze "Found a freeze-able node: $n"
+        //assert false;
         n.Freeze();
         ig.BuildNodeToColoringNodeMap();
         n.movRelatedNodes.each { mrn -> 
-          GetColoringNode(mrn).RemoveMovRelation(n.representative)
+          ig.GetColoringNode(mrn).RemoveMovRelation(n.representative)
         }
-        assert n.movRelatedNodes.size() == 0;
+        //assert n.movRelatedNodes.size() == 0;
         n.movRelatedNodes = new LinkedHashSet();
         return true;
       }
     }
 
-    dbgOut "No freeze-able nodes found."
+    dbgOutFreeze "No freeze-able nodes found."
     return false;
   }
 
@@ -240,7 +246,7 @@ public class RegisterAllocator {
     for(node in ig.nodes) { 
       if(ig.isSigDeg(node) && ((node.representative instanceof RegisterTempVar) == false)) {
         dbgOut "Found potential spill: $node"
-        potentialSpills << node;
+        node.nodes.each { spillWorklist << it; }
         theStack.PushNodeFromGraphToStack(node);
         return true;
       }
@@ -266,14 +272,38 @@ public class RegisterAllocator {
   }
 
   TempVar SelectTempVarToSpill() {
-    // Obviously you want something better than this.
-    return theStack.Peek().node.representative;
+    def tvLFS = RegAllocStatistics.GetTempVarsLoadedFromSpills(methodDesc);
+    def tvSTS = RegAllocStatistics.GetTempVarsStoredToSpills(methodDesc)
+    
+    def goodSpills = []
+    def badSpills = []
+
+    spillWorklist.each { tv -> 
+      if(tvLFS.contains(tv) || tvSTS.contains(tv))
+        badSpills << tv
+      else
+        goodSpills << tv;
+    }
+
+    if(goodSpills.size() + badSpills.size() != spillWorklist.size())
+      assert false;
+
+    if(goodSpills.size() > 0)
+      return goodSpills.first()
+
+    if(badSpills.size() == 0) {
+      println "badSpills = $badSpills"
+      println "spillWorklist = $spillWorklist"
+      assert false;
+    }
+    return badSpills.first();
+    //return theStack.Peek().node.representative;
   }
 
   void Spill() {
-    dbgOut "Have to spill."
+    dbgOutSpill "Have to spill."
     TempVar tempVarToSpill = SelectTempVarToSpill();
-    dbgOut "Spilling the TempVar: $tempVarToSpill"
+    dbgOutSpill "Spilling the TempVar: $tempVarToSpill"
 
     SpillVar sv = null;
 
@@ -295,7 +325,7 @@ public class RegisterAllocator {
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       // Determine if this node uses the spilled var.
       if(node.getUses().contains(tempVarToSpill)) {
-        dbgOut "USE. SPILL. TV = $tempVarToSpill, Node = $node"
+        dbgOutSpill "USE. SPILL. TV = $tempVarToSpill, Node = $node"
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
         node.SwapUsesUsingMap([(tempVarToSpill) : tv]);
         PlaceSpillLoadBeforeNode(node, sv, tv);
@@ -303,14 +333,14 @@ public class RegisterAllocator {
 
       // Determine if this node defines the spilled var.
       if(tempVarToSpill == node.getDef()) {
-        dbgOut "DEF. SPILL. TV = $tempVarToSpill, Node = $node"
+        dbgOutSpill "DEF. SPILL. TV = $tempVarToSpill, Node = $node"
         TempVar tv = methodDesc.tempFactory.createLocalTemp();
         node.SwapDefUsingMap([(node.getDef()) : tv])
         PlaceSpillStoreAfterNode(node, sv, tv);
       }
     }
 
-    dbgOut "Finished spilling the node."
+    dbgOutSpill "Finished spilling the node."
   }
 
   void PlaceSpillStoreAfterNode(LowIrNode siteOfSpill, SpillVar sv, TempVar tv) {

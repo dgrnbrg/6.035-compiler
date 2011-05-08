@@ -122,9 +122,16 @@ public class InterferenceGraph extends ColorableGraph {
 
       // Uncomment to see liveness analysis results.
       dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
-      liveVars.each { dbgOut "  $it" }
+      dbgOut "  ${liveVars.collect { it.id }}"
 
       // Extra edges to add to handle special cases.
+      /*if(node instanceof LowIrValueNode && node.getDef()) {
+        if(node.getDef().type == TempVarType.PARAM) {
+          if(node.getDef().id < 6)
+            ColorNodeMustBe[GetColoringNode(node.getDef())] << Reg.getRegOfParamArgNum(node.getDef().id + 1);
+        }
+      }*/
+
       switch(node) {
       case LowIrBinOp:
         // Handle modulo and division blocking.
@@ -232,8 +239,8 @@ public class InterferenceGraph extends ColorableGraph {
 
     dbgOut "finished traversing."
 
-    dbgOut "final ColorNodeMustBe = $ColorNodeMustBe"
-    dbgOut "final ColorsNodeCannotBe = $ColorsNodeCannotBe"
+    //dbgOut "final ColorNodeMustBe = $ColorNodeMustBe"
+    //dbgOut "final ColorsNodeCannotBe = $ColorsNodeCannotBe"
 
     ColorNodeMustBe.keySet().each { iNode ->
       ColorNodeMustBe[iNode].each { color -> 
@@ -282,17 +289,15 @@ public class InterferenceGraph extends ColorableGraph {
     assert nodes.contains(a) && nodes.contains(b)
     assert CanCoalesceNodes(a, b);
 
-    InterferenceNode c = a.CoalesceWith(b);
+    InterferenceNode c = a.ResultOfCoalescingWith(b);
     AddNode(c);
 
     // Now we have to make sure to have transferred the edges.
     List<InterferenceEdge> edgesToAdd = []
     def needToUpdate = { curNode -> curNode == a || curNode == b }
     edges.each { e -> 
-      if(needToUpdate(e.cn1) || needToUpdate(e.cn2)) {
-        InterferenceEdge updatedEdge = new InterferenceEdge(e.cn1, e.cn2);
-        updatedEdge.cn1 = needToUpdate(e.cn1) ? c : e.cn1;
-        updatedEdge.cn2 = needToUpdate(e.cn2) ? c : e.cn2;
+      if(needToUpdate(e.N1()) || needToUpdate(e.N2())) {
+        InterferenceEdge updatedEdge = new InterferenceEdge(needToUpdate(e.N1()) ? c : e.N1(), needToUpdate(e.N2()) ? c : e.N2());
         updatedEdge.Validate();
         edgesToAdd << updatedEdge;
       }
@@ -432,8 +437,9 @@ class InterferenceNode extends ColoringNode {
   }
 
   public InterferenceNode ResultOfCoalescingWith(InterferenceNode b) {
-    a.Validate(); b.Validate();
-    assert color != b.color;
+    Validate(); b.Validate();
+    if(color || b.color)
+      assert color != b.color;
 
     InterferenceNode c = new InterferenceNode(representative);
     c.nodes = nodes + b.nodes
@@ -469,6 +475,7 @@ class InterferenceNode extends ColoringNode {
   void Freeze() {
     assert !frozen;
     frozen = true;
+    movRelatedNodes = [];
     assert isMovRelated() == false;
   }
 

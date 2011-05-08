@@ -123,19 +123,21 @@ public class ColorableGraph {
 
   void DrawDotGraph(String fileName) {
     def extension = 'pdf'
-    def graphFile = filename + '.' + 'ColorGraph' + '.' + extension
+    def graphFile = fileName + '.' + 'ColorGraph' + '.' + extension
     dbgOut "Writing colorable graph output to $graphFile"
 
     def dotCommand = "dot -T$extension -o $graphFile"
     Process dot = dotCommand.execute()
     def dotOut = new PrintStream(dot.outputStream)
 
-    def varToLabel = { "TVz${it.id}z${it.type}" }
+    def varToLabel = { v -> 
+      return "TVz${v.id}z${v.type}" 
+    }
     dbgOut 'digraph g {'
     dotOut.println 'digraph g {'
     edges.each { edge -> 
-      def pairOfVariables = edge.collect { it }
-      assert pairOfVariables.size() == 2      
+      def pairOfVariables = edge.nodes.collect { it }
+      assert pairOfVariables.size() == 2
       def v1 = pairOfVariables[0], v2 = pairOfVariables[1]
       dbgOut "${varToLabel(v1)} -> ${varToLabel(v2)}"
       dotOut.println "${varToLabel(v1)} -> ${varToLabel(v2)}"
