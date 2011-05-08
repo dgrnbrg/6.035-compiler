@@ -263,6 +263,14 @@ class LowIrCondCoalesced extends LowIrCondJump {
   String toString() {
     "LowIrCondCoalesced(op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null; assert leftTmpVar;
+    if(mapToApply[(leftTmpVar)])
+      leftTmpVar = mapToApply[(leftTmpVar)]
+    if(rightTmpVar && mapToApply[(rightTmpVar)])
+      rightTmpVar = mapToApply[(rightTmpVar)]
+  }
 }
 
 class LowIrCallOut extends LowIrValueNode {

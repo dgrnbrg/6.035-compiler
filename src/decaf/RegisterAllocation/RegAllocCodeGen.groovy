@@ -185,6 +185,33 @@ class RegAllocCodeGen extends CodeGenerator {
       leave()
       ret()
       break
+    case LowIrCondCoalesced:
+      assert stmt.leftTmpVar instanceof RegisterTempVar;
+      assert stmt.rightTmpVar instanceof RegisterTempVar;
+      cmp(getTmp(stmt.rightTmpVar), getTmp(stmt.leftTmpVar))
+      switch (stmt.op) {
+      case GT:
+        jg(stmt.trueDest.label)
+	      break
+      case LT:
+	      jl(stmt.trueDest.label)
+	      break
+      case LTE:
+	      jle(stmt.trueDest.label)
+	      break
+      case GTE:
+	      jge(stmt.trueDest.label)
+	      break
+      case EQ:
+	      je(stmt.trueDest.label)
+	      break
+      case NEQ:
+	      jne(stmt.trueDest.label)
+	      break
+      default:
+        assert false;
+      }
+      break;
     case LowIrCondJump:
       assert stmt.condition instanceof RegisterTempVar;
       cmp(1, getTmp(stmt.condition))

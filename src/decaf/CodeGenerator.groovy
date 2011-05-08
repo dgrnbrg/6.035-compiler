@@ -90,9 +90,9 @@ class CodeGenerator extends Traverser {
         if (index < paramRegs.size()) {
           movq(getTmp(tmpVar), paramRegs[index])
         } else {
-          //movq(getTmp(tmpVar),r10)
-          //movq(r10,rsp(8*(index - paramRegs.size())))
-          movq(getTmp(tmpVar), rsp(8*(index - paramRegs.size())))
+          movq(getTmp(tmpVar),r10)
+          movq(r10,rsp(8*(index - paramRegs.size())))
+          //movq(getTmp(tmpVar), rsp(8*(index - paramRegs.size())))
         }
       }
       if (stmt.name == 'printf') {
