@@ -145,7 +145,7 @@ println "$it"
     //division isn't relocatable
     if (!list.every{it instanceof LowIrBinOp || it instanceof LowIrLoad || it instanceof LowIrIntLiteral || it instanceof LowIrBoundsCheck})
       throw new UnparallelizableException()
-    if (!list.findAll{it instanceof LowIrBinOp}.every{it.op != BinOpType.DIV})
+    if (!list.findAll{it instanceof LowIrBinOp}.every{it.op != BinOpType.DIV && it.op != BinOpType.MOD})
       throw new UnparallelizableException()
     //TODO: do we need the following 2 lines for correctness?
 //    if (!list.findAll{it instanceof LowIrLoad}.every{it.index == null})
