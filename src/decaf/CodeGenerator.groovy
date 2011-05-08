@@ -125,13 +125,6 @@ class CodeGenerator extends Traverser {
       leave()
       ret()
       break
-    case LowIrCondJump:
-      movq(getTmp(stmt.condition), r11)
-      cmp(1, r11)
-      je(stmt.trueDest.label)
-      // Part of pre-tracer codegen.      
-      //jmp(stmt.falseDest.label)
-      break
     case LowIrCondCoalesced:
       switch (stmt.op) {
       case GT:
@@ -171,6 +164,14 @@ class CodeGenerator extends Traverser {
         jne(stmt.trueDest.label)
 	break
       }
+      break
+    case LowIrCondJump:
+      movq(getTmp(stmt.condition), r11)
+      cmp(1, r11)
+      je(stmt.trueDest.label)
+      // Part of pre-tracer codegen.      
+      //jmp(stmt.falseDest.label)
+      break
     case LowIrLoad:
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
