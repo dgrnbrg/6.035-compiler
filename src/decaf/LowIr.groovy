@@ -222,8 +222,32 @@ class LowIrCondCoalesced extends LowIrCondJump {
   TempVar leftTmpVar
   TempVar rightTmpVar
   BinOpType op
+
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    int x = 0
+    assert oldVar != null
+    if (leftTmpVar == oldVar) {
+      leftTmpVar = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    if (rightTmpVar == oldVar) {
+      rightTmpVar = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+
+  Collection<TempVar> getUses() {
+    return [leftTmpVar, rightTmpVar]
+  }
+
   String toString() {
-    "LowIrCondCoalesced(condition: $condition, op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar)"
+    "LowIrCondCoalesced(op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar)"
   }
 }
 
