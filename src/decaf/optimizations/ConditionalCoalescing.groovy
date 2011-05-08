@@ -25,14 +25,17 @@ class ConditionalCoalescing {
     toCoalesce.each { node, jmps ->
       def useNodes = node.getDef().useSites
       jmps.each { jmp ->
+        def newCond = new LowIrCondCoalesced(trueDest: jmp.trueDest,
+          falseDest: jmp.falseDest,
+          op: node.op, leftTmpVar: node.leftTmpVar, rightTmpVar: node.rightTmpVar)
         assert jmp.predecessors.size() == 1
-        def pred = jmp.predecessors[0]
-        new LowIrBridge(new LowIrCondCoalesced(condition: jmp.condition, trueDest: jmp.trueDest, falseDest: jmp.falseDest,
-          op: node.op, leftTmpVar: node.leftTmpVar, rightTmpVar: node.rightTmpVar, tmpVar: node.tmpVar)).insertBetween(pred, jmp)
-        def coalescedPred = jmp.predecessors[0]
-        jmp.successors.each{ coalescedPred.successors << it }
-        LowIrNode.unlink(coalescedPred, jmp)
-        coalescedPred.successors.remove(jmp)
+        LowIrNode.link(jmp.predecessors[0], newCond)
+        LowIrNode.unlink(jmp.predecessors[0], jmp)
+        jmp.successors.clone().each {
+          LowIrNode.link(newCond, it)
+          LowIrNode.unlink(jmp, it)
+        }
+        jmp.condition.useSites.remove(jmp)
       }
       if (jmps.size() == node.getDef().useSites.size())
         node.excise()
