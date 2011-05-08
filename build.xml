@@ -145,9 +145,15 @@
 <!--  <arg value="pre"/>      -->
 <!--  <arg value="sccp"/>      -->
       <arg value="dce"/>
+<<<<<<< HEAD
 <!--  <arg value="cp"/>      -->
 <!--  <arg value="dse"/>      -->
       <arg value="regalloc"/>
+=======
+      <arg value="cp"/>
+      <arg value="dse"/>
+      <arg value="cc"/>
+>>>>>>> 5d05b5a2ac37ec1b3dbe6fe065ca2b767cbcb543
     </java>
   </target>
 

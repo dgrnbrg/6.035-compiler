@@ -70,6 +70,8 @@ enum InstrType {
   JE('je',1),
   JNE('jne',1),
   JGE('jge',1),
+  JG('jg', 1),
+  JLE('jle',1),
   JL('jl',1),
 
 //ARITHMETIC AND LOGIC
