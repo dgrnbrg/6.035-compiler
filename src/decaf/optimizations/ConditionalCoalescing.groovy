@@ -2,6 +2,7 @@ package decaf.optimizations
 import decaf.*
 import decaf.graph.GraphNode
 import decaf.graph.*
+import static decaf.BinOpType.*
 import static decaf.graph.Traverser.eachNodeOf
 
 class ConditionalCoalescing {
@@ -9,23 +10,20 @@ class ConditionalCoalescing {
   def analize(MethodDescriptor methodDesc) {
     def startNode = methodDesc.lowir
     def toCoalesce = new LazyMap() //key: comparison binop node, value: condjump nodes
+    def cmpable = [GT, LT, EQ, NEQ, GTE, LTE]
     eachNodeOf(startNode) { node ->
       def predNode = node.predecessors[0]
       if (node instanceof LowIrBinOp) {
         def useNodes = node.getDef().useSites 
         def op = node.op
-        def cmp = op == BinOpType.GT || op == BinOpType.LT || op == BinOpType.EQ ||
-                op == BinOpType.LTE || op == BinOpType.GTE || op == BinOpType.NEQ
-        if (cmp && useNodes.any{it instanceof LowIrCondJump}) {
+        if (op in cmpable && useNodes.any{it instanceof LowIrCondJump}) {
            toCoalesce[node] = useNodes.findAll{it instanceof LowIrCondJump}
         }
       }
     }
-//println toCoalesce
 
-    toCoalesce.keySet().each { node ->
-//      assert node.predecessors.size() == 1
-      def jmps = toCoalesce[node]
+    toCoalesce.each { node, jmps ->
+      def useNodes = node.getDef().useSites
       jmps.each { jmp ->
         assert jmp.predecessors.size() == 1
         def pred = jmp.predecessors[0]
@@ -36,7 +34,8 @@ class ConditionalCoalescing {
         LowIrNode.unlink(coalescedPred, jmp)
         coalescedPred.successors.remove(jmp)
       }
-      node.excise()
+      if (jmps.size() == node.getDef().useSites.size())
+        node.excise()
     }
   }
 }
