@@ -125,7 +125,7 @@ println "$it"
     def visited = new HashSet()
     def visit
     visit = { LowIrNode n ->
-      if (n != null && !(n in visited)) {
+      if (n != null && !(n in visited) && (n in outermostLoop.body)) {
         visited << n
         n.getUses()*.defSite.each{visit(it)}
         if (n instanceof LowIrLoad && n.index != null) {
@@ -147,8 +147,9 @@ println "$it"
       throw new UnparallelizableException()
     if (!list.findAll{it instanceof LowIrBinOp}.every{it.op != BinOpType.DIV})
       throw new UnparallelizableException()
-    if (!list.findAll{it instanceof LowIrLoad}.every{it.index == null})
-      throw new UnparallelizableException()
+    //TODO: do we need the following 2 lines for correctness?
+//    if (!list.findAll{it instanceof LowIrLoad}.every{it.index == null})
+//      throw new UnparallelizableException()
 
     //if all went well, return the list
     return list
