@@ -226,13 +226,16 @@ public class GroovyMain {
     if ('iva' in argparser['opt']) {
       opts += ['ssa', 'iva']
     }
+    if ('cc' in argparser['opt']) {
+      opts += ['ssa', 'cc']
+    }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
     } else {
       lowirGen.inliningThreshold = 0
     }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'iva']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'cc', 'iva']
     }
   }
 
@@ -360,6 +363,8 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
+      if ('cc' in opts)
+        new ConditionalCoalescing().analize(methodDesc)
     }
     methodDescs.clone().each { MethodDescriptor methodDesc ->
       if ('iva' in opts) {

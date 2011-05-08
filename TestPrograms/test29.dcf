@@ -1,0 +1,37 @@
+// EXPECTS hello world
+// EXPECTS hello world
+// EXPECTS hello world
+// EXPECTS hello world
+// EXPECTS hello world
+// EXPECTS hello world
+class Program {
+  int a;
+  int b;
+  boolean c;
+  void main() {
+    int d;
+    d = 1;
+    a = 1;
+    b = 2;
+    c = a < b;
+    if (c) {
+      callout("printf", "hello world\n");
+    }
+    if (a <= b) {
+      callout("printf", "hello world\n");
+    }
+    a = 2;
+    if (a == b) {
+      callout("printf", "hello world\n");
+    }
+    if (a >= b) {
+      callout("printf", "hello world\n");
+    }
+    if (b > d) {
+      callout("printf", "hello world\n");
+    }
+    if (b != d) {
+      callout("printf", "hello world\n");
+    }
+  }
+}

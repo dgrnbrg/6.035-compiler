@@ -139,6 +139,45 @@ class CodeGenerator extends Traverser {
       // Part of pre-tracer codegen.      
       //jmp(stmt.falseDest.label)
       break
+    case LowIrCondCoalesced:
+      switch (stmt.op) {
+      case GT:
+	movq(getTmp(stmt.leftTmpVar), r10)
+	movq(getTmp(stmt.rightTmpVar), r11)
+	cmp(r11, r10)
+        jg(stmt.trueDest.label)
+	break
+      case LT:
+	movq(getTmp(stmt.leftTmpVar), r10)
+	movq(getTmp(stmt.rightTmpVar), r11)
+	cmp(r11, r10)
+        jl(stmt.trueDest.label)
+	break
+      case LTE:
+	movq(getTmp(stmt.leftTmpVar), r10)
+	movq(getTmp(stmt.rightTmpVar), r11)
+	cmp(r11, r10)
+        jle(stmt.trueDest.label)
+	break
+      case GTE:
+	movq(getTmp(stmt.leftTmpVar), r10)
+	movq(getTmp(stmt.rightTmpVar), r11)
+	cmp(r11, r10)
+        jge(stmt.trueDest.label)
+	break
+      case EQ:
+	movq(getTmp(stmt.leftTmpVar), r10)
+	movq(getTmp(stmt.rightTmpVar), r11)
+	cmp(r11, r10)
+        je(stmt.trueDest.label)
+	break
+      case NEQ:
+	movq(getTmp(stmt.leftTmpVar), r10)
+	movq(getTmp(stmt.rightTmpVar), r11)
+	cmp(r11, r10)
+        jne(stmt.trueDest.label)
+	break
+      }
     case LowIrLoad:
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
