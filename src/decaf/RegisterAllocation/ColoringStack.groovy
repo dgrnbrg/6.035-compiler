@@ -62,7 +62,7 @@ public class ColoringStack {
     csb.interferenceNeighbors.each { n -> 
       assert n instanceof TempVar;
       InterferenceNode iNode = ig.GetColoringNode(n);
-      assert iNode.color != null;
+      assert iNode.color;
       if(iNode.color) {
         remainingColors.remove(iNode.color)
         removedColors << iNode.color
@@ -72,8 +72,8 @@ public class ColoringStack {
     if(remainingColors.size() > 0)
       return remainingColors.asList().first();
     else {
-      println "csb = $csb"
-      println removedColors
+      //println "csb = $csb"
+      //println removedColors
       //assert false
     }
 

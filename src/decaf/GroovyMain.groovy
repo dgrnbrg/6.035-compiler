@@ -14,8 +14,8 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['expr']}\\n${cur.anno['insert']}\\n${cur.anno['delete']}\"$nodeColor]")
-    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['instVal']}\"$nodeColor]")
+//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['regalloc-liveness']}\\n${cur.anno['insert']}\\n${cur.anno['delete']}\"$nodeColor]")
+    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['regalloc-liveness']}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -384,7 +384,7 @@ public class GroovyMain {
         println "--------------------------------------------------------------"
         methodDesc.ra.RunRegAllocToFixedPoint()
         println "now coloring the lowir for method: ${methodDesc.name}"
-        methodDesc.ra.ColorLowIr();
+        //methodDesc.ra.ColorLowIr();
       }
     }
   }
@@ -415,6 +415,8 @@ public class GroovyMain {
 
     methodDescs.each { methodDesc ->
       // Calculate traces for each method
+      if('regalloc' in opts)
+        methodDesc.ra.ColorLowIr();
       TraceGraph.calculateTraces(methodDesc.lowir);
       codeGen.handleMethod(methodDesc)
     }

@@ -7,9 +7,9 @@ import static decaf.Reg.eachRegNode
 
 public class RegisterAllocator {
   def dbgOut = DbgHelper.dbgOut
-  def dbgOutFreeze = { str -> if(false) dbgOut(str) };
-  def dbgOutCoalesce = { str -> if(false) dbgOut(str) };
-  def dbgOutSimplify = { str -> if(false) dbgOut(str) };
+  def dbgOutFreeze = { str -> if(true) dbgOut(str) };
+  def dbgOutCoalesce = { str -> if(true) dbgOut(str) };
+  def dbgOutSimplify = { str -> if(true) dbgOut(str) };
   def dbgOutSpill = { str -> if(true) dbgOut(str) };
   
 	MethodDescriptor methodDesc;
@@ -94,7 +94,6 @@ public class RegisterAllocator {
     Build();
 
     while(true) {
-      dbgOut "Now running Simplify()."
       boolean didSimplifyHappen = Simplify();
       if(didSimplifyHappen)
         while(Simplify());
@@ -119,6 +118,8 @@ public class RegisterAllocator {
     //assert OnlySigDegOrMoveRelated();
     //ig.nodes.each { assert it.isMovRelated() == false }
 
+    //println "ig.nodes.size() is ${ig.nodes.size()}"
+    //ig.nodes.each { println it }
     if(!Select()) {
       Spill();
       return true;
@@ -132,16 +133,23 @@ public class RegisterAllocator {
 
     ig = new InterferenceGraph(methodDesc);
     theStack = new ColoringStack(ig);    
+    ig.Validate();
     spillWorklist = [];
 
     ig.BuildNodeToColoringNodeMap()
-
+    def tvLIILR = RegAllocStatistics.GetLowIrIntLiteralRelatedTempVars(methodDesc);
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
-      if(node instanceof LowIrMov)
+      if(node instanceof LowIrMov) {
+        if(tvLIILR.contains(node.src) == false && tvLIILR.contains(node.dst) == false) {
         ig.AddMovRelation(node.src, node.dst)
+        ig.Validate();
+        }
+      }
     }
 
     //ig.neighborTable.PrettyPrint();
+
+    ig.Validate();
 
     dbgOut "Finished running Build()."
   }
@@ -169,7 +177,9 @@ public class RegisterAllocator {
   }
 
   boolean Simplify() {
+    dbgOut "Now running Simplify()."
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
+    ig.Validate();
     InterferenceNode nodeToSimplify = null;
     int curMinDegree = 100000;
 
@@ -188,16 +198,23 @@ public class RegisterAllocator {
     }
 
     if(nodeToSimplify != null) {
+      dbgOut "+ Found a node to simplify: $nodeToSimplify"
       theStack.PushNodeFromGraphToStack(nodeToSimplify);
+      ig.Validate();
       return true;
     }
 
+    ig.Validate();
     dbgOut "- Could not find a node to simplify."
     return false;
   }
 
   boolean Coalesce() {
     dbgOutCoalesce "Now running Coalescing."
+    ig.Validate();
+
+    //println "ig.nodes.size() is ${ig.nodes.size()}"
+    //ig.nodes.each { println it }
 
     // Perform conservative coalescing. Nothing fancy here.
     for(pair in [ig.nodes, ig.nodes].combinations()) { 
@@ -205,53 +222,63 @@ public class RegisterAllocator {
         if(!(pair[0].representative instanceof RegisterTempVar) && 
             !(pair[1].representative instanceof RegisterTempVar)) {
           if(ig.CanCoalesceNodes(pair[0], pair[1])) {
-            //dbgOutCoalesce "Found a pair of nodes to coalesce: $pair"
+            dbgOutCoalesce "Found a pair of nodes to coalesce: $pair"
+            ig.Validate()
             ig.CoalesceNodes(pair[0], pair[1]);
+            ig.Validate();
             return true;
           }
         }
       }
     }
 
+    ig.Validate();
     dbgOutCoalesce "Finished trying to coalesce (no more coalesces found!)."
     return false;
   }
 
   boolean Freeze() {
     dbgOutFreeze "Now running Freeze()."
+    ig.Validate();
 
     for(n in ig.nodes) { 
       if(n.isMovRelated() && !ig.isSigDeg(n)) {
+        ig.Validate();
         dbgOutFreeze "Found a freeze-able node: $n"
         //assert false;
         n.Freeze();
-        ig.BuildNodeToColoringNodeMap();
-        n.movRelatedNodes.each { mrn -> 
+        /*n.movRelatedNodes.each { mrn -> 
           ig.GetColoringNode(mrn).RemoveMovRelation(n.representative)
-        }
+        }*/
         //assert n.movRelatedNodes.size() == 0;
-        n.movRelatedNodes = new LinkedHashSet();
+        //n.movRelatedNodes = new LinkedHashSet();
+        ig.Validate();
         return true;
       }
     }
 
     dbgOutFreeze "No freeze-able nodes found."
+    ig.Validate();
     return false;
   }
 
   boolean PotentialSpill() {
     dbgOut "Now calculating potential spills."
+    ig.Validate();
 
     // need to check that there are no low-degree 
     for(node in ig.nodes) { 
       if(ig.isSigDeg(node) && ((node.representative instanceof RegisterTempVar) == false)) {
         dbgOut "Found potential spill: $node"
         node.nodes.each { spillWorklist << it; }
+        ig.Validate();
         theStack.PushNodeFromGraphToStack(node);
+        ig.Validate();
         return true;
       }
     }
     
+    ig.Validate();
     dbgOut "Did not find any potential spills."
     return false
   }

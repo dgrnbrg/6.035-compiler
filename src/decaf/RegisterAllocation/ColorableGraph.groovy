@@ -33,18 +33,26 @@ public class ColorableGraph {
   }
 
   void RemoveNode(ColoringNode cn) {
+    Validate()
     assert cn; 
     cn.Validate();
-    //assert nodes.contains(cn);
+    assert nodes.contains(cn);
+    /*if(cn.nodes.find({ it.id == 86 })) {
+      assert false;
+    }*/
     nodes.remove(cn);
     //assert !nodes.contains(cn);
     UpdateAfterNodesModified();
   }
 
   void RemoveMultipleNodes(List<ColoringNode> cns) {
+    Validate();
     assert cns;
     cns.each { cn -> 
-      // assert nodes.contains(cn);
+      assert nodes.contains(cn);
+      //if(cn.nodes.find({ it.id == 86 }))
+      //assert false;
+      cn.Validate();
       nodes.remove(cn);
     }
 
@@ -94,7 +102,10 @@ public class ColorableGraph {
     // remove edges that have nodes that don't exist
     LinkedHashSet<ColoringEdge> edgesToRemove = [];
     edges.each { ce ->
-      if(!(ce.And { cn -> nodes.contains(cn) }))
+      boolean shouldRemove = false;
+      ce.nodes.each { if(nodes.contains(it) == false) shouldRemove = true; }
+      //if(!(ce.And { cn -> nodes.contains(cn) }))
+      if(shouldRemove)      
         edgesToRemove << ce;
     }
     edgesToRemove.each { edges.remove(it) }
@@ -105,13 +116,16 @@ public class ColorableGraph {
 
   void UpdateAfterEdgesModified() {
     neighborTable.Build(nodes, edges)
+    Validate();
   }
   
   void BuildNodeToColoringNodeMap() {
-    nodeToColoringNode = new LinkedHashMap();
+    //Validate();
+    nodeToColoringNode = [:];
 
     nodes.each { cn ->       
       cn.getNodes().each { n -> 
+        assert nodeToColoringNode[n] == null;
         nodeToColoringNode[n] = cn
       }
     }
@@ -264,6 +278,7 @@ public class ColoringEdge {
   public ColoringEdge(ColoringNode a, ColoringNode b) {
     assert a; assert b;
     nodes = new LinkedHashSet<ColoringNode>([a, b]);
+    assert nodes.size() == 2;
   }
 
   public void Validate() {
