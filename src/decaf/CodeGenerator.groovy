@@ -55,6 +55,7 @@ class CodeGenerator extends Traverser {
     }*/
 
     //emit("// Visiting node ${stmt.label}")
+    emit("#                          $stmt")
     def predecessors = stmt.getPredecessors()
     def successors = stmt.getSuccessors()
 
@@ -407,6 +408,7 @@ class CodeGenerator extends Traverser {
     if (arg != null) movq(arg, rsi)
     movq(0, rax)
     call('printf')
+    int3()
     movq(1,rdi)
     call('exit')
   }
