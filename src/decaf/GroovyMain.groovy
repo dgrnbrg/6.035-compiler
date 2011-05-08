@@ -339,8 +339,6 @@ public class GroovyMain {
 //        new CommonSubexpressionElimination().run(methodDesc)
       if ('sccp' in opts)
         new SparseConditionalConstantPropagation().run(methodDesc)
-      if ('cc' in opts)
-        new ConditionalCoalescing().analize(methodDesc)
       if ('cp' in opts)
         new CopyPropagation().propagate(methodDesc.lowir)
       if ('dce' in opts)
@@ -360,6 +358,8 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
+      if ('cc' in opts)
+        new ConditionalCoalescing().analize(methodDesc)
     }
   }
 
