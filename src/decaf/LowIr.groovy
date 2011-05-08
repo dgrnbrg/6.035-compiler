@@ -223,7 +223,7 @@ class LowIrCondCoalesced extends LowIrCondJump {
   TempVar rightTmpVar
   BinOpType op
   String toString() {
-    "LowIrCondCoalesced(condition: $condition, op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar, tmpVar: $tmpVar)"
+    "LowIrCondCoalesced(condition: $condition, op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar)"
   }
 }
 
