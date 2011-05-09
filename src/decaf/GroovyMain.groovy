@@ -380,9 +380,6 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
-      if ('cc' in opts)
-        new ConditionalCoalescing().analize(methodDesc)
-
     }
     methodDescs.clone().each { MethodDescriptor methodDesc ->
       if ('iva' in opts) {
@@ -660,6 +657,9 @@ public class GroovyMain {
       }
     }
     methodDescs.each { methodDesc ->
+      if ('cc' in opts)
+        new ConditionalCoalescing().analize(methodDesc)
+
       if ('regalloc' in opts) {
         println "stepping out of ssa form before register allocation."
         SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir);
