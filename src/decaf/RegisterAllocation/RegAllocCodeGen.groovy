@@ -355,10 +355,10 @@ class RegAllocCodeGen extends CodeGenerator {
       def threadFuncOperand = new Operand(stmt.func.name)
       threadFuncOperand.type = OperType.IMM
       def threadPrefix = "${stmt.func.name}_threadid"
-      emit('bss', ".comm ${threadPrefix}0 8")
-      emit('bss', ".comm ${threadPrefix}1 8")
-      emit('bss', ".comm ${threadPrefix}2 8")
-      emit('bss', ".comm ${threadPrefix}3 8")
+      emit('bss', ".comm ${threadPrefix}0, 8, 16")
+      emit('bss', ".comm ${threadPrefix}1, 8, 16")
+      emit('bss', ".comm ${threadPrefix}2, 8, 16")
+      emit('bss', ".comm ${threadPrefix}3, 8, 16")
       //globals storing thread ids
       def thread0id = new Operand("${threadPrefix}0")
       thread0id.type = OperType.IMM

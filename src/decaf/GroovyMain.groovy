@@ -473,7 +473,7 @@ public class GroovyMain {
               arraySize: loopInvariants.size()
             )
             ast.symTable[loopInvariantArray.name] = loopInvariantArray
-            codeGen.emit('bss', ".comm ${loopInvariantArray.name}_globalvar ${8*loopInvariantArray.arraySize}")
+            codeGen.emit('bss', ".comm ${loopInvariantArray.name}_globalvar, ${8*loopInvariantArray.arraySize}, 32")
             //generate the parallel function
             def parallelMethodDesc = new MethodDescriptor(
               name: "method_$parallelFuncPostfix",
@@ -537,7 +537,7 @@ public class GroovyMain {
               )
               copyArray.arraySize = copyArray.arraySize - (copyArray.arraySize % 16)
               ast.symTable[copyArray.name] = copyArray
-              codeGen.emit('bss', ".comm ${copyArray.name}_globalvar ${8*copyArray.arraySize}")
+              codeGen.emit('bss', ".comm ${copyArray.name}_globalvar, ${8*copyArray.arraySize}, 32")
               copiedLoop[0].body.findAll{it instanceof LowIrLoad && it.desc == desc}.each { load ->
                 load.desc = copyArray
               }
