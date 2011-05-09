@@ -473,7 +473,6 @@ public class GroovyMain {
               arraySize: loopInvariants.size()
             )
             ast.symTable[loopInvariantArray.name] = loopInvariantArray
-            codeGen.emit('bss', ".comm ${loopInvariantArray.name}_globalvar, ${8*loopInvariantArray.arraySize}, 32")
             //generate the parallel function
             def parallelMethodDesc = new MethodDescriptor(
               name: "method_$parallelFuncPostfix",
@@ -535,9 +534,7 @@ public class GroovyMain {
                 type: Type.INT_ARRAY,
                 arraySize: desc.arraySize + 16 //make it bigger so that we can overcopy easily
               )
-              copyArray.arraySize = copyArray.arraySize - (copyArray.arraySize % 16)
               ast.symTable[copyArray.name] = copyArray
-              codeGen.emit('bss', ".comm ${copyArray.name}_globalvar, ${8*copyArray.arraySize}, 32")
               copiedLoop[0].body.findAll{it instanceof LowIrLoad && it.desc == desc}.each { load ->
                 load.desc = copyArray
               }
@@ -681,26 +678,33 @@ public class GroovyMain {
   CodeGenerator codeGen;
 
   def genTmpVars = {->
-    // Here we pick which type of code generator we will use. Should probably move this 
-    // somewhere else in groovy main.
-    codeGen = ('regalloc' in opts) ? (new RegAllocCodeGen()) : (new CodeGenerator());
     depends(inter)
     //locals, temps, and params
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.tempFactory.decorateMethodDesc()
-    }
-    //make space for globals
-    ast.symTable.@map.each { name, desc ->
-      name += '_globalvar'
-      def s = desc.arraySize
-      if (s == null) s = 1
-      codeGen.emit('bss', ".comm $name, ${8*s}, 32")
     }
   }
 
   def genCode = {->
     depends(genLowIr)
     depends(stepOutOfSSA)
+
+    // Here we pick which type of code generator we will use
+    codeGen = ('regalloc' in opts) ? (new RegAllocCodeGen()) : (new CodeGenerator());
+
+    //make space for globals
+    ast.symTable.@map.each { name, desc ->
+      name += '_globalvar'
+      def s = desc.arraySize
+      if (s == null) {
+        s = 1
+      } else {
+        //round up to nearest 16 byte interval
+        s += 4
+        s = s - (s % 4)
+      }
+      codeGen.emit('bss', ".comm $name, ${4*s}, 16")
+    }
 
     methodDescs.each { methodDesc ->
       // Calculate traces for each method

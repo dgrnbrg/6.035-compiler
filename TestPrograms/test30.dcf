@@ -1,0 +1,31 @@
+class Program {
+  int a[20];
+  void main() {
+    for i = 0, 20 {
+      a[i] = i * i;
+    }
+    for i = 0, 20 {
+      callout("printf","%d\n",a[i]);
+    }
+// EXPECTS 0
+// EXPECTS 1
+// EXPECTS 4
+// EXPECTS 9
+// EXPECTS 16
+// EXPECTS 25
+// EXPECTS 36
+// EXPECTS 49
+// EXPECTS 64
+// EXPECTS 81
+// EXPECTS 100
+// EXPECTS 121
+// EXPECTS 144
+// EXPECTS 169
+// EXPECTS 196
+// EXPECTS 225
+// EXPECTS 256
+// EXPECTS 289
+// EXPECTS 324
+// EXPECTS 361
+  }
+}

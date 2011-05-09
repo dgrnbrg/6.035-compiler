@@ -224,18 +224,18 @@ class RegAllocCodeGen extends CodeGenerator {
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r10)
         def arrOp = r10(stmt.desc.name + '_globalvar', 8)
-        movq(arrOp, getTmp(stmt.tmpVar))
+        movsxl(arrOp, getTmp(stmt.tmpVar))
       } else {
-        movq(new Operand(stmt.desc.name + '_globalvar'), getTmp(stmt.tmpVar))
+        movsxl(new Operand(stmt.desc.name + '_globalvar'), getTmp(stmt.tmpVar))
       }
       break
     case LowIrStore:
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r10)
         def arrOp = r10(stmt.desc.name + '_globalvar', 8)
-        movq(getTmp(stmt.value), arrOp)
+        mov(Reg.get32BitReg(getTmp(stmt.value)), arrOp)
       } else {
-        movq(getTmp(stmt.value), new Operand(stmt.desc.name + '_globalvar'))
+        mov(Reg.get32BitReg(getTmp(stmt.value)), new Operand(stmt.desc.name + '_globalvar'))
       }
       break
     case LowIrMov:

@@ -50,6 +50,8 @@ class Instruction {
 enum InstrType {
 //copying values
   MOV('movq', 2),
+  MOVD('mov', 2),
+  MOVSXL('movsxl', 2),
   CMOVE('cmove',2),
   CMOVNE('cmovne',2),
   CMOVG('cmovg',2),
@@ -164,6 +166,7 @@ enum OperType {
 }
 
 enum Reg {
+//64 bit regs
   RAX('rax'),
   RBX('rbx'),
   RCX('rcx'),
@@ -180,6 +183,26 @@ enum Reg {
   R13('r13'),
   R14('r14'),
   R15('r15'),
+
+//32 bit regs
+  EAX('eax'),
+  EBX('ebx'),
+  ECX('ecx'),
+  EDX('edx'),
+  ESP('esp'),
+  EBP('ebp'),
+  ESI('esi'),
+  EDI('edi'),
+  R8D( 'r8d'),
+  R9D( 'r9d'),
+  R10D('r10d'),
+  R11D('r11d'),
+  R12D('r12d'),
+  R13D('r13d'),
+  R14D('r14d'),
+  R15D('r15d'),
+
+//special regs
   XMM0('xmm0'),
   RIP('rip'); //used by parallelizer
 
@@ -198,6 +221,31 @@ enum Reg {
 
   String toString() {
     return this.name;
+  }
+
+  static Reg get32BitReg(Reg reg64) {
+    switch (reg64) {
+    case RAX: return EAX
+    case RBX: return EBX
+    case RCX: return ECX
+    case RDX: return EDX
+    case RSI: return ESI
+    case RDI: return EDI
+    case R8: return R8D
+    case R9: return R9D
+    case R10: return R10D
+    case R11: return R11D
+    case R12: return R12D
+    case R13: return R13D
+    case R14: return R14D
+    case R15: return R15D
+    default: assert false
+    }
+  }
+
+  static Operand get32BitReg(Operand oper64) {
+    assert oper64.type == OperType.REG
+    return new Operand(get32BitReg(oper64.val))
   }
 
   static Reg getReg(String regName) {

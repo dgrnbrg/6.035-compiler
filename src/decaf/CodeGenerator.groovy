@@ -187,10 +187,10 @@ class CodeGenerator extends Traverser {
     case LowIrLoad:
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
-        def arrOp = r11(stmt.desc.name + '_globalvar', 8)
-        movq(arrOp, r10)
+        def arrOp = r11(stmt.desc.name + '_globalvar', 4)
+        movsxl(arrOp, r10)
       } else {
-        movq(new Operand(stmt.desc.name + '_globalvar'), r10)
+        movsxl(new Operand(stmt.desc.name + '_globalvar'), r10)
       }
       movq(r10, getTmp(stmt.tmpVar))
       break
@@ -198,10 +198,10 @@ class CodeGenerator extends Traverser {
       movq(getTmp(stmt.value), r10)
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
-        def arrOp = r11(stmt.desc.name + '_globalvar', 8)
-        movq(r10, arrOp)
+        def arrOp = r11(stmt.desc.name + '_globalvar', 4)
+        mov(Reg.get32BitReg(r10), arrOp)
       } else {
-        movq(r10, new Operand(stmt.desc.name + '_globalvar'))
+        mov(Reg.get32BitReg(r10), new Operand(stmt.desc.name + '_globalvar'))
       }
       break
     case LowIrMov:
