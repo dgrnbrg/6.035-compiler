@@ -312,7 +312,7 @@ class CodeGenerator extends Traverser {
       movdqa(rax(stmt.src.name+'_globalvar'), xmm0)
       movdqa(xmm0, rax(stmt.dst.name+'_globalvar'))
       add(16, rax)
-      cmp(stmt.dst.arraySize*8, rax)
+      cmp(stmt.dst.arraySize*4, rax)
       jne(copyLabel)
       break
     case LowIrParallelizedLoop:
