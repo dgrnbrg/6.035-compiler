@@ -11,13 +11,32 @@ class TempVar {
   List<LowIrNode> useSites = []
 
   String toString() {
-    "TempVar($id, $type)"
+    "TV($id, $type)"
+    //"TempVar($id, $type)"
+  }
+}
+
+class RegisterTempVar extends TempVar {
+  String registerName;
+
+  public RegisterTempVar(String name) {
+    assert name
+    registerName = name
+    id = -1
+    type = TempVarType.REGISTER
+  }
+
+  String toString() {
+    "RegTV($registerName)"
+    //"RegisterTempVar($registerName)"
   }
 }
 
 enum TempVarType {
   LOCAL,
-  PARAM
+  PARAM,
+  REGISTER,
+  SPILLVAR
 }
 
 //Within a methoddesc, tracks temp var usage and contains the code to allocate tempvars on the hiir and symboltables

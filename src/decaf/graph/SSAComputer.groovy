@@ -218,6 +218,8 @@ class SSAComputer {
       def joinPoint = phi
       while (joinPoint.predecessors.size() == 1) joinPoint = joinPoint.predecessors[0]
       //we can't handle if a phi function expects an n-way join but finds an m-way join and m != n
+      println phi
+      println joinPoint.predecessors
       assert phi.args.size() == joinPoint.predecessors.size()
 
       //insert the appropriate moves

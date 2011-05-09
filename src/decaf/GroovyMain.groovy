@@ -14,8 +14,8 @@ class LowIrDotTraverser extends Traverser {
   void visitNode(GraphNode cur) {
     // set nodeColor to "" if you don't want to render colors
     def nodeColor = ", style=filled, color=\"${TraceGraph.getColor(cur)}\""
-//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['expr']}\\n${cur.anno['insert']}\\n${cur.anno['delete']}\"$nodeColor]")
-    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['instVal']}\"$nodeColor]")
+//    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['regalloc-liveness']}\\n${cur.anno['insert']}\\n${cur.anno['delete']}\"$nodeColor]")
+    out.println("${cur.hashCode()} [label=\"$cur $cur.label\\n${cur.anno['regalloc-liveness']}\"$nodeColor]")
   }
   void link(GraphNode src, GraphNode dst) {
     out.println("${src.hashCode()} -> ${dst.hashCode()}")
@@ -226,6 +226,9 @@ public class GroovyMain {
     if ('iva' in argparser['opt']) {
       opts += ['ssa', 'iva']
     }
+    if ('regalloc' in argparser['opt']) {
+      opts += ['ssa', 'regalloc']
+    }
     if ('cc' in argparser['opt']) {
       opts += ['ssa', 'cc']
     }
@@ -235,7 +238,7 @@ public class GroovyMain {
       lowirGen.inliningThreshold = 0
     }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'cc', 'iva']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'cc', 'regalloc', 'iva']
     }
   }
 
@@ -263,6 +266,10 @@ public class GroovyMain {
 
   def genHiIr = {->
     depends(genSymTable)
+
+    // Force assert off here for RegAlloc Testing Purposes
+    //if(argparser['assertEnabled'])
+    //  argparser['assertEnabled'] = null
 
     if(argparser['assertEnabled'] != null) {
       ast.methodSymTable["assert"] = AssertFn.getAssertMethodDesc()
@@ -314,14 +321,22 @@ public class GroovyMain {
     if (errors != []) throw new FatalException(code: 1)
   }
 
+  def stepOutOfSSA = { -> 
+    methodDescs.each { methodDesc -> 
+      if(('regalloc' in opts) == false) {
+        println "stepping out of SSA form."
+        SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      }
+    }
+  }
+
   def lowir = {->
     depends(setupDot)
     depends(genLowIr)
 
-
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       TraceGraph.calculateTraces(methodDesc.lowir);
       new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
@@ -337,6 +352,8 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
+    println "Optimizations are: $opts"
+    
     methodDescs.each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
         new SSAComputer().compute(methodDesc)
@@ -365,6 +382,7 @@ public class GroovyMain {
       }
       if ('cc' in opts)
         new ConditionalCoalescing().analize(methodDesc)
+
     }
     methodDescs.clone().each { MethodDescriptor methodDesc ->
       if ('iva' in opts) {
@@ -379,13 +397,19 @@ public class GroovyMain {
           if (outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() > 0) return
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
           def storeDescs = outermostLoop.body.findAll{it instanceof LowIrStore}.collect{it.desc}
-          if (loadDescs.intersect(storeDescs).size() > 0) return
+//          if (loadDescs.intersect(storeDescs).size() > 0) return
           if (storeDescs.unique{it.hashCode()}.size() != storeDescs.size()) return
           if (outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
                                          it instanceof LowIrCallOut ||
                                          it instanceof LowIrReturn}.size() > 0) return
           try {
             def writes = depAnal.extractWritesInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
+            if (writes.size() == 0) return
+            def reads = []
+            //see if this requires antidependency analysis
+            if (loadDescs.intersect(storeDescs).size() > 0)
+              reads = depAnal.extractReadsInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
+
             inToOut.keySet().each {inner ->
               //only relocate IV bounds to their parent loop (don't break nesting)
               if (!outermostLoop.body.contains(inner.header)) return
@@ -400,6 +424,14 @@ public class GroovyMain {
             }
             //at this point, we can relocate the invariants in the SOP form
             def parallelize = new LowIrNode(metaText: 'parallelizable')
+            //relocate all read invariants
+            reads.each { addr ->
+              depAnal.speculativelyMoveInnerLoopInvariantsToOuterLoop(
+                methodDesc.lowir,
+                outermostLoop,
+                addr.ivToInvariants.values().flatten().findAll{it != 1} + addr.invariants
+              )
+            }
             writes.each { addr ->
               depAnal.speculativelyMoveInnerLoopInvariantsToOuterLoop(
                 methodDesc.lowir,
@@ -415,6 +447,7 @@ public class GroovyMain {
               def check = depAnal.generateParallelizabilityCheck(
                 methodDesc,
                 addr,
+                reads.findAll{it.node.desc == addr.node.desc},
                 parallelize,
                 oldLoopBegin
               )
@@ -428,10 +461,12 @@ public class GroovyMain {
             domComps.computeDominators(methodDesc.lowir)
             def loopInvariants = new ArrayList(tmpsInLoop.findAll{domComps.dominates(it.defSite, outermostLoop.header)})
             def outermostInductionVar = iva.basicInductionVars.find{it.loop == outermostLoop}
+            //get the outer loops bounds into a known location (positions 0 and 1)
             assert loopInvariants.remove(outermostInductionVar.lowBoundTmp)
             assert loopInvariants.remove(outermostInductionVar.highBoundTmp)
             loopInvariants.add(0, outermostInductionVar.highBoundTmp)
             loopInvariants.add(0, outermostInductionVar.lowBoundTmp)
+            //create the loop invariant-containing array
             def loopInvariantArray = new VariableDescriptor(
               name: "array_$parallelFuncPostfix",
               type: Type.INT_ARRAY,
@@ -492,6 +527,21 @@ public class GroovyMain {
                   tmpVar: parallelMethodDesc.tempFactory.createLocalTemp()
                 )
               }
+            }
+            //create copies of various written-to arrays that have reads
+            reads*.node*.desc.findAll{it in writes*.node*.desc}.each { desc ->
+              def copyArray = new VariableDescriptor(
+                name: "${desc.name}_invar",
+                type: Type.INT_ARRAY,
+                arraySize: desc.arraySize + 16 //make it bigger so that we can overcopy easily
+              )
+              copyArray.arraySize = copyArray.arraySize - (copyArray.arraySize % 16)
+              ast.symTable[copyArray.name] = copyArray
+              codeGen.emit('bss', ".comm ${copyArray.name}_globalvar ${8*copyArray.arraySize}")
+              copiedLoop[0].body.findAll{it instanceof LowIrLoad && it.desc == desc}.each { load ->
+                load.desc = copyArray
+              }
+              storeInvarsList << new LowIrCopyArray(src: desc, dst: copyArray)
             }
             //now, we must recompute the loop bounds on a per-thread basis
             loadInvarsList << new LowIrBinOp(
@@ -612,11 +662,28 @@ public class GroovyMain {
         }
       }
     }
+    methodDescs.each { methodDesc ->
+      if ('regalloc' in opts) {
+        println "stepping out of ssa form before register allocation."
+        SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir);
+        println "Register Allocator running!"
+        methodDesc.ra = new RegisterAllocator(methodDesc)
+        println "--------------------------------------------------------------"
+        println "Running Register Allocation for the method: ${methodDesc.name}"
+        println "--------------------------------------------------------------"
+        methodDesc.ra.RunRegAllocToFixedPoint()
+        println "now coloring the lowir for method: ${methodDesc.name}"
+        //methodDesc.ra.ColorLowIr();
+      }
+    }
   }
 
-  def codeGen = new CodeGenerator()
+  CodeGenerator codeGen;
 
   def genTmpVars = {->
+    // Here we pick which type of code generator we will use. Should probably move this 
+    // somewhere else in groovy main.
+    codeGen = ('regalloc' in opts) ? (new RegAllocCodeGen()) : (new CodeGenerator());
     depends(inter)
     //locals, temps, and params
     methodDescs.each { MethodDescriptor methodDesc ->
@@ -633,9 +700,12 @@ public class GroovyMain {
 
   def genCode = {->
     depends(genLowIr)
+    depends(stepOutOfSSA)
+
     methodDescs.each { methodDesc ->
-      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
       // Calculate traces for each method
+      if('regalloc' in opts)
+        methodDesc.ra.ColorLowIr();
       TraceGraph.calculateTraces(methodDesc.lowir);
       codeGen.handleMethod(methodDesc)
     }

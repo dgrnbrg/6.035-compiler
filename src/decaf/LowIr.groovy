@@ -164,6 +164,14 @@ class LowIrNode implements GraphNode{
     return []
   }
 
+  void SwapUsesUsingMap(mapToApply) { 
+    assert mapToApply != null
+  }
+
+  void SwapDefUsingMap(mapToApply) { 
+    assert mapToApply != null
+  }
+
   void excise() {
     if (successors.size() == 1) {
       def oldPreds = predecessors.clone()
@@ -216,6 +224,12 @@ class LowIrCondJump extends LowIrNode {
   String toString() {
     "LowIrCondJump(condition: $condition)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null;
+    if(mapToApply[(condition)]) 
+      condition = mapToApply[(condition)]
+  }
 }
 
 class LowIrCondCoalesced extends LowIrCondJump {
@@ -249,11 +263,20 @@ class LowIrCondCoalesced extends LowIrCondJump {
   String toString() {
     "LowIrCondCoalesced(op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null; assert leftTmpVar;
+    if(mapToApply[(leftTmpVar)])
+      leftTmpVar = mapToApply[(leftTmpVar)]
+    if(rightTmpVar && mapToApply[(rightTmpVar)])
+      rightTmpVar = mapToApply[(rightTmpVar)]
+  }
 }
 
 class LowIrCallOut extends LowIrValueNode {
   String name
   TempVar[] paramTmpVars
+  int numOriginalArgs; // <-- used by reg alloc.
 
   //returns the number of replacements that happened
   int replaceUse(TempVar oldVar, TempVar newVar) {
@@ -276,12 +299,19 @@ class LowIrCallOut extends LowIrValueNode {
   String toString() {
     "LowIrCallOut(method: $name, tmpVar: $tmpVar, params: $paramTmpVars)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    paramTmpVars = paramTmpVars.collect { tv -> 
+      return (mapToApply[(tv)] ? mapToApply[(tv)] : tv)
+    }
+  }
 }
 
 
 class LowIrMethodCall extends LowIrValueNode {
   MethodDescriptor descriptor
   TempVar[] paramTmpVars
+  int numOriginalArgs; // <-- used by reg alloc
 
   //returns the number of replacements that happened
   int replaceUse(TempVar oldVar, TempVar newVar) {
@@ -303,6 +333,12 @@ class LowIrMethodCall extends LowIrValueNode {
 
   String toString() {
     "LowIrMethodCall(method: $descriptor.name, tmpVar: $tmpVar, params: $paramTmpVars)"
+  }
+
+  void SwapUsesUsingMap(mapToApply) {
+    paramTmpVars = paramTmpVars.collect { tv -> 
+      return (mapToApply[(tv)] ? mapToApply[(tv)] : tv)
+    }
   }
 }
 
@@ -333,6 +369,12 @@ class LowIrReturn extends LowIrNode {
   String toString() {
     "LowIrReturn(tmpVar: $tmpVar)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null
+    if(mapToApply[(tmpVar)])
+      tmpVar = mapToApply[(tmpVar)]
+  }
 }
 
 class LowIrValueNode extends LowIrNode{
@@ -359,6 +401,12 @@ class LowIrValueNode extends LowIrNode{
   String toString() {
     "LowIrValueNode($metaText, tmpVar: $tmpVar)"
   }
+
+  void SwapDefUsingMap(mapToApply) {
+    assert mapToApply != null
+    if(mapToApply[(tmpVar)])
+      tmpVar = mapToApply[(tmpVar)]
+  }
 }
 
 class LowIrStringLiteral extends LowIrValueNode {
@@ -371,9 +419,64 @@ class LowIrStringLiteral extends LowIrValueNode {
 
 class LowIrIntLiteral extends LowIrValueNode {
   int value
+  boolean useless = false; // <-- used by regalloc
 
   String toString() {
     "LowIrIntLiteral(value: $value, tmpVar: $tmpVar)"
+  }
+}
+
+class LowIrRightCurriedOp extends LowIrValueNode {
+  TempVar input
+  int constant
+  BinOpType type
+
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    assert oldVar != null
+    int x = 0
+    if (input == oldVar) {
+      input = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+  
+  Collection<TempVar> getUses() {
+    return oldVar
+  }
+
+  String toString() {
+    "LowIrRightCurriedOp(op: $op, input: $input, const: $constant, tmpVar: $tmpVar)"
+  }
+}
+
+class LowIrLeftCurriedOp extends LowIrValueNode {
+  TempVar input
+  int constant
+  BinOpType type
+
+  //returns the number of replacements that happened
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    assert oldVar != null
+    int x = 0
+    if (input == oldVar) {
+      input = newVar
+      oldVar.useSites.remove(this)
+      newVar.useSites << this
+      x++
+    }
+    return x
+  }
+  
+  Collection<TempVar> getUses() {
+    return oldVar
+  }
+
+  String toString() {
+    "LowIrLeftCurriedOp(op: $op, input: $input, const: $constant, tmpVar: $tmpVar)"
   }
 }
 
@@ -406,6 +509,14 @@ class LowIrBinOp extends LowIrValueNode {
 
   String toString() {
     "LowIrBinOp(op: $op, leftTmp: $leftTmpVar, rightTmp: $rightTmpVar, tmpVar: $tmpVar)"
+  }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null; assert leftTmpVar;
+    if(mapToApply[(leftTmpVar)])
+      leftTmpVar = mapToApply[(leftTmpVar)]
+    if(rightTmpVar && mapToApply[(rightTmpVar)])
+      rightTmpVar = mapToApply[(rightTmpVar)]
   }
 }
 
@@ -445,6 +556,18 @@ class LowIrMov extends LowIrNode {
   String toString() {
     "LowIrMov(src: $src, dst: $dst)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null
+    if(mapToApply[(src)])
+      src = mapToApply[(src)]
+  }
+
+  void SwapDefUsingMap(mapToApply) {
+    assert mapToApply != null
+    if(mapToApply[(dst)])
+      dst = mapToApply[(dst)]
+  }
 }
 
 class LowIrBoundsCheck extends LowIrNode {
@@ -469,6 +592,12 @@ class LowIrBoundsCheck extends LowIrNode {
 
   String toString() {
     "LowIrBoundsCheck($lowerBound <= $testVar < $upperBound for $desc)"
+  }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null
+    if(mapToApply[(testVar)])
+      testVar = mapToApply[(testVar)]
   }
 }
 
@@ -501,6 +630,20 @@ class LowIrStore extends LowIrNode {
   String toString() {
     "LowIrStore(value: $value, desc: $desc, index: $index)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null
+    if(mapToApply[(value)])
+      value = mapToApply[(value)]
+    if(mapToApply[(index)])
+      index = mapToApply[(index)]
+  }
+}
+
+class LowIrCopyArray extends LowIrNode {
+  VariableDescriptor src, dst
+
+  String toString() { "LowIrCopyArray($src, $dst)" }
 }
 
 class LowIrParallelizedLoop extends LowIrNode {
@@ -534,6 +677,75 @@ class LowIrLoad extends LowIrValueNode {
   String toString() {
     "LowIrLoad(desc: $desc, index: $index, tmpVar: $tmpVar)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null
+    if(mapToApply[(index)])
+      index = mapToApply[(index)]
+  }
+}
+
+class LowIrStoreSpill extends LowIrNode {
+  TempVar value // This is what is stored
+  SpillVar storeLoc // This is where it is stored
+
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    assert false; // not yet implemented
+  }
+
+  Collection<TempVar> getUses() {
+    return [value]
+  }
+
+  String toString() {
+    "LowIrStoreSpill(value: $value, storeLoc: $storeLoc)"
+  }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null
+    if(mapToApply[(value)])
+      value = mapToApply[(value)]
+  }
+}
+
+class LowIrLoadSpill extends LowIrValueNode {
+  SpillVar loadLoc; // This is where the value is loaded from.
+  
+  int replaceUse(TempVar oldVar, TempVar newVar) {
+    assert false;
+  }
+
+  Collection<TempVar> getUses() {
+    return []
+  }
+
+  String toString() {
+    "LowIrLoadSpill(tmpVar: $tmpVar, loadLoc: $loadLoc)"
+  }
+}
+
+class LowIrLoadArgOntoStack extends LowIrNode {
+  TempVar arg;
+  int paramNum; // Indexing starts at 1, 2, 3, 4, ... for paramNum
+  
+  LowIrLoadArgOntoStack(TempVar paramArg, int paramPosition) {
+    assert paramPosition > 6;
+    paramNum = paramPosition;
+    arg = paramArg;
+  }
+
+  Collection<TempVar> getUses() {
+    return [arg];
+  }
+
+  String toString() {
+    "LowIrLoadArgOntoStack(arg : $arg, paramNum : $paramNum)"
+  }
+
+  void SwapUsesUsingMap(mapToApply) {
+    if(mapToApply[arg])
+      arg = mapToApply[arg]
+  }
 }
 
 class LowIrPhi extends LowIrValueNode {
@@ -560,4 +772,12 @@ class LowIrPhi extends LowIrValueNode {
   String toString() {
     "LowIrPhi(tmpVar: $tmpVar, args: $args)"
   }
+
+  void SwapUsesUsingMap(mapToApply) {
+    //assert false
+  }
+
+  /*void SwapDefUsingMap(mapToApply) {
+    assert false
+  }*/
 }

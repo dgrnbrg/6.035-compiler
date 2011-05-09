@@ -416,6 +416,7 @@ class SemanticChecker {
   }
 
   def modifyDebugAssertCalls = { cur -> 
+    // Manually turning off debug assert for reg alloc purposes.
     if(methodSymTable.containsKey('assert')) {
       if(cur instanceof MethodCall) {
         if(cur.descriptor.name == 'assert') {

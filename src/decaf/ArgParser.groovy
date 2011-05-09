@@ -11,7 +11,7 @@ public class ArgParser {
       o(count: 1)
       target(count: 1, restrict: ['scan', 'parse', 'inter', 'assembly','hiir','antlrast','symtable','inter', 'lowir', 'codegen'])
       assertEnabled(count: 0)
-      opt(count: -1, restrict: ['cse', 'ssa', 'all', 'cp', 'dce', 'inline', 'sccp', 'pre', 'dse', 'iva', 'cc'])
+      opt(count: -1, restrict: ['cse', 'ssa', 'all', 'cp', 'dce', 'inline', 'sccp', 'pre', 'dse', 'iva', 'cc', 'regalloc'])
       debug(count: 0)
     }
   }

@@ -85,6 +85,7 @@ class CodeGenerator extends Traverser {
       movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
       break
     case LowIrCallOut:
+
       def paramsOnStack = stmt.paramTmpVars.size() - paramRegs.size()
       if (paramsOnStack > 0){
         sub(8*paramsOnStack, rsp)
@@ -96,6 +97,7 @@ class CodeGenerator extends Traverser {
         } else {
           movq(getTmp(tmpVar),r10)
           movq(r10,rsp(8*(index - paramRegs.size())))
+          //movq(getTmp(tmpVar), rsp(8*(index - paramRegs.size())))
         }
       }
       if (stmt.name == 'printf') {
@@ -106,6 +108,7 @@ class CodeGenerator extends Traverser {
       if (paramsOnStack > 0){
 	add(8*paramsOnStack, rsp)
       }
+
       break
     case LowIrMethodCall:
       sub(8*stmt.paramTmpVars.size(), rsp)
@@ -131,13 +134,6 @@ class CodeGenerator extends Traverser {
       }
       leave()
       ret()
-      break
-    case LowIrCondJump:
-      movq(getTmp(stmt.condition), r11)
-      cmp(1, r11)
-      je(stmt.trueDest.label)
-      // Part of pre-tracer codegen.      
-      //jmp(stmt.falseDest.label)
       break
     case LowIrCondCoalesced:
       switch (stmt.op) {
@@ -178,6 +174,14 @@ class CodeGenerator extends Traverser {
         jne(stmt.trueDest.label)
 	break
       }
+      break
+    case LowIrCondJump:
+      movq(getTmp(stmt.condition), r11)
+      cmp(1, r11)
+      je(stmt.trueDest.label)
+      // Part of pre-tracer codegen.      
+      //jmp(stmt.falseDest.label)
+      break
     case LowIrLoad:
       if (stmt.index != null) {
         movq(getTmp(stmt.index), r11)
@@ -205,64 +209,64 @@ class CodeGenerator extends Traverser {
     case LowIrBinOp:
       switch (stmt.op) {
       case GT:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovg(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      movq(getTmp(stmt.leftTmpVar), r10)
+	      movq(getTmp(stmt.rightTmpVar), r11)
+	      cmp(r11, r10)
+	      movq(1, r10)
+	      movq(0, r11)
+	      cmovg(r10, r11)
+	      movq(r11, getTmp(stmt.tmpVar))
+	      break
       case LT:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovl(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      movq(getTmp(stmt.leftTmpVar), r10)
+	      movq(getTmp(stmt.rightTmpVar), r11)
+	      cmp(r11, r10)
+	      movq(1, r10)
+	      movq(0, r11)
+	      cmovl(r10, r11)
+	      movq(r11, getTmp(stmt.tmpVar))
+	      break
       case LTE:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovle(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      movq(getTmp(stmt.leftTmpVar), r10)
+	      movq(getTmp(stmt.rightTmpVar), r11)
+	      cmp(r11, r10)
+	      movq(1, r10)
+	      movq(0, r11)
+	      cmovle(r10, r11)
+	      movq(r11, getTmp(stmt.tmpVar))
+	      break
       case GTE:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovge(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      movq(getTmp(stmt.leftTmpVar), r10)
+	      movq(getTmp(stmt.rightTmpVar), r11)
+	      cmp(r11, r10)
+	      movq(1, r10)
+	      movq(0, r11)
+	      cmovge(r10, r11)
+	      movq(r11, getTmp(stmt.tmpVar))
+	      break
       case EQ:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmove(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+	      movq(getTmp(stmt.leftTmpVar), r10)
+	      movq(getTmp(stmt.rightTmpVar), r11)
+	      cmp(r11, r10)
+	      movq(1, r10)
+	      movq(0, r11)
+	      cmove(r10, r11)
+	      movq(r11, getTmp(stmt.tmpVar))
+	      break
       case NEQ:
-	movq(getTmp(stmt.leftTmpVar), r10)
-	movq(getTmp(stmt.rightTmpVar), r11)
-	cmp(r11, r10)
-	movq(1, r10)
-	movq(0, r11)
-	cmovne(r10, r11)
-	movq(r11, getTmp(stmt.tmpVar))
-	break
+        movq(getTmp(stmt.leftTmpVar), r10)
+        movq(getTmp(stmt.rightTmpVar), r11)
+        cmp(r11, r10)
+        movq(1, r10)
+        movq(0, r11)
+        cmovne(r10, r11)
+        movq(r11, getTmp(stmt.tmpVar))
+        break
       case NOT:
         movq(getTmp(stmt.leftTmpVar), r10)
-	xor(1, r10)
-	movq(r10, getTmp(stmt.tmpVar))
-	break
+	      xor(1, r10)
+	      movq(r10, getTmp(stmt.tmpVar))
+	      break
       case ADD:
         movq(getTmp(stmt.leftTmpVar),r10)
         movq(getTmp(stmt.rightTmpVar),r11)
@@ -298,6 +302,16 @@ class CodeGenerator extends Traverser {
       default:
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
       }
+      break
+    case LowIrCopyArray:
+      push(rax)
+      xor(rax, rax)
+      def copyLabel = genPrivateLabel()
+      movdqa(rax(stmt.src.name+'_globalvar'), xmm0)
+      movdqa(xmm0, rax(stmt.dst.name+'_globalvar'))
+      add(16, rax)
+      cmp(stmt.dst.arraySize*8, rax)
+      jne(copyLabel)
       break
     case LowIrParallelizedLoop:
       //pointer to thread function
@@ -447,7 +461,6 @@ class CodeGenerator extends Traverser {
     if (arg != null) movq(arg, rsi)
     movq(0, rax)
     call('printf')
-    int3()
     movq(1,rdi)
     call('exit')
   }

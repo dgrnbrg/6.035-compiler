@@ -86,6 +86,9 @@ enum InstrType {
   XOR('xor',2),
   CQO('cqo',0), //sign extend rax to rdx:rax
 
+//MMX
+  MOVDQA('movdqa',2),
+
 //DEBUG
   INT3('int3',0);
 
@@ -169,19 +172,64 @@ enum Reg {
   RBP('rbp'),
   RSI('rsi'),
   RDI('rdi'),
-  R8('r8'),
-  R9('r9'),
+  R8(  'r8'),
+  R9(  'r9'),
   R10('r10'),
   R11('r11'),
   R12('r12'),
   R13('r13'),
   R14('r14'),
   R15('r15'),
+  XMM0('xmm0'),
   RIP('rip'); //used by parallelizer
 
   final String name
+  final RegisterTempVar rtv;
 
   Reg(String name) {
     this.name = name
+    this.rtv = new RegisterTempVar(name);
   }
-} 
+
+  RegisterTempVar GetRegisterTempVar() {
+    assert this.rtv;
+    return this.rtv;
+  }
+
+  String toString() {
+    return this.name;
+  }
+
+  static Reg getReg(String regName) {
+    for(r in Reg.values()) {
+      if(regName == r.toString())
+        return r;
+    }
+
+    println "getReg failed, regName = $regName, Reg.values() = ${Reg.values().collect {"$it"}}"
+    Reg.values().each { println it.toString() }
+    assert false;
+  }
+
+  static def eachReg = { c -> 
+    assert c; 
+    return [Reg.RAX, Reg.RBX, Reg.RCX, Reg.RDX, Reg.RSI, Reg.RDI, Reg.RSP, Reg.RBP, Reg.R8, Reg.R9, Reg.R10, Reg.R11, Reg.R12, Reg.R13, Reg.R14, Reg.R15].collect { c(it) }
+  }
+
+  static Reg getRegOfParamArgNum(int argNum) {
+    assert (argNum > 0) && (argNum <= 6);
+    return GetParameterRegisters()[argNum - 1] 
+  }
+
+  static List<Reg> GetCallerSaveRegisters() {
+    return [Reg.RCX, Reg.RDX, Reg.RSI, Reg.RDI, Reg.R8, Reg.R9, Reg.R10, Reg.R11]
+  }
+
+  static List<Reg> GetCalleeSaveRegisters() {
+    return [Reg.RBX, Reg.R12, Reg.R13, Reg.R14, Reg.R15]
+  }
+
+  static List<Reg> GetParameterRegisters() {
+    return [Reg.RDI, Reg.RSI, Reg.RDX, Reg.RCX, Reg.R8, Reg.R9];
+  }
+}

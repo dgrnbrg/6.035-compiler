@@ -43,9 +43,18 @@ class DependencyAnalizer {
     return inToOut
   }
 
+  def extractReadsInSOPForm(loop, ivs, domComps) {
+    return extractMemOpsInSOPForm(loop, ivs, domComps,
+      loop.body.findAll{it instanceof LowIrLoad && it.index != null})
+  }
+
   def extractWritesInSOPForm(loop, ivs, domComps) {
+    return extractMemOpsInSOPForm(loop, ivs, domComps, loop.body.findAll{it instanceof LowIrStore})
+  }
+
+  def extractMemOpsInSOPForm(loop, ivs, domComps, nodesOfInterest) {
     def writes = []
-    loop.body.findAll{it instanceof LowIrStore}.each{ store ->
+    nodesOfInterest.each{ store ->
       //stores must be to arrays
       if (store.index == null) throw new UnparallelizableException()
       //makes moves become their source
@@ -84,7 +93,7 @@ class DependencyAnalizer {
       def isDisjointInductionVar = { LowIrNode it ->
         inductionVarsSoFar.add(ivs.find{iv -> iv.tmpVar == it.getDef()})
       }
-      def addr = new ArrayAccessAddress()
+      def addr = new ArrayAccessAddress(node: store)
       for (LowIrNode it in products) {
         if (isInvariant(it)) {
           addr.invariants << it.getDef()
@@ -199,9 +208,10 @@ println "$it"
     }
   }
 
-  def generateParallelizabilityCheck(MethodDescriptor methodDesc, ArrayAccessAddress addr, LowIrNode trueDest, LowIrNode falseDest) {
+  def generateParallelizabilityCheck(MethodDescriptor methodDesc, ArrayAccessAddress addr, Collection conflictingReadAddrs, LowIrNode trueDest, LowIrNode falseDest) {
     def constantSym = 22 //this is how we identify the constants in the map
     def ivToInvariant = [:] //this maps from iv_k to c_k
+    def ivToInvariantReads = new LazyMap({[:]}) //this maps from iv_k to c_k for each read
     def genTmp = {methodDesc.tempFactory.createLocalTemp()}
     def instrs = []
     //first, we'll generate sums to ensure that the invariants are available in a single tmpVar each
@@ -219,6 +229,7 @@ println "$it"
       }
       return carriedTmp
     }
+    //first, do it for the write
     if (addr.invariants.size() > 1) {
       ivToInvariant[constantSym] = sumListOfTmps(addr.invariants)
     } else if (addr.invariants.size() == 1) {
@@ -237,6 +248,25 @@ println "$it"
       else
         ivToInvariant[iv] = invariants[0]
     }
+    //now, for each read
+    for (readAddr in conflictingReadAddrs) {
+      if (readAddr.invariants.size() > 1) {
+        ivToInvariantReads[readAddr][constantSym] = sumListOfTmps(addr.invariants)
+      } else if (addr.invariants.size() == 1) {
+        ivToInvariantReads[readAddr][constantSym] = addr.invariants[0]
+      } else {
+        instrs << new LowIrIntLiteral(value: 0, tmpVar: genTmp())
+        ivToInvariantReads[readAddr][constantSym] = instrs[-1].tmpVar
+      }
+      readAddr.ivToInvariants.each{ iv, invariants ->
+        invariants = invariants.collect{ it == 1 ? constOneTmpVar : it }
+        assert invariants.size() > 0
+        if (invariants.size() > 1)
+          ivToInvariantReads[readAddr][iv] = sumListOfTmps(invariants)
+        else
+          ivToInvariantReads[readAddr][iv] = invariants[0]
+      }
+    }
     //now, we have summed the invariants, so we must now sort them
     def loopNest = []
     def loopNestMap = computeLoopNest((ivToInvariant.keySet() - constantSym)*.loop)
@@ -251,7 +281,7 @@ println "$it"
       assert loopNest[0] != null
     }
     loopNest << constantSym
-    //now, we generate the comparisons
+    //now, we generate the comparisons for stride length calculations
     def mostRecentDest = trueDest
     for (int i = loopNest.size() - 2; i >= 0; i--) {
       def nestedStride = ivToInvariant[loopNest[i+1]]
@@ -291,6 +321,89 @@ println "$it"
       }
       mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, tmpFalseDest)
     }
+    //now we check that for each read, each IV's coefficient is >= the write's coefficient
+    for (readAddr in conflictingReadAddrs) {
+      //find all the write IVs which don't apply to this read
+      //this means that the read must not be in the inner IV's loopbody
+      def ivsToTest = ivToInvariant.keySet().findAll{it != constantSym && readAddr.node in it.loop.body}
+println "IVS TO TEST = $ivsToTest"
+println "ivToInvariant.keySet() = ${ivToInvariant.keySet()}"
+      for (iv in ivsToTest) {
+        //if read lacks this IV, force it to fail
+        //otherwise, make sure read's coeff >= write's coeff
+        if (!(iv in ivToInvariantReads[readAddr].keySet())) {
+          def tmpFalseDest = falseDest
+          if (GroovyMain.debug) {
+            def msgLitNode = new LowIrStringLiteral(
+              value: "failed test $i (%d >= %d)\\n",
+              tmpVar: genTmp()
+            )
+            def msgCallNode = new LowIrCallOut(
+              name: 'printf',
+              paramTmpVars: [msgLitNode.tmpVar, nestedStride, ivToInvariant[loopNest[i]]],
+              tmpVar: genTmp()
+            )
+            LowIrNode.link(msgLitNode, msgCallNode)
+            LowIrNode.link(msgCallNode, falseDest)
+            tmpFalseDest = msgLitNode
+          }
+          return tmpFalseDest //give up
+        }
+
+        if (ivToInvariantReads[readAddr][iv] == ivToInvariant[iv]) continue
+        //check the coefficients
+        def cmpBridge = new LowIrValueBridge(new LowIrBinOp(
+          leftTmpVar: ivToInvariantReads[readAddr][iv],
+          rightTmpVar: ivToInvariant[iv],
+          tmpVar: genTmp(),
+          op: BinOpType.GTE
+        ))
+        def tmpFalseDest = falseDest
+        if (GroovyMain.debug) {
+          def msgLitNode = new LowIrStringLiteral(
+            value: "failed test for conflicting IV coefficient (%d >= %d)\\n",
+            tmpVar: genTmp()
+          )
+          def msgCallNode = new LowIrCallOut(
+            name: 'printf',
+            paramTmpVars: [msgLitNode.tmpVar, ivToInvariantReads[readAddr][iv], ivToInvariant[iv]],
+            tmpVar: genTmp()
+          )
+          LowIrNode.link(msgLitNode, msgCallNode)
+          LowIrNode.link(msgCallNode, falseDest)
+          tmpFalseDest = msgLitNode
+        }
+        mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, tmpFalseDest)
+      }
+      //now do it for constants
+      if (ivToInvariantReads[readAddr][constantSym] != ivToInvariant[constantSym]) {
+        def cmpBridge = new LowIrValueBridge(new LowIrBinOp(
+          leftTmpVar: ivToInvariantReads[readAddr][constantSym],
+          rightTmpVar: ivToInvariant[constantSym],
+          tmpVar: genTmp(),
+          op: BinOpType.GTE
+        ))
+        def tmpFalseDest = falseDest
+        if (GroovyMain.debug) {
+          def msgLitNode = new LowIrStringLiteral(
+            value: "failed test for conflicting constant (%d >= %d)\\n",
+            tmpVar: genTmp()
+          )
+          def msgCallNode = new LowIrCallOut(
+            name: 'printf',
+            paramTmpVars: [msgLitNode.tmpVar,
+                           ivToInvariantReads[readAddr][constantSym],
+                           ivToInvariant[constantSym]],
+            tmpVar: genTmp()
+          )
+          LowIrNode.link(msgLitNode, msgCallNode)
+          LowIrNode.link(msgCallNode, falseDest)
+          tmpFalseDest = msgLitNode
+        }
+        mostRecentDest = LowIrGenerator.static_shortcircuit(cmpBridge, mostRecentDest, tmpFalseDest)
+      }
+    }
+
     def mainCheck = new LowIrBridge(instrs).seq(new LowIrBridge(mostRecentDest)).begin
     if (GroovyMain.debug) {
       def msgLitNode = new LowIrStringLiteral(
@@ -328,6 +441,9 @@ class ArrayAccessAddress {
   def ivToInvariants = new LazyMap({[]})
   //this is a list of the invariants w/o an induction variable
   def invariants = []
+
+  //node this represents
+  def node
 
   String toString() {
     "Access(invariants: $invariants, ivs: $ivToInvariants)"
