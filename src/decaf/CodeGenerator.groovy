@@ -72,6 +72,8 @@ class CodeGenerator extends Traverser {
 
     // Print label if:
     if(stmt.anno["trace"]["start"] || stmt.anno["trace"]["JmpDest"]) {
+      emit('.p2align 4,,10')
+      emit('.p2align 3')
       emit(stmt.label + ':')
     }
 
