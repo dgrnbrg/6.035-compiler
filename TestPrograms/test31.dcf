@@ -1,0 +1,11 @@
+//this tests that the memory accesses are the correct size
+class Program {
+  int a[20];
+  void main() {
+    a[1] = 134217728;
+    a[0] = 0;
+    a[2] = 0;
+    callout("printf","%d\n",a[1]);
+// EXPECTS 134217728
+  }
+}
