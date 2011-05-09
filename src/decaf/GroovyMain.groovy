@@ -376,7 +376,7 @@ public class GroovyMain {
       name += '_globalvar'
       def s = desc.arraySize
       if (s == null) s = 1
-      codeGen.emit('bss', ".comm $name ${8*s}")
+      codeGen.emit('bss', ".comm $name, ${8*s}, 32")
     }
   }
 
