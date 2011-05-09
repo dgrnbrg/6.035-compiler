@@ -120,8 +120,11 @@ class RegAllocCodeGen extends CodeGenerator {
     if(predecessors.size() > 1) assert successors.size()   <= 1
     if(successors.size()   > 1) assert predecessors.size() <= 1
 
-    if(stmt.anno["trace"]["start"] || stmt.anno["trace"]["JmpDest"])
+    if(stmt.anno["trace"]["start"] || stmt.anno["trace"]["JmpDest"]) {
+      emit('.p2align 4,,10')
+      emit('.p2align 3')
       emit(stmt.label + ':')
+    }
 
     switch (stmt) {
     case LowIrStringLiteral:
