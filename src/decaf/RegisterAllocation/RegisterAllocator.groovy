@@ -108,16 +108,20 @@ public class RegisterAllocator {
       if(didSimplifyHappen)
         while(Simplify());
 
+/*
       boolean didCoalesce = Coalesce();
       if(didCoalesce)
         while(Coalesce());
+*/
 
       if(!OnlySigDegOrMoveRelated())
         continue;
 
+/*
       if(!didSimplifyHappen && !didCoalesce)
         if(Freeze())
           continue;
+*/
 
       if(PotentialSpill())
         continue;
@@ -148,6 +152,7 @@ public class RegisterAllocator {
 
     ig.BuildNodeToColoringNodeMap()
     def tvLIILR = RegAllocStatistics.GetLowIrIntLiteralRelatedTempVars(methodDesc);
+/*
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       if(node instanceof LowIrMov) {
         if(tvLIILR.contains(node.src) == false && tvLIILR.contains(node.dst) == false) {
@@ -156,6 +161,7 @@ public class RegisterAllocator {
         }
       }
     }
+*/
 
     //ig.neighborTable.PrettyPrint();
 
