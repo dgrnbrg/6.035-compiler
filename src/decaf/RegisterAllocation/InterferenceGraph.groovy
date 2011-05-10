@@ -63,6 +63,7 @@ public class InterferenceGraph extends ColorableGraph {
   void SetupVariables() {
     variables = new LinkedHashSet<TempVar>([])
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      if (node instanceof LowIrIntLiteral && node.useless) return //skip useless lowirintliterals
       node.anno['regalloc-liveness'].each { variables << it }
       if(node.getDef())
         variables << node.getDef();
