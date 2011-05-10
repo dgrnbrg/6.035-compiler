@@ -16,7 +16,7 @@ public class RegisterAllocator {
   InterferenceGraph ig;
   LinkedHashSet<RegisterTempVar> registerNodes;
   ColoringStack theStack;
-  LinkedHashSet<TempVar> spillWorklist;
+  List<TempVar> spillWorklist;
 
   LinkedHashSet<String> colors = new LinkedHashSet(
       ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'r8', 
