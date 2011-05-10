@@ -33,7 +33,7 @@ public class ColoringStack {
   }
 
   void PushPotentialSpillFromGraphToStack(InterferenceNode iNode) {
-    
+    assert false
   }
 
   void PushMultipleNodesFromGraphToStack(List<InterferenceNode> iNodes) {
