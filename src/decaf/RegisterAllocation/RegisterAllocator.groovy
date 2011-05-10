@@ -275,6 +275,18 @@ public class RegisterAllocator {
     dbgOutSpill "Now calculating potential spills."
     ig.Validate();
 
+    def node = ig.nodes.findAll{ig.isSigDeg(it) && !(it.representative instanceof RegisterTempVar)}.
+      min{ig.neighborTable.GetDegree(it)}
+    if (node) {
+      dbgOutSpill "Found potential spill: $node"
+      node.nodes.each { spillWorklist << it; }
+      ig.Validate();
+      theStack.PushNodeFromGraphToStack(node);
+      ig.Validate();
+      return true;
+    }
+
+/*
     // need to check that there are no low-degree 
     for(node in ig.nodes) { 
       if(ig.isSigDeg(node) && ((node.representative instanceof RegisterTempVar) == false)) {
@@ -286,6 +298,7 @@ public class RegisterAllocator {
         return true;
       }
     }
+*/
     
     ig.Validate();
     dbgOutSpill "Did not find any potential spills."
@@ -321,8 +334,21 @@ public class RegisterAllocator {
         goodSpills << tv;
     }
 
-    if(goodSpills.size() + badSpills.size() != spillWorklist.size())
-      assert false;
+//println "goodSpills: $goodSpills"
+//println "badSpills: $badSpills"
+//println "spillWorklist: $spillWorklist"
+
+    assert goodSpills.size() + badSpills.size() == spillWorklist.size()
+
+    goodSpills.sort{ tv ->
+     def useCount = 0
+     Traverser.eachNodeOf(methodDesc.lowir) { node ->
+       useCount += node.getUses().findAll{it == tv}.size()
+     }
+     return useCount
+    }
+
+    goodSpills = goodSpills.reverse() //TODO: maybe this helps
 
     if(goodSpills.size() > 0)
       return goodSpills.first()
