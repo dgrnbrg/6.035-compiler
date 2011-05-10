@@ -230,8 +230,8 @@ public class GroovyMain {
     if ('regalloc' in argparser['opt']) {
       opts += ['ssa', 'regalloc']
     }
-    if ('cc' in argparser['opt']) {
-      opts += ['ssa', 'cc']
+    if ('peep' in argparser['opt']) {
+      opts += ['ssa', 'peep']
     }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
@@ -239,7 +239,7 @@ public class GroovyMain {
       lowirGen.inliningThreshold = 0
     }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'cc', 'regalloc', 'iva']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'peep', 'regalloc', 'iva']
     }
   }
 
@@ -663,8 +663,10 @@ public class GroovyMain {
       }
     }
     methodDescs.each { methodDesc ->
-      if ('cc' in opts)
+      if ('peep' in opts) {
         new ConditionalCoalescing().analize(methodDesc)
+        new UnaryCoalesce().run(methodDesc)
+      }
 
       if ('regalloc' in opts) {
         println "stepping out of ssa form before register allocation."

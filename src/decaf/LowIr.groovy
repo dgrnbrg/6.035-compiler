@@ -431,7 +431,7 @@ class LowIrIntLiteral extends LowIrValueNode {
 class LowIrRightCurriedOp extends LowIrValueNode {
   TempVar input
   int constant
-  BinOpType type
+  BinOpType op
 
   //returns the number of replacements that happened
   int replaceUse(TempVar oldVar, TempVar newVar) {
@@ -447,18 +447,24 @@ class LowIrRightCurriedOp extends LowIrValueNode {
   }
   
   Collection<TempVar> getUses() {
-    return oldVar
+    return [input]
   }
 
   String toString() {
     "LowIrRightCurriedOp(op: $op, input: $input, const: $constant, tmpVar: $tmpVar)"
+  }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null; assert input;
+    if(mapToApply[(input)])
+      input = mapToApply[(input)]
   }
 }
 
 class LowIrLeftCurriedOp extends LowIrValueNode {
   TempVar input
   int constant
-  BinOpType type
+  BinOpType op
 
   //returns the number of replacements that happened
   int replaceUse(TempVar oldVar, TempVar newVar) {
@@ -474,11 +480,17 @@ class LowIrLeftCurriedOp extends LowIrValueNode {
   }
   
   Collection<TempVar> getUses() {
-    return oldVar
+    return [input]
   }
 
   String toString() {
     "LowIrLeftCurriedOp(op: $op, input: $input, const: $constant, tmpVar: $tmpVar)"
+  }
+
+  void SwapUsesUsingMap(mapToApply) {
+    assert mapToApply != null; assert input;
+    if(mapToApply[(input)])
+      input = mapToApply[(input)]
   }
 }
 
