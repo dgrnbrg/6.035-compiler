@@ -7,10 +7,10 @@ import static decaf.Reg.eachRegNode
 
 public class RegisterAllocator {
   def dbgOut = DbgHelper.dbgOut
-  def dbgOutFreeze = { str -> if(true) dbgOut(str) };
-  def dbgOutCoalesce = { str -> if(true) dbgOut(str) };
-  def dbgOutSimplify = { str -> if(true) dbgOut(str) };
-  def dbgOutSpill = { str -> if(true) dbgOut(str) };
+  def dbgOutFreeze = { str -> if(false) dbgOut(str) };
+  def dbgOutCoalesce = { str -> if(false) dbgOut(str) };
+  def dbgOutSimplify = { str -> if(false) dbgOut(str) };
+  def dbgOutSpill = { str -> if(false) dbgOut(str) };
   
 	MethodDescriptor methodDesc;
   InterferenceGraph ig;
@@ -66,10 +66,19 @@ public class RegisterAllocator {
         dbgOut "$it --> ${tmpVarToRegTempVar[it]}"
     }
 
-    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+    def unsatisfiedNodes = []
+    Traverser.eachNodeOf(methodDesc.lowir) { node ->
+      if (!(node.getUses().every{it in tmpVarToRegTempVar.keySet()})) {
+        unsatisfiedNodes << node
+      }
+      if (!(node.getDef() == null || node.getDef() in tmpVarToRegTempVar.keySet())) {
+        unsatisfiedNodes << node
+      }
       node.SwapUsesUsingMap(tmpVarToRegTempVar)
-      node.SwapDefUsingMap(tmpVarToRegTempVar);
+      node.SwapDefUsingMap(tmpVarToRegTempVar)
     }
+
+    assert unsatisfiedNodes.isEmpty(), "all these nodes: ${unsatisfiedNodes.unique()}"
 
     tmpVarToRegTempVar.keySet().each { tv -> 
       if(tv.type == TempVarType.PARAM && tv.id >= 6)
@@ -177,7 +186,7 @@ public class RegisterAllocator {
   }
 
   boolean Simplify() {
-    dbgOut "Now running Simplify()."
+    dbgOutSimplify "Now running Simplify()."
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
     ig.Validate();
     InterferenceNode nodeToSimplify = null;
@@ -198,14 +207,14 @@ public class RegisterAllocator {
     }
 
     if(nodeToSimplify != null) {
-      dbgOut "+ Found a node to simplify: $nodeToSimplify"
+      dbgOutSimplify "+ Found a node to simplify: $nodeToSimplify"
       theStack.PushNodeFromGraphToStack(nodeToSimplify);
       ig.Validate();
       return true;
     }
 
     ig.Validate();
-    dbgOut "- Could not find a node to simplify."
+    dbgOutSimplify "- Could not find a node to simplify."
     return false;
   }
 
@@ -263,7 +272,7 @@ public class RegisterAllocator {
   }
 
   boolean PotentialSpill() {
-    dbgOut "Now calculating potential spills."
+    dbgOutSpill "Now calculating potential spills."
     ig.Validate();
 
     // need to check that there are no low-degree 
@@ -279,7 +288,7 @@ public class RegisterAllocator {
     }
     
     ig.Validate();
-    dbgOut "Did not find any potential spills."
+    dbgOutSpill "Did not find any potential spills."
     return false
   }
 
@@ -323,6 +332,7 @@ public class RegisterAllocator {
       println "spillWorklist = $spillWorklist"
       assert false;
     }
+assert false
     return badSpills.first();
     //return theStack.Peek().node.representative;
   }
