@@ -251,6 +251,74 @@ class RegAllocCodeGen extends CodeGenerator {
       }
       assert false;
       break;
+    case LowIrRightCurriedOp:
+println "###################################################################################"
+      assert stmt.tmpVar instanceof RegisterTempVar;
+      assert stmt.input instanceof RegisterTempVar;
+      switch (stmt.op) {
+      case ADD:
+        emit("// LOL: $stmt")
+        if(stmt.input == stmt.tmpVar) {
+          add(stmt.constant, getTmp(stmt.input));
+        } else {
+          movq(stmt.constant, getTmp(stmt.tmpVar));
+          add(getTmp(stmt.input), getTmp(stmt.tmpVar));
+        }
+        break;
+      case SUB:
+        if(stmt.input == stmt.tmpVar) {
+          sub(stmt.constant, getTmp(stmt.tmpVar));
+        } else {
+          movq(getTmp(stmt.input), getTmp(stmt.tmpVar));
+          sub(stmt.constant, getTmp(stmt.tmpVar));
+        }
+        break
+      case MUL:
+        if(stmt.input == stmt.tmpVar) {
+          imul(stmt.constant, getTmp(stmt.input));
+        } else {
+          movq(stmt.constant, getTmp(stmt.tmpVar));
+          imul(getTmp(stmt.input), getTmp(stmt.tmpVar));
+        }
+        break
+      default:
+        throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
+      }
+      break
+    case LowIrLeftCurriedOp:
+      assert stmt.tmpVar instanceof RegisterTempVar;
+      assert stmt.input instanceof RegisterTempVar;
+println "###################################################################################"
+      switch (stmt.op) {
+      case ADD:
+        if(stmt.input == stmt.tmpVar) {
+          add(stmt.constant, getTmp(stmt.input));
+        } else {
+          movq(stmt.constant, getTmp(stmt.tmpVar));
+          add(getTmp(stmt.input), getTmp(stmt.tmpVar));
+        }
+        break;
+      case SUB:
+        if(stmt.input == stmt.tmpVar) {
+          neg(getTmp(stmt.tmpVar))
+          add(stmt.constant, getTmp(stmt.tmpVar));
+        } else {
+          movq(stmt.constant, getTmp(stmt.tmpVar));
+          sub(getTmp(stmt.input), getTmp(stmt.tmpVar));
+        }
+        break
+      case MUL:
+        if(stmt.input == stmt.tmpVar) {
+          imul(stmt.constant, getTmp(stmt.input));
+        } else {
+          movq(stmt.constant, getTmp(stmt.tmpVar));
+          imul(getTmp(stmt.input), getTmp(stmt.tmpVar));
+        }
+        break
+      default:
+        throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
+      }
+      break
     case LowIrBinOp:
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.leftTmpVar instanceof RegisterTempVar;

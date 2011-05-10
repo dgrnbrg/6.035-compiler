@@ -208,6 +208,82 @@ class CodeGenerator extends Traverser {
       movq(getTmp(stmt.src), r10)
       movq(r10, getTmp(stmt.dst))
       break
+    case LowIrRightCurriedOp:
+      switch (stmt.op) {
+      case ADD:
+        movq(getTmp(stmt.input),r10)
+        movq(stmt.constant,r11)
+        add(r10,r11)
+        movq(r11,getTmp(stmt.tmpVar))
+        break
+      case SUB:
+        movq(getTmp(stmt.input),r10)
+        movq(stmt.constant,r11)
+        sub(r11,r10)
+        movq(r10,getTmp(stmt.tmpVar))
+        break
+      case MUL:
+        movq(getTmp(stmt.input),r10)
+        movq(stmt.constant,r11)
+        imul(r10,r11)
+        movq(r11,getTmp(stmt.tmpVar))
+        break
+      case DIV:
+        movq(getTmp(stmt.input),rax)
+        cqo() //sign extend rax into rdx:rax
+        movq(stmt.constant,r10)
+        idiv(r10)
+        movq(rax,getTmp(stmt.tmpVar))
+        break
+      case MOD:
+        movq(getTmp(stmt.input),rax)
+        cqo()
+        movq(stmt.constant,r10)
+        idiv(r10)
+        movq(rdx,getTmp(stmt.tmpVar))
+        break
+      default:
+        throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
+      }
+      break
+    case LowIrLeftCurriedOp:
+      switch (stmt.op) {
+      case ADD:
+        movq(stmt.constant,r10)
+        movq(getTmp(stmt.input),r11)
+        add(r10,r11)
+        movq(r11,getTmp(stmt.tmpVar))
+        break
+      case SUB:
+        movq(stmt.constant,r10)
+        movq(getTmp(stmt.input),r11)
+        sub(r11,r10)
+        movq(r10,getTmp(stmt.tmpVar))
+        break
+      case MUL:
+        movq(stmt.constant,r10)
+        movq(getTmp(stmt.input),r11)
+        imul(r10,r11)
+        movq(r11,getTmp(stmt.tmpVar))
+        break
+      case DIV:
+        movq(stmt.constant,rax)
+        cqo() //sign extend rax into rdx:rax
+        movq(getTmp(stmt.input),r10)
+        idiv(r10)
+        movq(rax,getTmp(stmt.tmpVar))
+        break
+      case MOD:
+        movq(stmt.constant,rax)
+        cqo() //sign extend rax into rdx:rax
+        movq(getTmp(stmt.input),r10)
+        idiv(r10)
+        movq(rdx,getTmp(stmt.tmpVar))
+        break
+      default:
+        throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
+      }
+      break
     case LowIrBinOp:
       switch (stmt.op) {
       case GT:
@@ -296,7 +372,7 @@ class CodeGenerator extends Traverser {
         break
       case MOD:
         movq(getTmp(stmt.leftTmpVar),rax)
-        movq(0,rdx)
+        cqo() //sign extend rax into rdx:rax
         movq(getTmp(stmt.rightTmpVar),r10)
         idiv(r10)
         movq(rdx,getTmp(stmt.tmpVar))
