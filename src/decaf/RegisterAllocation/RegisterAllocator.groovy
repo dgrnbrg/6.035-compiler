@@ -39,6 +39,7 @@ public class RegisterAllocator {
     while(RegAllocationIteration()) {
       println "iteration $numIterations completed"
       numIterations++;
+      if (numIterations == 10) break
     }
 
     dbgOut "Finished Register Allocation."
