@@ -101,10 +101,11 @@ prof()
 prof('computing cross edges')
 
 prof()
+    BuildNodeToColoringNodeMap();
     varToLiveness.keySet().each { v -> 
       varToLiveness[v].remove(v);
       varToLiveness[v].each { lv -> 
-        AddEdgeUnsafe(new InterferenceEdge(GetColoringNode(v), GetColoringNode(lv)));
+        AddEdgeUnsafe(new InterferenceEdge(GetColoringNodeUnsafe(v), GetColoringNodeUnsafe(lv)));
       }
     }
 prof('adding edges into graph')
@@ -116,9 +117,10 @@ prof('update after edges modified')
     LazyMap ColorNodeMustBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
     LazyMap ColorsNodeCannotBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
 
+    BuildNodeToColoringNodeMap();
     variables.each { v -> 
       if(v.type == TempVarType.PARAM && v.id < 6)
-        ColorNodeMustBe[GetColoringNode(v)] << Reg.getRegOfParamArgNum(v.id + 1);
+        ColorNodeMustBe[GetColoringNodeUnsafe(v)] << Reg.getRegOfParamArgNum(v.id + 1);
     }
 
 prof()
@@ -146,29 +148,29 @@ prof()
         // Handle modulo and division blocking.
         switch(node.op) {
         case BinOpType.DIV:
-          ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
-          ColorNodeMustBe[GetColoringNode(node.leftTmpVar)] << Reg.RAX;        
-          ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.RDX;
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.tmpVar)] << Reg.RAX;
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.leftTmpVar)] << Reg.RAX;        
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.rightTmpVar)] << Reg.RDX;
           liveVars.each {
             if(it != node.leftTmpVar && it != node.rightTmpVar) {
-              ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RAX
-              ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RAX
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RDX;
             }
           }
           break;
         case BinOpType.MOD:
-          ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RDX
-          ColorNodeMustBe[GetColoringNode(node.leftTmpVar)] << Reg.RAX;
-          ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.RDX;
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.tmpVar)] << Reg.RDX
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.leftTmpVar)] << Reg.RAX;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.rightTmpVar)] << Reg.RDX;
           liveVars.each {
             if(it != node.leftTmpVar && it != node.rightTmpVar) {
-              ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RAX
-              ColorsNodeCannotBe[GetColoringNode(it)] << Reg.RDX;
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RAX
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RDX;
             }
           }
           break;
         case BinOpType.SUB:
-          AddEdge(new InterferenceEdge(GetColoringNode(node.tmpVar), GetColoringNode(node.rightTmpVar)));
+          AddEdge(new InterferenceEdge(GetColoringNodeUnsafe(node.tmpVar), GetColoringNodeUnsafe(node.rightTmpVar)));
           break;
         case BinOpType.LT:
         case BinOpType.LTE:
@@ -177,15 +179,15 @@ prof()
         case BinOpType.EQ:
         case BinOpType.NEQ:
           // Not allowed to be r10 as that is used as a temporary.
-          ColorsNodeCannotBe[GetColoringNode(node.getDef())] << Reg.R10;
-          ColorsNodeCannotBe[GetColoringNode(node.leftTmpVar)] << Reg.R10;
-          ColorsNodeCannotBe[GetColoringNode(node.rightTmpVar)] << Reg.R10;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.getDef())] << Reg.R10;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.leftTmpVar)] << Reg.R10;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.rightTmpVar)] << Reg.R10;
           if(node.getSuccessors().size() == 1) {
             def nextNode = node.getSuccessors().first();
             def nextLiveVars = nextNode.anno['regalloc-liveness']
             nextLiveVars.each { nlv -> 
               if(nlv != node.getDef())
-                ColorsNodeCannotBe[GetColoringNode(nlv)] << Reg.R10;
+                ColorsNodeCannotBe[GetColoringNodeUnsafe(nlv)] << Reg.R10;
             }
           }
           break;
@@ -198,11 +200,11 @@ prof()
         if(node.index != null) {
           // We need to use r10 as a temporary to handle the index of the array.
           node.getUses().each { use -> 
-            ColorsNodeCannotBe[GetColoringNode(use)] << Reg.R10;
+            ColorsNodeCannotBe[GetColoringNodeUnsafe(use)] << Reg.R10;
           }
           liveVars.each { lv -> 
             if(lv != node.getDef())
-              ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.R10;
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(lv)] << Reg.R10;
           }
         }
         break;
@@ -211,21 +213,21 @@ prof()
         assert node.paramTmpVars.size() <= 6;
         def theParams = node.paramTmpVars.collect { it };
         node.paramTmpVars.eachWithIndex { ptv, i -> 
-          ColorNodeMustBe[GetColoringNode(ptv)] << Reg.getRegOfParamArgNum(i + 1);
+          ColorNodeMustBe[GetColoringNodeUnsafe(ptv)] << Reg.getRegOfParamArgNum(i + 1);
           liveVars.each { lv -> 
             assert lv != node.getDef()
             if(!theParams.contains(lv))
-              ColorsNodeCannotBe[GetColoringNode(lv)] << Reg.getRegOfParamArgNum(i+1);
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(lv)] << Reg.getRegOfParamArgNum(i+1);
           }
         }
         // We also need to force the def-site to be RAX if the method isn't void.
-        ColorNodeMustBe[GetColoringNode(node.tmpVar)] << Reg.RAX;
+        ColorNodeMustBe[GetColoringNodeUnsafe(node.tmpVar)] << Reg.RAX;
         if(node.getSuccessors().size() == 1) {
           def nextNode = node.getSuccessors().first();
           def nextLiveVars = nextNode.anno['regalloc-liveness']
           nextLiveVars.each { nlv -> 
             if(nlv != node.getDef())
-              ColorsNodeCannotBe[GetColoringNode(nlv)] << Reg.RAX;
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(nlv)] << Reg.RAX;
           }
         }
         break;
@@ -241,6 +243,7 @@ prof('traversed graph')
     //dbgOut "final ColorsNodeCannotBe = $ColorsNodeCannotBe"
 
 prof()
+    BuildNodeToColoringNodeMap();
     ColorNodeMustBe.keySet().each { iNode ->
       ColorNodeMustBe[iNode].each { color -> 
         ForceNodeColor(iNode, color);      
@@ -249,6 +252,7 @@ prof()
 prof('forcenodecolor')
 
 prof()
+    BuildNodeToColoringNodeMap();
     ColorsNodeCannotBe.keySet().each { iNode -> 
       ColorsNodeCannotBe[iNode].each { color -> 
         ForceNodeNotColor(iNode, color);
@@ -325,14 +329,19 @@ prof('update after modified')
 
     Reg.eachReg { r -> 
       if(r != color) 
-        AddEdgeUnsafe(new InterferenceEdge(nodeToForce, GetColoringNode(r.GetRegisterTempVar())));
+        AddEdgeUnsafe(new InterferenceEdge(nodeToForce, GetColoringNodeUnsafe(r.GetRegisterTempVar())));
     }
 
     UpdateAfterEdgesModified();
   }
 
   public void ForceNodeNotColor(InterferenceNode nodeToForce, Reg color) {
-    AddEdge(new InterferenceEdge(nodeToForce, GetColoringNode(color.GetRegisterTempVar())));
+    AddEdge(new InterferenceEdge(nodeToForce, GetColoringNodeUnsafe(color.GetRegisterTempVar())));
+  }
+
+  ColoringNode GetColoringNodeUnsafe(def tv) {
+    assert nodeToColoringNode.containsKey(tv)
+    return nodeToColoringNode[tv]
   }
 
   ColoringNode GetColoringNode(def tv) {
