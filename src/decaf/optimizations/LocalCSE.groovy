@@ -42,6 +42,19 @@ class LocalCSE {
       def rewrite = [:]
       bb.each { node ->
         if (node instanceof LowIrMov || node instanceof LowIrPhi) return
+        if (node instanceof LowIrStore) {
+          def newRewrite = [:]
+          rewrite.each { k, v -> if (k.varDesc != node.desc) newRewrite[k] = v }
+          rewrite = newRewrite
+        }
+        if (node instanceof LowIrMethodCall) {
+          def newRewrite = [:]
+          rewrite.each { k, v ->
+            if (!node.descriptor.getDescriptorsOfNestedStores().any{it == k.varDesc})
+              newRewrite[k] = v
+          }
+          rewrite = newRewrite
+        }
         def expr
         switch (node) {
         case LowIrBinOp:
