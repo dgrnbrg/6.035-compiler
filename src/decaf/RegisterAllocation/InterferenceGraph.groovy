@@ -83,9 +83,13 @@ public class InterferenceGraph extends ColorableGraph {
   void ComputeInterferenceEdges() {
     edges = new LinkedHashSet()
 
+def t0
+def prof = { if (t0 == null) t0 = System.currentTimeMillis() else {println "profiler -- $it: ${System.currentTimeMillis()-t0}ms"; t0 = null } }
+
     def varToLiveness = [:];
     variables.each { varToLiveness[it] = new LinkedHashSet() }
 
+prof()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       def liveVars = node.anno['regalloc-liveness']
       liveVars.each { lv -> 
@@ -94,15 +98,20 @@ public class InterferenceGraph extends ColorableGraph {
         }
       }
     }
+prof('computing cross edges')
 
+prof()
     varToLiveness.keySet().each { v -> 
       varToLiveness[v].remove(v);
       varToLiveness[v].each { lv -> 
         AddEdgeUnsafe(new InterferenceEdge(GetColoringNode(v), GetColoringNode(lv)));
       }
     }
+prof('adding edges into graph')
 
+prof()
     UpdateAfterEdgesModified();
+prof('update after edges modified')
 
     LazyMap ColorNodeMustBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
     LazyMap ColorsNodeCannotBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
@@ -112,6 +121,7 @@ public class InterferenceGraph extends ColorableGraph {
         ColorNodeMustBe[GetColoringNode(v)] << Reg.getRegOfParamArgNum(v.id + 1);
     }
 
+prof()
     // Now handle odd/node-specific cases.
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       BuildNodeToColoringNodeMap();
@@ -120,8 +130,8 @@ public class InterferenceGraph extends ColorableGraph {
       def liveVars = node.anno['regalloc-liveness']
 
       // Uncomment to see liveness analysis results.
-      dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
-      dbgOut "  ${liveVars.collect { it.id }}"
+//      dbgOut "Node: $node, numLiveVars = ${liveVars.size()}"
+//      dbgOut "  ${liveVars.collect { it.id }}"
 
       // Extra edges to add to handle special cases.
       /*if(node instanceof LowIrValueNode && node.getDef()) {
@@ -223,25 +233,32 @@ public class InterferenceGraph extends ColorableGraph {
         break;
       }
     }
+prof('traversed graph')
 
     dbgOut "finished traversing."
 
     //dbgOut "final ColorNodeMustBe = $ColorNodeMustBe"
     //dbgOut "final ColorsNodeCannotBe = $ColorsNodeCannotBe"
 
+prof()
     ColorNodeMustBe.keySet().each { iNode ->
       ColorNodeMustBe[iNode].each { color -> 
         ForceNodeColor(iNode, color);      
       }
     }
+prof('forcenodecolor')
 
+prof()
     ColorsNodeCannotBe.keySet().each { iNode -> 
       ColorsNodeCannotBe[iNode].each { color -> 
         ForceNodeNotColor(iNode, color);
       }
     }
+prof('forcenodenotcolor')
 
+prof()
     UpdateAfterNodesModified();
+prof('update after modified')
     dbgOut "The number of interference edges is: ${edges.size()}"
     //edges.each { e -> dbgOut "$e" }
   }
