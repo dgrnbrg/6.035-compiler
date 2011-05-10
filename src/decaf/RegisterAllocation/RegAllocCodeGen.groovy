@@ -337,13 +337,13 @@ class RegAllocCodeGen extends CodeGenerator {
       case DIV:
         assert stmt.tmpVar.registerName == 'rax'
         assert stmt.leftTmpVar.registerName == 'rax'
-        movq(0, rdx)
+        cqo()
         idiv(getTmp(stmt.rightTmpVar))
         break
       case MOD:
         assert stmt.tmpVar.registerName == 'rdx'
         assert stmt.leftTmpVar.registerName == 'rax'
-        movq(0, rdx)
+        cqo()
         idiv(getTmp(stmt.rightTmpVar))
         break
       default:
