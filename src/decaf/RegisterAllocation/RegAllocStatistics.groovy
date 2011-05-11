@@ -35,8 +35,36 @@ public class RegAllocStatistics {
     return tvLIILR;
   }
   
-  static LinkedHashSet Getbalkj(MethodDescriptor methodDesc) {
-	
+  static LinkedHashMap GetUsedLittle(MethodDescriptor methodDesc) {
+    def tvToNumUses = new LazyMap({0});
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      if(node instanceof LowIrIntLiteral)
+        tvToNumUses[node] += 1;
+    }
+    
+    return tvToNumUses;
+  }
+  
+  static LinkedHashSet GetAllUses(MethodDescriptor methodDesc) {
+    def allUses = [];
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      if(node.uses())
+        node.uses.each { allUses << it }
+    }
+    return allUses
+  }
+  
+  static LinkedHashSet GetAllDefs(MethodDescriptor methodDesc) {
+    def allDefs
+    Traverser.eachNodeOf(methodDesc.lowir) { node -> 
+      if(node.def())
+        allDefs << it
+    }
+    return allDefs
+  }
+  
+  static LinkedHashMap GetFarApart(MethodDescriptor methodDesc) {
+    def tvToLongShort = new LazyMap({0});
   }
 }
 

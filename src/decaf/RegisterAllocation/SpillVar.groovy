@@ -5,7 +5,7 @@ import decaf.*
 import decaf.graph.*
 import decaf.optimizations.*
 
-class SpillVar extends TempVar {
+public class SpillVar extends TempVar {
   static int nextSpillId = 0;
 
   static int getNextID() {
