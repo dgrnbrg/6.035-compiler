@@ -48,7 +48,7 @@ class AutomationTester {
   //output to tmp.s, use assertions
   def compiler
   try {
-    compiler = GroovyMain.runMain('codegen', file.text, ['assertEnabled': true, 'o': 'tmp.s', 'opt': ['cp','dce','dse','sccp','cse','regalloc']])
+    compiler = GroovyMain.runMain('codegen', file.text, ['assertEnabled': true, 'o': 'tmp.s', 'opt': ['cp','dce','dse','sccp','cse','regalloc','iva']])
   } catch (Throwable t) {t.printStackTrace(); return false}
 
   //if compilation failed, print error and terminate

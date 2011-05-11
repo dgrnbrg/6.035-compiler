@@ -27,8 +27,10 @@ public class RegAllocLowIrModifier {
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       if(node instanceof LowIrIntLiteral) {
         assert node.useless == false;
-        if(uses.contains(node.getDef()) == false)
+        if(uses.contains(node.getDef()) == false) {
           node.useless = true;
+          node.excise()
+        }
       }
     }
   }

@@ -61,14 +61,17 @@ public class RegisterAllocator {
       }
     }
 
+/*
     dbgOut "This is the coloring map:"
     tmpVarToRegTempVar.keySet().each { 
       if(!(it instanceof RegisterTempVar))
         dbgOut "$it --> ${tmpVarToRegTempVar[it]}"
     }
+*/
 
     def unsatisfiedNodes = []
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
+      if (node instanceof LowIrIntLiteral && node.useless) return
       if (!(node.getUses().every{it in tmpVarToRegTempVar.keySet()})) {
         unsatisfiedNodes << node
       }
