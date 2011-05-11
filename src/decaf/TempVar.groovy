@@ -5,6 +5,9 @@ class TempVar {
   TempVarType type //LOCAL or PARAM
   VariableDescriptor desc //if it's tied to a variable, this is the descriptor for that variable
 
+
+  def constVal
+  
   //these are filled in during ssa-ification
   LowIrNode defSite
   //if a site uses a variable n times, it will appear n times in useSites

@@ -4,6 +4,7 @@ import decaf.*
 import decaf.graph.*
 import static decaf.BinOpType.*
 import static decaf.Reg.eachRegNode
+import decaf.optimizations.*
 
 class RegAllocCodeGen extends CodeGenerator {
 
@@ -254,6 +255,7 @@ class RegAllocCodeGen extends CodeGenerator {
       assert false;
       break;
     case LowIrRightCurriedOp:
+      // The right operand of these binops are constants
 println "###################################################################################"
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.input instanceof RegisterTempVar;
@@ -283,11 +285,64 @@ println "#######################################################################
           imul(getTmp(stmt.input), getTmp(stmt.tmpVar));
         }
         break
+      case DIV:
+        assert stmt.tmpVar.registerName == 'rax'
+        assert stmt.input.registerName == 'rax'
+        def log2 = { n -> 
+          if (n <= 0) throw new IllegalArgumentException()
+          return 31 - Integer.numberOfLeadingZeros(n)
+        }
+        println "Carrying out special division operation."
+        def e = stmt.constant
+        def d = Math.abs(stmt.constant)
+        if(e == 1) {
+          movq(getTmp(stmt.input), getTmp(stmt.tmpVar));
+        } else if (e == -1) {
+          println "Special Div took first if."
+          neg(rax)
+        } else if (d == 2) {
+          println "Special Div took second if."
+          //todo: test
+          cmp(0x80000000, rax)
+          sbb(-1, rax)
+          sar(1, rax)
+          if(e < 0) 
+            neg(rax)
+        } else if (!(d & (d - 1))) {
+          println "SpecialDiv took third if."
+          //assert false; // We need to make sure this line was tested, so the assert is here as a watch.
+          cqo()
+          and(d-1, rdx)
+          add(rdx, rax)
+          if(log2(d) != 0) 
+            sar(log2(d), rax)
+          if(e < 0) 
+            neg(rax)
+        } else {
+          cqo()
+          push(rcx)
+          movq(stmt.constant, rcx)
+          idiv(rcx)
+          pop(rcx)
+        }
+        break;
+      case MOD:
+        assert stmt.tmpVar.registerName == 'rdx'
+        assert stmt.input.registerName == 'rax'
+        
+        // Here is where you should put the mod 4 peephole code.
+        cqo()
+        push(rcx)
+        movq(stmt.constant, rcx);
+        idiv(rcx)
+        pop(rcx)
+        break;
       default:
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
       }
       break
     case LowIrLeftCurriedOp:
+      // The left operand of these binops are constants
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.input instanceof RegisterTempVar;
 println "###################################################################################"
@@ -317,6 +372,22 @@ println "#######################################################################
           imul(getTmp(stmt.input), getTmp(stmt.tmpVar));
         }
         break
+      case DIV:
+        assert stmt.tmpVar.registerName == 'rax'
+        assert stmt.input instanceof RegisterTempVar
+        assert stmt.input.registerName != 'rax'
+        movq(stmt.constant, rax);
+        cqo();
+        idiv(getTmp(stmt.input));
+        break;
+      case MOD:
+        assert stmt.tmpVar.registerName == 'rdx'
+        assert stmt.input instanceof RegisterTempVar
+        assert stmt.input.registerName != 'rax'
+        movq(stmt.constant, rax);
+        cqo()
+        idiv(getTmp(stmt.input))
+        break;
       default:
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")
       }

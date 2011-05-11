@@ -1,0 +1,87 @@
+class Program {
+  void testRightPos(int x) {
+    // Addition
+    assert(1 + x == 13);
+    
+    // Subtraction
+    assert(1 - x == -11);
+    
+    // Multiplication
+    assert(3 * x == 36);
+    
+    // Division
+    assert(3 / x == 0);
+    assert(36 / x == 3);
+    
+    // Modulo
+    assert(15 % x == 3);
+  }
+
+  void testLeftPos(int x) {
+    // Addition
+    assert(x + 1 == 13);
+    
+    // Subtraction
+    assert(x - 1 == 11);
+    
+    // Multiplication
+    assert(x * 3 == 36);
+    assert(3 * x == 36);
+    
+    // Division
+    assert(x / 3 == 4);
+    
+    // Modulo
+    assert(x % 5 == 2);
+  }
+  
+  void testRightNeg(int x) {
+    // Addition
+    assert(-1 + x == 11);
+    
+    // Subtraction
+    assert(-1 - x == -13);
+    
+    // Multiplication
+    assert(-3 * x == -36);
+    
+    // Division
+    assert(-3 / x == 0);
+    assert(-36 / x == -3);
+    
+    // Modulo
+    assert(-15 % x == -3);
+  }
+  
+  void testLeftNeg(int x) {
+    // Addition
+    assert(x + -1 == 11);
+    
+    // Subtraction
+    assert(x - -1 == 13);
+    
+    // Multiplication
+    assert(x * -3 == -36);
+    
+    // Division
+    assert(x / -3 == -4);
+    
+    // Modulo
+    assert(x % -5 == 2);
+  }
+  
+  void testWeirdDivision(int x) {
+    assert(x / -1 == -12);
+    assert(x / 2  == 6);
+    assert(x / 4 == 3);
+    assert(x / 1 == 12);
+    assert(x / -2 == -6);
+  }
+  
+  void main() {
+    testRightPos(12);
+    testLeftPos(12);
+    testRightNeg(12);
+    testLeftNeg(12);
+  }
+}

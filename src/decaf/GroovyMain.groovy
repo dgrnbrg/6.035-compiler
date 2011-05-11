@@ -382,6 +382,7 @@ public class GroovyMain {
         }
         new DeadStoreElimination().run(methodDesc.lowir)
       }
+      Traverser.eachNodeOf(methodDesc.lowir) { if (it instanceof LowIrIntLiteral) it.getDef().constVal = it.value }
     }
     methodDescs.clone().each { MethodDescriptor methodDesc ->
       if ('iva' in opts) {

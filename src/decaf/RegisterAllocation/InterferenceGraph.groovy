@@ -145,20 +145,55 @@ prof()
 
       switch(node) {
       case LowIrRightCurriedOp:
-        assert false; // Need to implement this!
-        switch(node.type) {
+        switch(node.op) {
         case BinOpType.DIV:
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.tmpVar)] << Reg.RAX;
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.input)] << Reg.RAX;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.input)] << Reg.RDX;
+          liveVars.each {
+            if(it != node.input) {
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RAX
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RDX;
+            }
+          }
+          
           break;
         case BinOpType.MOD:
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.tmpVar)] << Reg.RDX;
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.input)] << Reg.RAX;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.input)] << Reg.RDX;
+          liveVars.each {
+            if(it != node.input) {
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RAX
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RDX;
+            }
+          }
           break;
         }
         break;
       case LowIrLeftCurriedOp:
-        assert false; // Need to implement this!
-        switch(node.type) {
+        switch(node.op) {
         case BinOpType.DIV:
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.tmpVar)] << Reg.RAX;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.input)] << Reg.RDX;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.input)] << Reg.RAX;
+          liveVars.each { 
+            if(it != node.input) {
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RAX
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RDX;
+            }
+          }
           break;
         case BinOpType.MOD:
+          ColorNodeMustBe[GetColoringNodeUnsafe(node.tmpVar)] << Reg.RDX;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.input)] << Reg.RDX;
+          ColorsNodeCannotBe[GetColoringNodeUnsafe(node.input)] << Reg.RAX;
+          liveVars.each { 
+            if(it != node.input) {
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RAX
+              ColorsNodeCannotBe[GetColoringNodeUnsafe(it)] << Reg.RDX;
+            }
+          }
           break;
         }
         break;
