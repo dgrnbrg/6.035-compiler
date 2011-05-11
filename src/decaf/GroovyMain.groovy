@@ -242,7 +242,7 @@ public class GroovyMain {
       lowirGen.inliningThreshold = 0
     }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'cp', 'sccp', 'dse', 'peep', 'regalloc', 'iva']
+      opts += ['ssa', 'dce', 'cp', 'sccp', 'dse', 'peep', 'regalloc', 'iva', 'unroll']
     }
   }
 
