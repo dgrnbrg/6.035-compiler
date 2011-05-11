@@ -227,6 +227,9 @@ public class GroovyMain {
     if ('iva' in argparser['opt']) {
       opts += ['ssa', 'iva']
     }
+    if ('unroll' in argparser['opt']) {
+      lowirGen.unrolling = true
+    }
     if ('regalloc' in argparser['opt']) {
       opts += ['ssa', 'regalloc']
     }
@@ -239,7 +242,7 @@ public class GroovyMain {
       lowirGen.inliningThreshold = 0
     }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'cc', 'regalloc', 'iva']
+      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'cc', 'regalloc', 'iva', 'unroll', 'inline']
     }
   }
 
@@ -337,8 +340,8 @@ public class GroovyMain {
 
     dotOut.println('digraph g {')
     methodDescs.each { methodDesc ->
-      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
-      TraceGraph.calculateTraces(methodDesc.lowir);
+//      SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir)
+//      TraceGraph.calculateTraces(methodDesc.lowir);
       new LowIrDotTraverser(out: dotOut).traverse(methodDesc.lowir)
     }
     dotOut.println '}'
@@ -393,6 +396,7 @@ public class GroovyMain {
         def inToOut = depAnal.computeLoopNest(iva.loopAnal.loops)
         depAnal.identifyOutermostLoops(iva.loopAnal.loops).each { outermostLoop ->
           //forbid the easy cases
+          if (outermostLoop.body.intersect(reachableNodes).size() < 50) return //don't parallelize small stuff
           if (outermostLoop in iva.foundComplexInductionVarInLoop) return
           if (outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() > 0) return
           def loadDescs = outermostLoop.body.findAll{it instanceof LowIrLoad}.collect{it.desc}
