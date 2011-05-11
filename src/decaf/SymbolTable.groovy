@@ -1,4 +1,6 @@
 package decaf
+
+import decaf.RegisterAllocation.*
 import static decaf.graph.Traverser.eachNodeOf
 
 class SymbolTable extends WalkableImpl {

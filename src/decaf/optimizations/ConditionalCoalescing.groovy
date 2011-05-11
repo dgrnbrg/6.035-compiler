@@ -9,6 +9,7 @@ class ConditionalCoalescing {
 
   def analize(MethodDescriptor methodDesc) {
     def startNode = methodDesc.lowir
+    SSAComputer.updateDUChains(startNode)
     def toCoalesce = new LazyMap() //key: comparison binop node, value: condjump nodes
     def cmpable = [GT, LT, EQ, NEQ, GTE, LTE]
     eachNodeOf(startNode) { node ->
@@ -37,8 +38,13 @@ class ConditionalCoalescing {
         }
         jmp.condition.useSites.remove(jmp)
       }
-      if (jmps.size() == node.getDef().useSites.size())
+	println "node = $node"
+	println "jmps = $jmps"
+	println "useSites = ${node.getDef().useSites}"
+      if (0 == node.getDef().useSites.size()) {
+	println node
         node.excise()
+	}
     }
   }
 }

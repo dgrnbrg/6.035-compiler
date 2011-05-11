@@ -1,4 +1,6 @@
 package decaf
+
+import decaf.RegisterAllocation.*
 import decaf.graph.*
 
 class LowIr {}
