@@ -1,6 +1,7 @@
 package decaf
 import antlr.*
 import groovy.util.*
+import decaf.RegisterAllocation.*
 import org.apache.commons.cli.*
 import decaf.graph.*
 import static decaf.DecafScannerTokenTypes.*
