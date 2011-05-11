@@ -38,13 +38,9 @@ class ConditionalCoalescing {
         }
         jmp.condition.useSites.remove(jmp)
       }
-	println "node = $node"
-	println "jmps = $jmps"
-	println "useSites = ${node.getDef().useSites}"
-      if (0 == node.getDef().useSites.size()) {
-	println node
+      if (node.getDef().useSites.size() == 0) {
         node.excise()
-	}
+      }
     }
   }
 }
