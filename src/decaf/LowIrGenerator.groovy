@@ -4,6 +4,7 @@ import static decaf.LowIrNode.link
 
 class LowIrGenerator {
 
+  def unrolling = false //are we unrolling loops?
   MethodDescriptor desc //keep a descriptor around to generate new temps or inspect other properties
   def returnValueNode
   def inliningStack
@@ -233,14 +234,7 @@ class LowIrGenerator {
 
   def forLoopBreakContinueStack = [] //list of [breakDest, continueDest, breakHappened:boolean]
 
-  LowIrBridge destruct(ForLoop forloop) {
-    def indexTmpVar = forloop.index.descriptor.tmpVar
-
-    def initBridge = destruct(forloop.low)
-    initBridge = initBridge.seq(new LowIrBridge(new LowIrMov(src: initBridge.tmpVar, dst: indexTmpVar)))
-    def finalValBridge = destruct(forloop.high)
-    initBridge = initBridge.seq(finalValBridge)
-
+  def makeIncBridge(indexTmpVar) {
     //make the inc bridge
     def oneLiteral = new LowIrIntLiteral(value: 1, tmpVar: desc.tempFactory.createLocalTemp())
     def sumBinOp = new LowIrBinOp(
@@ -251,6 +245,31 @@ class LowIrGenerator {
     )
     def movOp = new LowIrMov(src: sumBinOp.tmpVar, dst: indexTmpVar)
     def incBridge = new LowIrBridge(oneLiteral).seq(new LowIrBridge(sumBinOp)).seq(new LowIrBridge(movOp))
+    return incBridge
+  }
+
+  def makeUnrollPrologueCheck(int test, offset, trueDest, falseDest) {
+    def intLit = new LowIrIntLiteral(value: test, tmpVar: desc.tempFactory.createLocalTemp())
+    def cmp = new LowIrBinOp(
+      op: BinOpType.EQ,
+      leftTmpVar: intLit.tmpVar,
+      rightTmpVar: offset,
+      tmpVar: desc.tempFactory.createLocalTemp()
+    )
+    LowIrNode.link(intLit, cmp)
+    return shortcircuit(new LowIrValueBridge(intLit, cmp), trueDest, falseDest)
+  }
+
+  LowIrBridge destruct(ForLoop forloop) {
+    def indexTmpVar = forloop.index.descriptor.tmpVar
+
+    def initBridge = destruct(forloop.low)
+    initBridge = initBridge.seq(new LowIrBridge(new LowIrMov(src: initBridge.tmpVar, dst: indexTmpVar)))
+    def finalValBridge = destruct(forloop.high)
+    initBridge = initBridge.seq(finalValBridge)
+
+    //make the inc bridge
+    def incBridge = makeIncBridge(indexTmpVar)
 
     //make the bypass bridge
     def bypassBridge = new LowIrBridge(new LowIrNode(metaText: "for loop bypass (index is ${indexTmpVar})")).seq(new LowIrValueBridge(new LowIrBinOp(
@@ -270,13 +289,61 @@ class LowIrGenerator {
 
     def endNode = new LowIrNode(metaText: 'for loop end')
 
-    forLoopBreakContinueStack << [endNode, incBridge.begin, false]
-    def bodyBridge = destruct(forloop.block).seq(incBridge)
-    def loopHasBreak = forLoopBreakContinueStack[-1][2]
-    forLoopBreakContinueStack.pop()
+    def fSize = 0 //# of nodes in for loop
+    def unrollable = true
+    forloop.block.inOrderWalk {
+      fSize += 1
+      if (it instanceof ForLoop || it instanceof Break || it instanceof Continue)
+        unrollable = false
+      walk()
+    }
 
+    def loopHasBreak = true
+    def bodyBridge
     def landingPad = new LowIrNode(metaText: 'landing pad')
-    LowIrNode.link(landingPad, bodyBridge.begin)
+
+    if (unrolling && unrollable && fSize < 10) { //unroll
+      //compute (high-low)%4
+      def highMinusLow = new LowIrBinOp(
+        op: BinOpType.SUB,
+        leftTmpVar: finalValBridge.tmpVar,
+        rightTmpVar: indexTmpVar,
+        tmpVar: desc.tempFactory.createLocalTemp()
+      )
+      def intFour = new LowIrIntLiteral(value: 4, tmpVar: desc.tempFactory.createLocalTemp())
+      def modFour = new LowIrBinOp(
+        op: BinOpType.MOD,
+        leftTmpVar: highMinusLow.tmpVar,
+        rightTmpVar: intFour.tmpVar,
+        tmpVar: desc.tempFactory.createLocalTemp()
+      )
+      def body1 = destruct(forloop.block).seq(makeIncBridge(indexTmpVar))
+      def body2 = destruct(forloop.block).seq(makeIncBridge(indexTmpVar))
+      def body3 = destruct(forloop.block).seq(makeIncBridge(indexTmpVar))
+      def newLandingPad = new LowIrNode(metaText: 'unrolled landing pad')
+      def check1 = makeUnrollPrologueCheck(1, modFour.tmpVar, body1.begin, newLandingPad)
+      def check2 = makeUnrollPrologueCheck(2, modFour.tmpVar, body2.begin, check1)
+      def check3 = makeUnrollPrologueCheck(3, modFour.tmpVar, body3.begin, check2)
+      def prologue = new LowIrBridge([highMinusLow,intFour,modFour])
+      LowIrNode.link(prologue.end, check3)
+      LowIrNode.link(body3.end, body2.begin)
+      LowIrNode.link(body2.end, body1.begin)
+      LowIrNode.link(body1.end, newLandingPad)
+      LowIrNode.link(landingPad, prologue.begin)
+
+      bodyBridge = destruct(forloop.block).seq(makeIncBridge(indexTmpVar))
+      bodyBridge = bodyBridge.seq(destruct(forloop.block)).seq(makeIncBridge(indexTmpVar))
+      bodyBridge = bodyBridge.seq(destruct(forloop.block)).seq(makeIncBridge(indexTmpVar))
+      bodyBridge = bodyBridge.seq(destruct(forloop.block)).seq(incBridge)
+
+      LowIrNode.link(newLandingPad, bodyBridge.begin)
+    } else {
+      forLoopBreakContinueStack << [endNode, incBridge.begin, false]
+      bodyBridge = destruct(forloop.block).seq(incBridge)
+      loopHasBreak = forLoopBreakContinueStack[-1][2]
+      forLoopBreakContinueStack.pop()
+      LowIrNode.link(landingPad, bodyBridge.begin)
+    }
 
     def cmpNode = shortcircuit(cmpBridge, bodyBridge.begin, endNode)
     def bypassNode = shortcircuit(bypassBridge, landingPad, endNode)

@@ -143,10 +143,13 @@
       <arg value="-debug"/>
       <arg value="-opt"/>
       <arg value="dce"/>
+      <arg value="iva"/>
       <arg value="sccp"/>  
       <arg value="cp"/>
       <arg value="dse"/>
       <arg value="cse"/>
+      <arg value="unroll"/>
+      <arg value="regalloc"/>
     </java>
   </target>
 
