@@ -78,10 +78,17 @@ class Program {
     assert(x / -2 == -6);
   }
   
+  void testWeirdMod(int x) {
+    assert(x % 4 == 3);
+    assert(x % 3 == 0);
+  }
+  
   void main() {
     testRightPos(12);
     testLeftPos(12);
     testRightNeg(12);
     testLeftNeg(12);
+    testWeirdDivision(12);
+    testWeirdMod(15);
   }
 }

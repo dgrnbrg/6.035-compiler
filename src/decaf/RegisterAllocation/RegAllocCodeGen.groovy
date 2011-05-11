@@ -137,8 +137,12 @@ class RegAllocCodeGen extends CodeGenerator {
       break
     case LowIrIntLiteral:
       assert stmt.tmpVar instanceof RegisterTempVar
-      if(stmt.useless == false)
-        movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
+      if(stmt.useless == false) {
+        if(stmt.value == 0)
+          xor(getTmp(stmt.tmpVar), getTmp(stmt.tmpVar));
+        else
+          movq(new Operand(stmt.value), getTmp(stmt.tmpVar))
+      }
       break
     case LowIrBoundsCheck:
       doBoundsCheck(stmt.lowerBound, stmt.upperBound, getTmp(stmt.testVar), stmt.desc.name)
@@ -278,6 +282,9 @@ println "#######################################################################
         }
         break
       case MUL:
+        //if(0 <= stmt.constant && stmt.constant < 10) {
+        
+        //}
         if(stmt.input == stmt.tmpVar) {
           imul(stmt.constant, getTmp(stmt.input));
         } else {
@@ -331,11 +338,16 @@ println "#######################################################################
         assert stmt.input.registerName == 'rax'
         
         // Here is where you should put the mod 4 peephole code.
-        cqo()
-        push(rcx)
-        movq(stmt.constant, rcx);
-        idiv(rcx)
-        pop(rcx)
+        if(!(stmt.constant & (stmt.constant - 1)) && stmt.constant >= 0) {
+          and(stmt.constant - 1, getTmp(stmt.input));
+          movq(rax, rdx);
+        } else {
+          cqo()
+          push(rcx)
+          movq(stmt.constant, rcx);
+          idiv(rcx)
+          pop(rcx)
+        }
         break;
       default:
         throw new RuntimeException("still haven't implemented that yet: $stmt $stmt.op")

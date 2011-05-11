@@ -231,7 +231,7 @@ public class GroovyMain {
       opts += ['ssa', 'regalloc']
     }
     if ('peep' in argparser['opt']) {
-      opts += ['ssa', 'peep']
+      opts += ['ssa', 'peep', 'regalloc']
     }
     if ('inline' in argparser['opt'] || 'all' in argparser['opt']) {
       lowirGen.inliningThreshold = 50
