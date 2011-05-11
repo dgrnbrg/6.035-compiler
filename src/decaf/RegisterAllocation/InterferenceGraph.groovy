@@ -1,4 +1,4 @@
-package decaf
+package decaf.RegisterAllocation
 
 import groovy.util.*
 import decaf.*
@@ -144,6 +144,24 @@ prof()
       }*/
 
       switch(node) {
+      case LowIrRightCurriedOp:
+        assert false; // Need to implement this!
+        switch(node.type) {
+        case BinOpType.DIV:
+          break;
+        case BinOpType.MOD:
+          break;
+        }
+        break;
+      case LowIrLeftCurriedOp:
+        assert false; // Need to implement this!
+        switch(node.type) {
+        case BinOpType.DIV:
+          break;
+        case BinOpType.MOD:
+          break;
+        }
+        break;
       case LowIrBinOp:
         // Handle modulo and division blocking.
         switch(node.op) {

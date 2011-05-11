@@ -1,4 +1,6 @@
-package decaf
+package decaf.RegisterAllocation
+
+import decaf.*
 import decaf.graph.*
 import static decaf.BinOpType.*
 import static decaf.Reg.eachRegNode

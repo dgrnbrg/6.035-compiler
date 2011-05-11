@@ -1,4 +1,4 @@
-package decaf
+package decaf.RegisterAllocation
 
 import groovy.util.*
 import decaf.*

@@ -1,4 +1,4 @@
-package decaf
+package decaf.RegisterAllocation
 
 import groovy.util.*
 import decaf.*
@@ -34,4 +34,16 @@ public class RegAllocStatistics {
 
     return tvLIILR;
   }
+  
+  static LinkedHashSet Getbalkj(MethodDescriptor methodDesc) {
+	
+  }
 }
+
+/*
+Spill Heuristic Notes:
+
+spill when used little, far apart
+
+longest-shortest path
+*/
