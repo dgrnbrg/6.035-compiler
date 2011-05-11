@@ -8,6 +8,8 @@ class HiIrGenerator {
 
   def methodSymTable
 
+  def inductionVars = []
+
   Closure c = { AST cur ->
     declVar('children',[])
     def symTable = cur.walkerDelegate.@properties['symTable']
@@ -105,6 +107,20 @@ class HiIrGenerator {
 
     case FLAT_EXPR:
       assert children.size() % 2 == 1
+// We do distribution here in the following way:
+//   if we determine that there's an induction variable in the flat expression,
+//      then we will reassociate it to be on top
+      def allLocs = children.findAll{ it instanceof Location && it}
+      def hasIV = allLocs.any{ it.descriptor.name in inductionVars }
+      def canCommute = children.findAll{ it instanceof BinOpType }.every{ it == BinOpType.ADD || it == BinOpType.MUL }
+      if (hasIV && canCommute) {
+        // it doesn't matter if there are multiples, because we only care to distribute one of them
+        def iv = children.find{ it instanceof Location && it.descriptor.name in inductionVars}
+        def index = children.indexOf(iv)
+        def indexLast = children.size()-1
+        children.putAt(index, children[indexLast])
+        children.putAt(indexLast, iv)
+      }
       while (children.size() != 1) {
         def left = children.remove(0)
         def op = children.remove(0)
@@ -153,6 +169,9 @@ class HiIrGenerator {
 
     case ID:
       parent.children << cur.getText()
+      if (parent.getType() == TK_for) {
+        inductionVars << cur.getText()
+      }
       break
 
     case METHOD_DECL:
