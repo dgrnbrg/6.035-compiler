@@ -110,7 +110,7 @@ class HiIrGenerator {
 // We do distribution here in the following way:
 //   if we determine that there's an induction variable in the flat expression,
 //      then we will reassociate it to be on top
-      def allLocs = children.findAll{ it instanceof Location && it}
+      def allLocs = children.findAll{ it instanceof Location && it.descriptor }
       def hasIV = allLocs.any{ it.descriptor.name in inductionVars }
       def canCommute = children.findAll{ it instanceof BinOpType }.every{ it == BinOpType.ADD || it == BinOpType.MUL }
       if (hasIV && canCommute) {
