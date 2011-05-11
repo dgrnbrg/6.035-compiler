@@ -113,12 +113,12 @@ class DependencyAnalizer {
             continue
           }
         }
-println "$it"
+//println "$it"
         throw new UnparallelizableException()
       }
       //at this point, we know that each of these is either a product, invariant, or iv
-      println 'Write is:'
-      println "  $addr"
+      //println 'Write is:'
+      //println "  $addr"
       writes << addr
 //      products.eachWithIndex {it, index -> if (index != products.size() - 1) println "  $it +" else println "  $it" }
     }
@@ -172,7 +172,7 @@ println "$it"
       Traverser.eachNodeOf(startNode) { tmps2 += it.getDef(); tmps2 += it.getUses() }
       tmps2.remove(null)
       if (!tmps2.every{ tmp -> tmp.useSites.every{domComps2.dominates(tmp.defSite, it)} }) {
-        println "It was broke when I got here"
+        //println "It was broke when I got here"
       }
 
     assert outermostLoop.body.findAll{it instanceof LowIrStore && it.index == null}.size() == 0
@@ -203,7 +203,7 @@ println "$it"
       Traverser.eachNodeOf(startNode) { tmps += it.getDef(); tmps += it.getUses() }
       tmps.remove(null)
       if (!tmps.every{ tmp -> tmp.useSites.every{domComps.dominates(tmp.defSite, it)} }) {
-        println "Relocated $invariant which broke stuff"
+        //println "Relocated $invariant which broke stuff"
       }
     }
   }
@@ -326,8 +326,8 @@ println "$it"
       //find all the write IVs which don't apply to this read
       //this means that the read must not be in the inner IV's loopbody
       def ivsToTest = ivToInvariant.keySet().findAll{it != constantSym && readAddr.node in it.loop.body}
-println "IVS TO TEST = $ivsToTest"
-println "ivToInvariant.keySet() = ${ivToInvariant.keySet()}"
+//println "IVS TO TEST = $ivsToTest"
+//println "ivToInvariant.keySet() = ${ivToInvariant.keySet()}"
       for (iv in ivsToTest) {
         //if read lacks this IV, force it to fail
         //otherwise, make sure read's coeff >= write's coeff

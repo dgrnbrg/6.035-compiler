@@ -78,7 +78,7 @@ class LocalCSE {
             new LowIrBridge(mov).insertBefore(node)
           }
           node.excise()
-          println "OMNOMNOMNOMNOM CSE $node $node.label based on ${rewrite[expr]} ${rewrite[expr].label}"
+          //println "OMNOMNOMNOMNOM CSE $node $node.label based on ${rewrite[expr]} ${rewrite[expr].label}"
         } else {
           //add to map
           rewrite[expr] = node

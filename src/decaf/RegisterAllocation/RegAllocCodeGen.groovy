@@ -27,7 +27,7 @@ class RegAllocCodeGen extends CodeGenerator {
     assert method.svManager.firstSixFlags != null
     if(method.svManager.firstSixFlags.size() > 0) {
       method.svManager.firstSixFlags.keySet().each { tv -> 
-        println method.svManager.firstSixFlags
+        //println method.svManager.firstSixFlags
         Comment("load reg-args into spillvars for tv = $tv, sv = ${method.svManager.firstSixFlags[tv]}");
         assert tv.id >= 0 && tv.id < 6;
         movq(paramRegs[tv.id], getTmp(method.svManager.firstSixFlags[tv]));
@@ -39,7 +39,7 @@ class RegAllocCodeGen extends CodeGenerator {
     if(method.svManager.postSixColorFlags.size() > 0) {
       method.svManager.postSixColorFlags.keySet().each { ptv -> 
         Comment("load post-six args into registers for ptv = $ptv, reg = ${method.svManager.postSixColorFlags[ptv]}")
-        println method.svManager.postSixColorFlags
+        //println method.svManager.postSixColorFlags
         movq(GetPostSixParamTmp(ptv), method.svManager.postSixColorFlags[ptv]);
       }
     }
@@ -66,7 +66,7 @@ class RegAllocCodeGen extends CodeGenerator {
       assert tmp instanceof RegisterTempVar;
       return new Operand(Reg.getReg(tmp.registerName));
     case TempVarType.LOCAL: 
-      println tmp;
+      //println tmp;
       assert false; // We no longer have "locals".
     default:
       assert false
@@ -260,7 +260,7 @@ class RegAllocCodeGen extends CodeGenerator {
       break;
     case LowIrRightCurriedOp:
       // The right operand of these binops are constants
-println "###################################################################################"
+//println "###################################################################################"
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.input instanceof RegisterTempVar;
       switch (stmt.op) {
@@ -299,16 +299,16 @@ println "#######################################################################
           if (n <= 0) throw new IllegalArgumentException()
           return 31 - Integer.numberOfLeadingZeros(n)
         }
-        println "Carrying out special division operation."
+        //println "Carrying out special division operation."
         def e = stmt.constant
         def d = Math.abs(stmt.constant)
         if(e == 1) {
           movq(getTmp(stmt.input), getTmp(stmt.tmpVar));
         } else if (e == -1) {
-          println "Special Div took first if."
+          //println "Special Div took first if."
           neg(rax)
         } else if (d == 2) {
-          println "Special Div took second if."
+          //println "Special Div took second if."
           //todo: test
           cmp(0x80000000, rax)
           sbb(-1, rax)
@@ -316,7 +316,7 @@ println "#######################################################################
           if(e < 0) 
             neg(rax)
         } else if (!(d & (d - 1))) {
-          println "SpecialDiv took third if."
+          //println "SpecialDiv took third if."
           //assert false; // We need to make sure this line was tested, so the assert is here as a watch.
           cqo()
           and(d-1, rdx)
@@ -357,7 +357,7 @@ println "#######################################################################
       // The left operand of these binops are constants
       assert stmt.tmpVar instanceof RegisterTempVar;
       assert stmt.input instanceof RegisterTempVar;
-println "###################################################################################"
+//println "###################################################################################"
       switch (stmt.op) {
       case ADD:
         if(stmt.input == stmt.tmpVar) {

@@ -68,7 +68,7 @@ public class RegAllocLowIrModifier {
 
     node.numOriginalArgs = node.paramTmpVars.size();
 
-    println "size is now: ${node.paramTmpVars.size()}"
+    //println "size is now: ${node.paramTmpVars.size()}"
 
     while(node.paramTmpVars.size() > 6) {
       int pos = node.paramTmpVars.size()
@@ -94,7 +94,7 @@ public class RegAllocLowIrModifier {
         node.rightTmpVar = newRightVar;
 
         TempVar newOutputVar = methodDesc.tempFactory.createLocalTemp();
-        println "Doing it!: src: $newOutputVar, dst : ${node.tmpVar}"
+        //println "Doing it!: src: $newOutputVar, dst : ${node.tmpVar}"
         PlaceNodeAfterNode(node, new LowIrMov(src : newOutputVar, dst : node.tmpVar));
         node.tmpVar = newOutputVar
       }

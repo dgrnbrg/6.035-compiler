@@ -225,6 +225,7 @@ public class NeighborTable {
   }
 
   void PrettyPrint() {
+/*
     println "Here is the neighbor table... Omitted entries for RegisterTempVars."
     neighbors.keySet().each { n -> 
       if(n.representative instanceof RegisterTempVar == false) {
@@ -236,6 +237,7 @@ public class NeighborTable {
       }
     }
     println "------------------------------"
+*/
   }
 }
 

@@ -11,7 +11,7 @@ class UnaryCoalesce {
   }
 
   def run(methodDesc) {
-	println "unops being used"
+	//println "unops being used"
     Traverser.eachNodeOf(methodDesc.lowir) { node ->
       if (node instanceof LowIrBinOp && (node.op in [ADD, SUB, MUL, DIV, MOD])) {
         def right = coalesceMove(node.rightTmpVar.defSite)

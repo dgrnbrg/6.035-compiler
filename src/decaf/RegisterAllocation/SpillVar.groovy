@@ -80,14 +80,14 @@ class SpillVarManager {
   }
 
   void FlagOneOfFirstSixArgsForSpilling(TempVar paramTV) {
-    println "BLADDDDDDDDDDDDDDDDDDD paramTV = $paramTV"
+    //println "BLADDDDDDDDDDDDDDDDDDD paramTV = $paramTV"
     assert paramTV.type == TempVarType.PARAM
     assert (0 <= paramTV.id && paramTV.id < 6);
     assert firstSixFlags != null;
     assert firstSixFlags.keySet().size() <= 6;
     assert firstSixFlags.keySet().contains(paramTV) == false;
     firstSixFlags[paramTV] = requestNewSpillVar();
-    println "and the result is the sv = ${firstSixFlags[paramTV]}"
+    //println "and the result is the sv = ${firstSixFlags[paramTV]}"
   }
 
   void FlagOneOfPostSixArgsForSpilling(TempVar paramTV) {

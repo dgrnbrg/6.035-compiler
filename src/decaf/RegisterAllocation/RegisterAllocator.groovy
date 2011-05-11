@@ -37,7 +37,7 @@ public class RegisterAllocator {
     RegAllocLowIrModifier.MarkUselessIntLiterals(methodDesc)
     int numIterations = 0;
     while(RegAllocationIteration()) {
-      println "iteration $numIterations completed"
+      //println "iteration $numIterations completed"
       numIterations++;
 //      if (numIterations == 10) break
     }
@@ -364,8 +364,8 @@ public class RegisterAllocator {
       return goodSpills.first()
 
     if(badSpills.size() == 0) {
-      println "badSpills = $badSpills"
-      println "spillWorklist = $spillWorklist"
+      //println "badSpills = $badSpills"
+      //println "spillWorklist = $spillWorklist"
       assert false;
     }
 assert false

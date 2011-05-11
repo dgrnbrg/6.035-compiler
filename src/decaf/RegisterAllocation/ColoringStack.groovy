@@ -128,12 +128,12 @@ public class ColoringStack {
   }
 
   void PrettyPrint() {
-    println "Printing out the coloring stack (top most is oldest)";
+    //println "Printing out the coloring stack (top most is oldest)";
     theStack.each { csb ->
-      println "======================================="
-      println csb;
+      //println "======================================="
+      //println csb;
     }
-    println "======================================="
+    //println "======================================="
   }
 }
 

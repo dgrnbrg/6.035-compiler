@@ -242,7 +242,7 @@ public class GroovyMain {
       lowirGen.inliningThreshold = 0
     }
     if ('all' in argparser['opt']) {
-      opts += ['ssa', 'dce', 'pre', 'cp', 'sccp', 'dse', 'peep', 'regalloc', 'iva', 'unroll', 'inline']
+      opts += ['ssa', 'dce', 'cp', 'sccp', 'dse', 'peep', 'regalloc', 'iva']
     }
   }
 
@@ -356,7 +356,7 @@ public class GroovyMain {
     methodDescs.each { MethodDescriptor methodDesc ->
       methodDesc.lowir = lowirGen.destruct(methodDesc).begin
     }
-    println "Optimizations are: $opts"
+    //println "Optimizations are: $opts"
     
     methodDescs.each { MethodDescriptor methodDesc ->
       if ('ssa' in opts)
@@ -659,7 +659,7 @@ public class GroovyMain {
             def parallelBridge = new LowIrBridge(storeInvarsList)
             LowIrNode.link(parallelize, parallelBridge.begin)
             LowIrNode.link(parallelBridge.end, outermostLoop.exit.falseDest)
-            println "Generated parallel codes"
+            //println "Generated parallel codes"
           } catch (UnparallelizableException e) {
             print "$outermostLoop isn't parallelizable: error on line "
             println e.stackTrace.find{it.className.contains('DependencyAnal')}.lineNumber
@@ -674,15 +674,15 @@ public class GroovyMain {
       }
 
       if ('regalloc' in opts) {
-        println "stepping out of ssa form before register allocation."
+        //println "stepping out of ssa form before register allocation."
         SSAComputer.destroyAllMyBeautifulHardWork(methodDesc.lowir);
-        println "Register Allocator running!"
+        //println "Register Allocator running!"
         methodDesc.ra = new RegisterAllocator(methodDesc)
-        println "--------------------------------------------------------------"
-        println "Running Register Allocation for the method: ${methodDesc.name}"
-        println "--------------------------------------------------------------"
+        //println "--------------------------------------------------------------"
+        //println "Running Register Allocation for the method: ${methodDesc.name}"
+        //println "--------------------------------------------------------------"
         methodDesc.ra.RunRegAllocToFixedPoint()
-        println "now coloring the lowir for method: ${methodDesc.name}"
+        //println "now coloring the lowir for method: ${methodDesc.name}"
         //methodDesc.ra.ColorLowIr();
       }
     }

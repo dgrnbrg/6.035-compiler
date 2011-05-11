@@ -83,13 +83,13 @@ public class InterferenceGraph extends ColorableGraph {
   void ComputeInterferenceEdges() {
     edges = new LinkedHashSet()
 
-def t0
-def prof = { if (t0 == null) t0 = System.currentTimeMillis() else {println "profiler -- $it: ${System.currentTimeMillis()-t0}ms"; t0 = null } }
+//def t0
+//def prof = { if (t0 == null) t0 = System.currentTimeMillis() else {println "profiler -- $it: ${System.currentTimeMillis()-t0}ms"; t0 = null } }
 
     def varToLiveness = [:];
     variables.each { varToLiveness[it] = new LinkedHashSet() }
 
-prof()
+//prof()
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       def liveVars = node.anno['regalloc-liveness']
       liveVars.each { lv -> 
@@ -98,9 +98,9 @@ prof()
         }
       }
     }
-prof('computing cross edges')
+//prof('computing cross edges')
 
-prof()
+//prof()
     BuildNodeToColoringNodeMap();
     varToLiveness.keySet().each { v -> 
       varToLiveness[v].remove(v);
@@ -108,11 +108,11 @@ prof()
         AddEdgeUnsafe(new InterferenceEdge(GetColoringNodeUnsafe(v), GetColoringNodeUnsafe(lv)));
       }
     }
-prof('adding edges into graph')
+//prof('adding edges into graph')
 
-prof()
+//prof()
     UpdateAfterEdgesModified();
-prof('update after edges modified')
+//prof('update after edges modified')
 
     LazyMap ColorNodeMustBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
     LazyMap ColorsNodeCannotBe = new LazyMap({ new LinkedHashSet<InterferenceNode>() })
@@ -123,7 +123,7 @@ prof('update after edges modified')
         ColorNodeMustBe[GetColoringNodeUnsafe(v)] << Reg.getRegOfParamArgNum(v.id + 1);
     }
 
-prof()
+//prof()
     // Now handle odd/node-specific cases.
     Traverser.eachNodeOf(methodDesc.lowir) { node -> 
       BuildNodeToColoringNodeMap();
@@ -288,34 +288,34 @@ prof()
         break;
       }
     }
-prof('traversed graph')
+//prof('traversed graph')
 
     dbgOut "finished traversing."
 
     //dbgOut "final ColorNodeMustBe = $ColorNodeMustBe"
     //dbgOut "final ColorsNodeCannotBe = $ColorsNodeCannotBe"
 
-prof()
+//prof()
     BuildNodeToColoringNodeMap();
     ColorNodeMustBe.keySet().each { iNode ->
       ColorNodeMustBe[iNode].each { color -> 
         ForceNodeColor(iNode, color);      
       }
     }
-prof('forcenodecolor')
+//prof('forcenodecolor')
 
-prof()
+//prof()
     BuildNodeToColoringNodeMap();
     ColorsNodeCannotBe.keySet().each { iNode -> 
       ColorsNodeCannotBe[iNode].each { color -> 
         ForceNodeNotColor(iNode, color);
       }
     }
-prof('forcenodenotcolor')
+//prof('forcenodenotcolor')
 
-prof()
+//prof()
     UpdateAfterNodesModified();
-prof('update after modified')
+//prof('update after modified')
     dbgOut "The number of interference edges is: ${edges.size()}"
     //edges.each { e -> dbgOut "$e" }
   }
@@ -411,11 +411,11 @@ prof('update after modified')
     BuildNodeToColoringNodeMap();
 
     if(nodeToColoringNode.keySet().contains(tv) == false) {
-      println tv;
-      println "nodeToColoringNode = "
-      nodeToColoringNode.keySet().each { n -> 
-        println " n = $n, cn = ${nodeToColoringNode[n]}"
-      }
+      //println tv;
+      //println "nodeToColoringNode = "
+      //nodeToColoringNode.keySet().each { n -> 
+        //println " n = $n, cn = ${nodeToColoringNode[n]}"
+      //}
     }
     //assert nodeToColoringNode.keySet().contains(tv);
     //assert nodeToColoringNode[tv].nodes.contains(tv);
@@ -514,7 +514,7 @@ prof('update after modified')
             hasRelation = true;
         }
         if(!hasRelation) {
-          println "B:LJDF: $n, $mrn, ${GetColoringNode(mrn)}"
+          //println "B:LJDF: $n, $mrn, ${GetColoringNode(mrn)}"
         }
         assert hasRelation;
       }
