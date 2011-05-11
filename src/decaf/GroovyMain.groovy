@@ -385,7 +385,8 @@ public class GroovyMain {
     }
     methodDescs.clone().each { MethodDescriptor methodDesc ->
       if ('iva' in opts) {
-
+        def reachableNodes = new HashSet()
+        Traverser.eachNodeOf(methodDesc.lowir) { reachableNodes << it }
         def iva = new InductionVariableAnalysis()
         iva.analize(methodDesc)
         def depAnal = new DependencyAnalizer()
@@ -401,6 +402,9 @@ public class GroovyMain {
           if (outermostLoop.body.findAll{it instanceof LowIrMethodCall ||
                                          it instanceof LowIrCallOut ||
                                          it instanceof LowIrReturn}.size() > 0) return
+          //make sure no def inside the loop "escapes"
+          def useSitesOfDefsInLoop = outermostLoop.body.findAll{it.getDef() != null}*.getDef()*.useSites.flatten()
+          if (useSitesOfDefsInLoop.intersect(reachableNodes).any{!(it in outermostLoop.body)}) { return }
           try {
             def writes = depAnal.extractWritesInSOPForm(outermostLoop, iva.basicInductionVars, iva.domComps)
             if (writes.size() == 0) return
