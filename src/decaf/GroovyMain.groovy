@@ -440,32 +440,36 @@ public class GroovyMain {
                 addr.ivToInvariants.values().flatten().findAll{it != 1} + addr.invariants
               )
             }
+            //relocate all write invariants
             writes.each { addr ->
               depAnal.speculativelyMoveInnerLoopInvariantsToOuterLoop(
                 methodDesc.lowir,
                 outermostLoop,
                 addr.ivToInvariants.values().flatten().findAll{it != 1} + addr.invariants
               )
-              //now, we generate the runtime check
-              def domComps = new DominanceComputations()
-              domComps.computeDominators(methodDesc.lowir)
-              def landingPad = outermostLoop.header.predecessors.find{domComps.dominates(it, outermostLoop.header)}
-              LowIrNode.unlink(landingPad, outermostLoop.header)
-              def oldLoopBegin = new LowIrNode(metaText: 'parallelize fail dest')
-              def check = depAnal.generateParallelizabilityCheck(
+            }
+            //now, we generate the runtime check
+            def check = parallelize
+            def oldLoopBegin = new LowIrNode(metaText: 'parallelize fail dest')
+            def domComps = new DominanceComputations()
+            domComps.computeDominators(methodDesc.lowir)
+            def landingPad = outermostLoop.header.predecessors.find{domComps.dominates(it, outermostLoop.header)}
+            LowIrNode.unlink(landingPad, outermostLoop.header)
+            LowIrNode.link(oldLoopBegin, outermostLoop.header)
+            writes.each { addr ->
+              check = depAnal.generateParallelizabilityCheck(
                 methodDesc,
                 addr,
                 reads.findAll{it.node.desc == addr.node.desc},
-                parallelize,
+                check,
                 oldLoopBegin
               )
-              LowIrNode.link(landingPad, check)
-              LowIrNode.link(oldLoopBegin, outermostLoop.header)
             }
+            LowIrNode.link(landingPad, check)
             def parallelFuncPostfix = "par_${methodDesc.name}_${outermostLoop.header.hashCode() % 100}"
             //find all loop invariant tempVars in the possibly parallelizable loop
             def tmpsInLoop = new LinkedHashSet(outermostLoop.body*.getUses().flatten())
-            def domComps = new DominanceComputations()
+            domComps = new DominanceComputations()
             domComps.computeDominators(methodDesc.lowir)
             def loopInvariants = new ArrayList(tmpsInLoop.findAll{domComps.dominates(it.defSite, outermostLoop.header)})
             def outermostInductionVar = iva.basicInductionVars.find{it.loop == outermostLoop}
@@ -661,8 +665,8 @@ public class GroovyMain {
             LowIrNode.link(parallelBridge.end, outermostLoop.exit.falseDest)
             //println "Generated parallel codes"
           } catch (UnparallelizableException e) {
-            print "$outermostLoop isn't parallelizable: error on line "
-            println e.stackTrace.find{it.className.contains('DependencyAnal')}.lineNumber
+//            print "$outermostLoop isn't parallelizable: error on line "
+//            println e.stackTrace.find{it.className.contains('DependencyAnal')}.lineNumber
           }
         }
       }

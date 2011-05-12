@@ -199,8 +199,10 @@ public class RegisterAllocator {
     dbgOutSimplify "Now running Simplify()."
     // Determine is there is a non-move-related node of low (< K) degree in the graph.
     ig.Validate();
-    InterferenceNode nodeToSimplify = null;
+//    InterferenceNode nodeToSimplify = null;
     int curMinDegree = 100000;
+
+    def nodesToSimplify = []
 
     ig.nodes.each { iNode -> 
       //if(iNode.isMovRelated() && ig.isSigDeg(iNode))
@@ -210,18 +212,29 @@ public class RegisterAllocator {
       else if(iNode.representative instanceof RegisterTempVar)
         return;
       int thisDegree = ig.neighborTable.GetDegree(iNode);
-      if(nodeToSimplify == null || thisDegree < curMinDegree) {
+      if(thisDegree < curMinDegree) {
         curMinDegree = thisDegree;
-        nodeToSimplify = iNode;
+        nodesToSimplify << iNode;
       }
     }
 
-    if(nodeToSimplify != null) {
+    def degCmp
+    degCmp = [
+      compare: {a, b ->
+        if (a.is(b)) return 0
+        return ig.neighborTable.GetDegree(a) <=> ig.neighborTable.GetDegree(b)
+      },
+      equals: { return it == degCmp }
+    ] as Comparator
+    Collections.sort(nodesToSimplify, degCmp)
+
+    for (nodeToSimplify in nodesToSimplify) {
       dbgOutSimplify "+ Found a node to simplify: $nodeToSimplify"
       theStack.PushNodeFromGraphToStack(nodeToSimplify);
       ig.Validate();
-      return true;
     }
+
+    if (!nodesToSimplify.isEmpty())  return true;
 
     ig.Validate();
     dbgOutSimplify "- Could not find a node to simplify."

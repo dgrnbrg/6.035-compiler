@@ -385,11 +385,11 @@ public class InterferenceGraph extends ColorableGraph {
         AddEdgeUnsafe(new InterferenceEdge(nodeToForce, GetColoringNodeUnsafe(r.GetRegisterTempVar())));
     }
 
-    UpdateAfterEdgesModified();
+//    UpdateAfterEdgesModified();
   }
 
   public void ForceNodeNotColor(InterferenceNode nodeToForce, Reg color) {
-    AddEdge(new InterferenceEdge(nodeToForce, GetColoringNodeUnsafe(color.GetRegisterTempVar())));
+    AddEdgeUnsafe(new InterferenceEdge(nodeToForce, GetColoringNodeUnsafe(color.GetRegisterTempVar())));
   }
 
   ColoringNode GetColoringNodeUnsafe(def tv) {

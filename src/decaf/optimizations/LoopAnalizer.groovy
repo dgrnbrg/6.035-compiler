@@ -71,7 +71,7 @@ class LoopAnalizer {
       case LowIrLoad:
         return new LowIrLoad(
           desc: node.desc,
-          index: tmpCopyMap[node.index],
+          index: node.index ? tmpCopyMap[node.index] : null,
           tmpVar: tmpCopyMap[node.tmpVar]
         )
       case LowIrStore:
